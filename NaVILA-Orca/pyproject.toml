@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "navila-orca"
+version = "0.1.0"
+description = "Simulator-independent NaVILA navigation pipeline for OrcaLab/OrcaGym"
+requires-python = ">=3.10"
+dependencies = [
+  "grpcio>=1.60",
+  "numpy>=1.26",
+  "Pillow>=10",
+]
+
+[project.optional-dependencies]
+orca = [
+  "av>=12",
+  "opencv-python>=4.10",
+  "torch>=2.6",
+  "websockets>=12",
+]
+test = ["pytest>=8"]
+
+[project.scripts]
+navila-orca = "navila_orca.cli:main"
+navila-orca-render-server = "navila_orca.render.grpc_bridge:server_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+

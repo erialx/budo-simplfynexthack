@@ -1,0 +1,53 @@
+# Local environments and caches
+.conda/
+.downloads/
+.cache/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE and OS metadata
+.vscode/
+.idea/
+.DS_Store
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Model weights and large generated artifacts
+models/
+*.safetensors
+*.ckpt
+*.pth
+*.onnx
+*.engine
+
+# NaVILA-Bench downloaded assets and runtime results
+NaVILA-Bench/isaaclab_exts/omni.isaac.vlnce/assets/
+NaVILA-Bench/eval_results/
+NaVILA-Bench/logs/
+
+# NaVILA-Orca runtime outputs and machine-local component links
+NaVILA-Orca/outputs/
+NaVILA-Orca/artifacts/
+NaVILA-Orca/components/*
+!NaVILA-Orca/components/README.md
+
+# Local integration symlinks; requirements install the Bench extensions directly
+IsaacLab/source/extensions/omni.isaac.matterport
+IsaacLab/source/extensions/omni.isaac.vlnce
+
+# Generated media and measurements
+*.mp4
+*.avi
+*.mov
+*.log
+events.out.tfevents.*
+
