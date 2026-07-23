@@ -33,6 +33,8 @@ from .render.orca_camera import (
     DEFAULT_CAMERA_MOUNT_POSITION,
     DEFAULT_CAMERA_MOUNT_QUAT_WXYZ,
     OrcaGrpcPngCamera,
+    OrcaMujocoCameraFollower,
+    OrcaMujocoPngCamera,
 )
 from .runner import NavigationRunner
 from .training import (
@@ -236,9 +238,14 @@ def _make_renderer(
             None,
         )
     camera_factory = None
+    follower_factory = None
     if args.camera_transport == "grpc-png":
+        camera_class = OrcaGrpcPngCamera
+        if args.orcalab_camera_mode == "mujoco-png":
+            camera_class = OrcaMujocoPngCamera
+            follower_factory = OrcaMujocoCameraFollower
         camera_factory = partial(
-            OrcaGrpcPngCamera,
+            camera_class,
             edit_address=args.orcalab_edit_address,
             timeout_s=args.render_timeout,
         )
@@ -279,6 +286,7 @@ def _make_renderer(
             camera_mount_quat_wxyz=args.camera_mount_quat_wxyz,
             stabilize_camera_horizon=args.stabilize_camera_horizon,
             camera_factory=camera_factory,
+            camera_follower_factory=follower_factory,
         ),
         None,
     )
@@ -616,6 +624,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--grpc-render-address")
     run.add_argument("--orcagym-address", default="127.0.0.1:50051")
     run.add_argument("--orcalab-edit-address", default="127.0.0.1:50151")
+    run.add_argument("--orcalab-camera-mode", choices=("agent-data-png", "mujoco-png"), default="mujoco-png")
     run.add_argument("--camera-port", type=int, default=7070)
     run.add_argument("--camera-name", default="navila_ego")
     run.add_argument(
@@ -679,8 +688,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--scene-profile",
-        choices=("mjlab-train", "orca-runtime"),
-        default="mjlab-train",
+        choices=("orca-train", "orca-runtime"),
+        default="orca-train",
         help="MuJoCo option profile used for both downloaded XML and remote scene",
     )
     run.add_argument(

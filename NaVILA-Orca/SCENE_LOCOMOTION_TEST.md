@@ -9,7 +9,10 @@
 1. 当前 layout 中放入且只放入一个完整 Go2 prefab；actor 名称不限。程序按全部 12 个
    Go2 关节自动识别，不能把 level camera、单个 mesh 或不完整的机器人当作 Go2。
 2. OrcaLab 使用 no-simulation/external 模式，`127.0.0.1:50051` 和
-   `127.0.0.1:50151` 可用。不要再启动另一个 OrcaLab。
+   `127.0.0.1:50151` 可用。不要再启动另一个 OrcaLab。切换场景后先在该
+   模式启动当前场景（此操作会由 OrcaLab 发布场景），然后执行
+   `./scripts/apply_orcalab_scene_profile.sh`；脚本会向远端 MuJoCo runtime
+   写入并回读验证 `orca-train` option，不会改动该场景的 3DGS 资产。
 
 当前检查到的 OrcaStudio 缓存
 `/home/user/Orca/OrcaStudio/{3DB8A56E-2458-4543-93A1-1A41756B97DA}/tmp/out.xml`
@@ -63,7 +66,7 @@ Move straight toward the orange rectangular cabinet between the blue barrel and 
 --no-publish
 --robot-actor-name auto
 --anchor-existing-scene
---scene-profile mjlab-train
+--scene-profile orca-train
 --strict-scene-alignment
 --manual-xml-override
 --instruction-file prompts/orcalab_scene_locomotion.txt
@@ -87,7 +90,7 @@ outputs/scene_locomotion_smoke/frames/
 `scene_alignment.json` 会记录原始 XML、覆盖 XML、识别出的 actor、qpos 映射、实际
 MuJoCo 参数和非机器人 collision geom 数量。
 
-本机当前是 OrcaLab/OrcaGym `26.5.1`、`mujoco-warp 3.5.0`、Python `mujoco 3.7.0`；
+本机当前固定 OrcaLab/OrcaGym `26.6.3`、`mujoco-warp 3.5.0`、Python `mujoco 3.7.0`；
 OrcaLocomotion 参考仓库把 Python `mujoco` 固定为 `3.5.0`。当前组合通过了 Go2
 MJWarp 单步测试，但若目标是逐数值复现参考仓库，仍应另建 `mujoco 3.5.0` 环境，避免
 直接降级并破坏现在可运行的 OrcaLab 环境。

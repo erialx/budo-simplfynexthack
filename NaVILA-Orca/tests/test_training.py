@@ -15,8 +15,8 @@ COMPATIBLE = {
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",
     "rsl-rl-lib": "5.0.1",
-    "orca-gym": "26.5.1",
-    "orca-lab": "26.5.1",
+    "orca-gym": "26.6.3",
+    "orca-lab": "26.6.3",
 }
 
 
@@ -58,14 +58,15 @@ def test_compatible_versions_are_accepted() -> None:
     ensure_compatible_versions(COMPATIBLE)
 
 
-def test_compatible_release_families_are_accepted() -> None:
+def test_unverified_orcalab_patch_releases_are_rejected() -> None:
     versions = {
         **COMPATIBLE,
         "rsl-rl-lib": "5.3.2",
         "orca-gym": "26.5.9",
         "orca-lab": "26.5.12",
     }
-    ensure_compatible_versions(versions)
+    with pytest.raises(CompatibilityError, match="orca-gym: found 26.5.9, expected 26.6.3"):
+        ensure_compatible_versions(versions)
 
 
 def test_version_error_reports_all_missing_and_mismatched_packages() -> None:
@@ -84,5 +85,5 @@ def test_version_error_reports_all_missing_and_mismatched_packages() -> None:
     assert "mjlab: found 1.5.2, expected 1.2.0" in message
     assert "mujoco-warp: found 3.10.0, expected 3.5.0" in message
     assert "rsl-rl-lib: found 6.0.0, expected 5.x" in message
-    assert "orca-gym: found 26.6.0, expected 26.5.x" in message
-    assert "orca-lab: not installed (expected 26.5.x)" in message
+    assert "orca-gym: found 26.6.0, expected 26.6.3" in message
+    assert "orca-lab: not installed (expected 26.6.3)" in message

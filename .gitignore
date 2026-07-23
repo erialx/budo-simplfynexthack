@@ -50,4 +50,3 @@ IsaacLab/source/extensions/omni.isaac.vlnce
 *.mov
 *.log
 events.out.tfevents.*
-

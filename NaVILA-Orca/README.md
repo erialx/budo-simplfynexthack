@@ -21,8 +21,18 @@ NaVILA-Orca 是 NaVILA 导航循环到 Orca/MuJoCo Warp 技术栈的第一阶段
 | 组件 | 兼容版本 |
 | --- | --- |
 | Python | 3.12 |
-| OrcaLab | 26.5.x，当前 26.5.1 |
-| OrcaGym | 26.5.x，当前 26.5.1 |
+| OrcaLab | 26.6.3（精确锁定） |
+| OrcaGym | 26.6.3（精确锁定） |
+
+常驻 Go2 ego camera 使用 26.6.3 的 `prefabs/mujococamera1080` 与
+`GetCameraPNG`；不依赖 26.6.x 中缺失属性的 `prefabs/agentcamera`。
+详见 [OrcaLab 26.6.3 MuJoCo camera](docs/ORCALAB_26_6_3_MUJOCO_CAMERA.md)。
+
+`./scripts/start_orcalab_gui.sh` 现在会默认启动一个 scene-profile watcher。
+每次 GUI 打开或切换到新场景、其 MuJoCo runtime 出现后，watcher 自动注入并回读验证
+`orca-train` 的全局 option（5 ms、ImplicitFast、10/20/50 solver、重力和关闭空气阻力）。
+它不会重新发布场景、修改 3DGS 资产或要求先有 Go2。对于已经手动打开的 GUI，可单独运行
+`./scripts/watch_orcalab_scene_profile.sh`；结束 GUI 后按 Ctrl-C 停止 watcher。
 | MuJoCo | 当前环境 3.7.0 |
 | mujoco-warp | 3.5.0 |
 | mjlab | 1.2.0 |

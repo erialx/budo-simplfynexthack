@@ -45,7 +45,7 @@ def test_orcalab_run_defaults_preserve_and_align_existing_scene():
     assert args.no_publish is False
     assert args.robot_actor_name == "auto"
     assert args.anchor_existing_scene is True
-    assert args.scene_profile == "mjlab-train"
+    assert args.scene_profile == "orca-train"
     assert args.strict_scene_alignment is True
     assert args.manual_xml_override is True
     assert args.randomized_play is False

@@ -17,6 +17,8 @@ dependencies = [
 orca = [
   "av>=12",
   "opencv-python>=4.10",
+  "orca-gym==26.6.3",
+  "orca-lab==26.6.3",
   "torch>=2.6",
   "websockets>=12",
 ]
@@ -32,4 +34,3 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
-

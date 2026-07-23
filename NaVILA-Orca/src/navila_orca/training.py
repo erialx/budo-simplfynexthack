@@ -36,8 +36,8 @@ COMPATIBLE_VERSION_SPECS = {
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",
     "rsl-rl-lib": "5.x",
-    "orca-gym": "26.5.x",
-    "orca-lab": "26.5.x",
+    "orca-gym": "26.6.3",
+    "orca-lab": "26.6.3",
 }
 
 
@@ -95,9 +95,9 @@ def _matches_version(distribution: str, installed: str) -> bool:
         )
     if expected == "5.x":
         return re.fullmatch(r"5(?:\.\d+)+(?:\+[A-Za-z0-9._-]+)?", installed) is not None
-    if expected == "26.5.x":
+    if expected in {"26.5.1", "26.6.3"}:
         return (
-            re.fullmatch(r"26\.5(?:\.\d+)+(?:\+[A-Za-z0-9._-]+)?", installed)
+            re.fullmatch(re.escape(expected) + r"(?:\+[A-Za-z0-9._-]+)?", installed)
             is not None
         )
     raise AssertionError(f"Unhandled compatibility spec: {distribution} {expected}")

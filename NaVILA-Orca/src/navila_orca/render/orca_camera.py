@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import os
 import socket
 import tempfile
 import time
@@ -142,7 +143,10 @@ def _load_orca_runtime() -> _OrcaRuntime:
 
     try:
         actor_module = importlib.import_module("orcalab.actor")
-        math_module = importlib.import_module("orcalab.math")
+        try:
+            math_module = importlib.import_module("orcalab.transform")
+        except ModuleNotFoundError:
+            math_module = importlib.import_module("orcalab.math")
         path_module = importlib.import_module("orcalab.path")
         property_module = importlib.import_module("orcalab.actor_property")
         edit_types_module = importlib.import_module("orcalab.scene_edit_types")
@@ -242,6 +246,10 @@ class OrcaEgoCameraFollower:
         runtime = self._runtime_factory()
         service = runtime.service_factory()
         try:
+            if self._loop is None:
+                self._loop = asyncio.new_event_loop()
+                self._owns_loop = True
+            asyncio.set_event_loop(self._loop)
             service.init_grpc(self.edit_address)
             self._runtime = runtime
             self._service = service
@@ -601,3 +609,81 @@ class OrcaGrpcPngCamera:
                 loop.run_until_complete(service.destroy_grpc())
             finally:
                 loop.close()
+
+
+class OrcaMujocoPngCamera(OrcaGrpcPngCamera):
+    """Persistent ``mujococamera*`` actor captured through ``GetCameraPNG``."""
+
+    def __init__(self, *args: Any, remote_camera_name: str = "mujococamera1080", **kwargs: Any) -> None:
+        super().__init__(*args, remote_camera_name=remote_camera_name, **kwargs)
+
+    def get_frame(self, format: str = "rgb24") -> tuple[np.ndarray, int]:
+        if format not in {"rgb24", "bgr24"}:
+            raise ValueError("OrcaMujocoPngCamera supports rgb24 or bgr24")
+        if self._service is None or self.output_dir is None:
+            raise OrcaCameraError("gRPC PNG camera has not been started")
+        index = self._request_index
+        self._request_index += 1
+        filename = f"{self.remote_camera_name}_{index}.png"
+        path = os.path.join(self.output_dir, filename)
+        if not self._run(self._service.get_camera_png(self.remote_camera_name, self.output_dir, filename)):
+            raise OrcaCameraError(f"Orca camera {self.remote_camera_name!r} refused PNG capture")
+        deadline = time.monotonic() + self.timeout_s
+        last_error: Exception | None = None
+        while True:
+            try:
+                with Image.open(path) as image:
+                    array = np.asarray(image.convert("RGB"), dtype=np.uint8).copy()
+                break
+            except (OSError, SyntaxError, ValueError) as exc:
+                last_error = exc
+                if time.monotonic() >= deadline:
+                    raise OrcaCameraError(f"Orca camera PNG was not readable: {path}: {last_error}") from exc
+                time.sleep(0.01)
+        if format == "bgr24":
+            array = np.ascontiguousarray(array[..., ::-1])
+        self._frame_index += 1
+        self._received_first_frame = True
+        return array, self._frame_index
+
+
+class OrcaMujocoCameraFollower(OrcaEgoCameraFollower):
+    """Persistent 26.6+ MuJoCo camera without agentcamera stream properties."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._created_actor = False
+
+    async def _start_async(self) -> None:
+        assert self._runtime is not None
+        assert self._service is not None
+        assert self._actor_path is not None
+        # OrcaLab 26.6.3's wrapper can report ``aloha() == False`` even while
+        # its public AddActor/GetCameraPNG RPCs are available.  The add call
+        # below is the authoritative reachability check.
+        try:
+            await self._service.get_actor_property_groups_batch([self._actor_path])
+            return
+        except Exception:
+            pass
+        actor = self._runtime.asset_actor_type(self.actor_name, self.asset_path)
+        actor.transform = self._runtime.transform_type(
+            position=self.mount_position.copy(), rotation=self.mount_quat_wxyz.copy(), scale=1.0
+        )
+        request = self._runtime.add_actor_request_type(actor, self._runtime.path_type.root_path())
+        try:
+            await self._service.add_actor_batch([request])
+        except TypeError:
+            added, errors = await self._service.add_actor_batch([request], True)
+            if not added:
+                raise OrcaCameraError("failed to add persistent MuJoCo camera: " + "; ".join(errors))
+        self._created_actor = True
+
+    def close(self) -> None:
+        if self._created_actor and self._service is not None and self._actor_path is not None:
+            try:
+                self._run(self._service.delete_actor_batch([self._actor_path]))
+            except Exception:
+                pass
+        self._created_actor = False
+        super().close()
