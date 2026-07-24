@@ -37,7 +37,7 @@ cd /path/to/NaVILA-Orca
 conda activate orcalab
 python -m pip install -e '.[orca]'
 python -m navila_orca.cli doctor
-python -m navila_orca.training --check-only
+python -m navila_orca.training
 ```
 
 `doctor` 中以下四个路径必须为 `exists: true`：默认任务、`default_set.json`、`go2_flat.pt`、Go2 XML。版本不一致时先不要继续做场景实验。
@@ -154,24 +154,11 @@ conda activate orcalab
 
 比较两组 RGB 帧和 NaVILA 动作。相机位置改变的不是物理控制器，而是 VLM 的观察；因此若结果变化，应该从视觉信息变化解释。
 
-## 七、训练 Go2（进阶）
+## 七、接入自定义 Go2 policy（进阶）
 
-这里训练的是**低层行走策略**，不是 NaVILA。它学习在给定速度命令时稳定走路：
+默认 checkpoint 已足够复现 VLN baseline。若要使用自行训练的 low-level policy，可以选择 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion)、IsaacLab 或其他训练平台；训练平台不属于本项目的限制范围。
 
-```bash
-./scripts/train_go2.sh --agent.max-iterations 15001
-```
-
-训练日志写入 `logs/`，不会进入分发包。训练完成后，将得到的 checkpoint 传给导航脚本：
-
-```bash
-./scripts/run_orcalab_scene_locomotion.sh \
-  --checkpoint /absolute/path/to/your_checkpoint.pt
-```
-
-比较默认 checkpoint 与新 checkpoint 的起步、转向、停止是否平稳。不要把低层步态训练结果误解释为 NaVILA 语言能力提升。
-
-自定义低层策略时，以 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) 作为默认训练参考，并保持 `vx / vy / wz / duration` 的接口不变。完整约束见 [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md)。高层 NaVILA 的 SFT/LoRA 路径见 [VLN fine-tuning](VLN_FINE_TUNING.md)。
+MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自定义模型的接入重点是：Go2 关节顺序/符号、根部位姿、动作顺序、控制频率，以及 `vx / vy / wz / duration` 的速度命令接口。详细的直接加载与 adapter 路径见 [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md)。高层 NaVILA 的 SFT/LoRA 路径见 [VLN fine-tuning](VLN_FINE_TUNING.md)。
 
 ## 八、常见错误：先判断哪一层出了问题
 

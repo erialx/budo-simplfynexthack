@@ -1,38 +1,63 @@
-# Low-level locomotion: optional advanced track
+# Low-level locomotion: train anywhere, integrate deliberately
 
-The default Go2 checkpoint is part of the baseline. Participants do not need to train locomotion to build a navigation, inspection, or hazard-reporting demo. The recommended default is to keep the provided low-level policy fixed and innovate at the VLN layer.
+The packaged Go2 checkpoint is the runnable baseline. It is not a prescribed training framework. Participants can train a low-level policy in [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) (the default reference), IsaacLab, or another simulator/training stack.
 
-For teams working on gait quality, terrain response, recovery, or a new robot, [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) is the default reference project for low-level training in the Orca ecosystem.
+Orca_VLN uses MJLab only to run the supplied baseline and to expose a concrete alignment report for the Go2 model. It does not ask teams to retrain in MJLab.
 
-## What must remain stable
+## Stable runtime contract
 
-The high-level runtime talks to locomotion only through `VelocityCommand`:
+The VLN layer sends only a body-frame velocity target:
 
 ```text
-vx, vy, wz, duration_s  →  low-level policy  →  robot state and pose
+VelocityCommand(vx, vy, wz, duration_s) → low-level policy → RobotState + qpos
 ```
 
-Your custom policy may have a different observation vector, network, terrain representation, reward, or action space. It must still accept a body-frame velocity target and expose synchronized state at a known `control_dt`. Do not feed language tokens or NaVILA RGB history into the locomotion policy unless the team is explicitly building a new cross-layer research system.
+Your policy can use any observation vector, reward, terrain representation, action parameterization, or network architecture. The integration must preserve the command semantics and produce synchronized robot state at a known `control_dt`.
 
-## Recommended workflow
+## Two integration paths
 
-1. Reproduce the packaged flat-ground baseline unchanged.
-2. Use OrcaLocomotion as the source of truth for your custom low-level training environment and configuration.
-3. Train and validate the new policy in its own low-level environment.
-4. Verify stand, forward, turn, stop, and recovery behavior with fixed velocity commands.
-5. Export the checkpoint and run it through Orca_VLN with `--checkpoint`.
-6. Repeat the unchanged warehouse episode and compare motion chunks, drift, and final trace.
+### 1. Direct checkpoint replacement
+
+`--checkpoint` directly loads a checkpoint only when it has the same runtime ABI as the supplied `Unitree-Go2-Flat` policy: the same runner format, actor architecture, observation ordering, action order, and Go2 joint convention. This is appropriate for a policy retrained from the compatible Go2 task.
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \
-  --checkpoint /absolute/path/to/custom_go2_policy.pt
+  --checkpoint /absolute/path/to/compatible_go2_policy.pt
 ```
 
-## What to submit for this track
+### 2. Adapter integration
 
-- training configuration and checkpoint provenance;
-- a short description of the velocity-command interface;
-- baseline-versus-custom comparison on the same episode;
-- a run directory containing RGB frames, `measurements.json`, and the final trace.
+For an IsaacLab, OrcaLocomotion, or other policy with a different checkpoint/runner format, do not force it through `--checkpoint`. Implement a small backend adapter that satisfies `VelocityPhysicsBackend`:
 
-This keeps a locomotion innovation comparable to a VLN innovation: both use the same scene and report the same navigation evidence.
+```text
+reset(episode)                 -> RobotState
+set_velocity_command(command)  -> store vx, vy, wz target
+step()                         -> advance one control tick and return synchronized state
+control_dt                     -> policy tick duration
+qpos_batch                     -> current Go2 generalized position for OrcaLab rendering
+```
+
+This isolates all platform-specific loading, observation construction, action scaling, and physics stepping below the VLN boundary.
+
+## Alignment checklist
+
+Before connecting a custom policy to a live NaVILA run, verify:
+
+1. **Robot asset:** Go2 link names, joint names, joint limits, and neutral pose match the rendered robot.
+2. **Joint action ABI:** all 12 joints have the intended order and sign; use a low-amplitude per-joint sweep before policy rollout.
+3. **Observation ABI:** proprioception, command scaling, history, terrain features, and normalization match the policy that was trained.
+4. **Timing:** policy control period, action hold/decimation, and simulated duration agree with `VelocityCommand` chunks.
+5. **State bridge:** root pose is `(x, y, z, w, x, y, z)` in local qpos and `(w, x, y, z)` at the public contract boundary; renderer updates remain synchronized.
+6. **Motion checks:** stand, forward, turn, stop, and recovery pass before any VLM is connected.
+
+The baseline runner writes an alignment report into `measurements.json`. Use it as a reference when comparing your robot XML, action order, qpos map, and control period.
+
+## Suggested workflow
+
+1. Reproduce the supplied warehouse baseline unchanged.
+2. Train and validate a policy in OrcaLocomotion, IsaacLab, or your selected platform.
+3. Choose direct replacement only if the checkpoint ABI is compatible; otherwise build an adapter.
+4. Run fixed velocity tests before the VLN loop.
+5. Repeat the unchanged warehouse episode and compare drift, motion chunks, and final trace.
+
+For this advanced track, submit training provenance, an alignment note, and a baseline-versus-custom run directory. This keeps low-level research comparable to high-level VLN changes.

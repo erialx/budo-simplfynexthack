@@ -4,7 +4,6 @@ import pytest
 
 from navila_orca.training import (
     CompatibilityError,
-    build_go2_train_argv,
     compatibility_errors,
     ensure_compatible_versions,
 )
@@ -17,29 +16,6 @@ COMPATIBLE = {
     "orca-gym": "26.6.3",
     "orca-lab": "26.6.3",
 }
-
-
-def test_go2_train_argv_is_explicit_and_project_owned() -> None:
-    argv = build_go2_train_argv(
-        python="/opt/orca/bin/python",
-        task_id="Unitree-Go2-Flat",
-        max_iterations=1,
-    )
-
-    assert argv == [
-        "/opt/orca/bin/python",
-        "-m",
-        "navila_orca.go2_train",
-        "Unitree-Go2-Flat",
-        "--agent.max-iterations",
-        "1",
-    ]
-
-
-@pytest.mark.parametrize("iterations", [0, -4])
-def test_go2_train_argv_rejects_invalid_iteration_count(iterations: int) -> None:
-    with pytest.raises(ValueError, match="max_iterations"):
-        build_go2_train_argv(max_iterations=iterations)
 
 
 def test_compatible_versions_are_accepted() -> None:

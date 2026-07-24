@@ -1,4 +1,4 @@
-"""Pinned-environment checks for the bundled Go2 training source."""
+"""Runtime-alignment checks for the packaged Go2 baseline."""
 
 from __future__ import annotations
 
@@ -84,44 +84,13 @@ def probe_installed_versions(python: str | os.PathLike[str]) -> dict[str, str | 
     return json.loads(completed.stdout)
 
 
-def build_go2_train_argv(
-    *,
-    python: str | os.PathLike[str] = sys.executable,
-    task_id: str = "Unitree-Go2-Flat",
-    max_iterations: int = 15001,
-) -> list[str]:
-    if max_iterations < 1:
-        raise ValueError("max_iterations must be positive")
-    return [
-        os.fspath(python),
-        "-m",
-        "navila_orca.go2_train",
-        task_id,
-        "--agent.max-iterations",
-        str(max_iterations),
-    ]
-
-
-def run_go2_train(
-    *,
-    python: str | os.PathLike[str] = sys.executable,
-    task_id: str = "Unitree-Go2-Flat",
-    max_iterations: int = 15001,
-) -> subprocess.CompletedProcess[bytes]:
-    if not BUNDLED_GO2_XML.is_file():
-        raise FileNotFoundError(f"bundled Go2 XML is missing: {BUNDLED_GO2_XML}")
-    ensure_compatible_versions(probe_installed_versions(python))
-    return subprocess.run(build_go2_train_argv(python=python, task_id=task_id, max_iterations=max_iterations), check=True)
-
-
 def _build_parser() -> argparse.ArgumentParser:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Check or launch bundled Go2 training.")
-    parser.add_argument("--check-only", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Check the local MJLab/Go2 baseline alignment; this command does not train a policy."
+    )
     parser.add_argument("--python", default=sys.executable)
-    parser.add_argument("--task", default="Unitree-Go2-Flat")
-    parser.add_argument("--max-iterations", type=int, default=15001)
     return parser
 
 
@@ -129,10 +98,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     versions = probe_installed_versions(args.python)
     ensure_compatible_versions(versions)
-    if args.check_only:
-        print(json.dumps({"versions": versions, "go2_xml": str(BUNDLED_GO2_XML)}, indent=2))
-        return 0
-    run_go2_train(python=args.python, task_id=args.task, max_iterations=args.max_iterations)
+    if not BUNDLED_GO2_XML.is_file():
+        raise FileNotFoundError(f"bundled Go2 XML is missing: {BUNDLED_GO2_XML}")
+    print(json.dumps({"versions": versions, "go2_xml": str(BUNDLED_GO2_XML)}, indent=2))
     return 0
 
 

@@ -93,9 +93,6 @@ export NAVVLM_PYTHON=/path/to/navila/bin/python
 # Inspect the OrcaLab/MJLab runtime and packaged assets.
 python -m navila_orca.cli doctor
 
-# Train or replace the local Go2 locomotion policy.
-./scripts/train_go2.sh --agent.max-iterations 15001
-
 # Build a clean distributable archive.
 ./scripts/build_kit.sh
 ```
@@ -110,7 +107,7 @@ Orca_VLN can be handed to participants as a working baseline rather than a colle
 
 - [Architecture](NaVILA-Orca/docs/ARCHITECTURE.md): the stable high-level VLN ↔ low-level locomotion boundary.
 - [VLN SFT / LoRA](NaVILA-Orca/docs/VLN_FINE_TUNING.md): collect, review, adapt, and evaluate high-level navigation decisions.
-- [Low-level locomotion](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md): optional custom-policy track, with OrcaLocomotion as the default reference.
+- [Low-level locomotion](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md): train in OrcaLocomotion, IsaacLab, or another platform; integrate through the model-alignment contract.
 
 ## Contributing
 

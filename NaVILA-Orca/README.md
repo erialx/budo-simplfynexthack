@@ -13,7 +13,6 @@ For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The 
 Import `default_set.json` into an open industrial-warehouse 3DGS scene before running navigation. NaVILA itself remains a separate course-provided service; configure its server file with `NAVILA_SERVER_SCRIPT` and its model directory with `NAVVLM_MODEL_PATH`.
 
 ```bash
-./scripts/train_go2.sh --agent.max-iterations 15001
 ./scripts/build_kit.sh
 ```
 

@@ -48,10 +48,9 @@ The low-level layer owns balance, contact, gait generation, and joint action. Th
 
 What a team can change here:
 
-- Replace the Go2 checkpoint.
-- Train a new policy from a velocity-command task.
-- Add terrain features or a different robot adapter.
-- Use [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) as the default reference for a custom Orca low-level training stack.
+- Train a policy in [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion), IsaacLab, or another platform.
+- Export a checkpoint compatible with the baseline runner, or implement an adapter for a different policy ABI.
+- Add terrain features or a different robot adapter while preserving velocity-command semantics.
 
 The replacement must preserve the `VelocityPhysicsBackend` behavior: `reset`, `set_velocity_command`, `step`, `control_dt`, and synchronized state output. See [low-level locomotion](LOW_LEVEL_LOCOMOTION.md).
 
