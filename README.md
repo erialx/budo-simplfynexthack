@@ -1,5 +1,8 @@
 <p align="center">
   <img src="NaVILA-Orca/assets/brand/orca-vln-navigation-logo.png" alt="Orca_VLN quadruped robot and navigation path" width="240" />
+  <br />
+  <sub>Built with</sub><br />
+  <img src="NaVILA-Orca/assets/brand/orca-platform-logo-blue.png" alt="ORCA Lab by Songying Technology" width="150" />
 </p>
 
 <p align="center">
