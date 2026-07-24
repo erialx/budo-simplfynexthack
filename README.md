@@ -23,6 +23,15 @@ instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  n
 
 The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
+## Scene gallery
+
+<p align="center">
+  <img src="NaVILA-Orca/assets/cover/kitchen-overview.png" alt="Kitchen scene overview" height="260" />
+  <img src="NaVILA-Orca/assets/cover/kitchen-robot-view.png" alt="Robot in the kitchen scene" height="260" />
+  <img src="NaVILA-Orca/assets/cover/warehouse-corridor.png" alt="Warehouse corridor scene" height="260" />
+  <img src="NaVILA-Orca/assets/cover/warehouse-robot-view.png" alt="Robot in the warehouse scene" height="260" />
+</p>
+
 ## Quickstart
 
 ```bash
