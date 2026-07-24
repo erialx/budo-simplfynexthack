@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="NaVILA-Orca/assets/brand/orca-vln-navigation-logo.png" alt="Orca_VLN quadruped robot and navigation path" width="560" />
+</p>
+
+<p align="center">
   <h1 align="center">Orca_VLN</h1>
   <p align="center">
     A visual-language navigation example in OrcaLab.
@@ -23,7 +27,9 @@ instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  n
 
 The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
-## Scene gallery
+## Egocentric Observations & Simulator Views
+
+Each row pairs the agent’s ego observation (left) with its corresponding third-person simulator view (right).
 
 <p align="center">
   <img src="NaVILA-Orca/assets/presentation/kitchen-overview.png" alt="Kitchen scene overview" width="48%" />
