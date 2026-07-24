@@ -9,6 +9,11 @@
   </p>
 </p>
 
+<p align="center">
+  <img src="NaVILA-Orca/assets/cover/warehouse-overview.png" alt="OrcaLab warehouse navigation scene" width="49%" />
+  <img src="NaVILA-Orca/assets/cover/live-monitor.png" alt="Orca_VLN live monitor" width="49%" />
+</p>
+
 > **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
 > NaVILA maps language and ego RGB to the next navigation action; OrcaLab updates the scene and returns the next visual observation.
 
