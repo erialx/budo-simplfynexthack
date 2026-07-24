@@ -1,4 +1,4 @@
-"""Engine-neutral implementation of the NaVILA-Bench navigation measures."""
+"""Engine-neutral navigation measures used by the local OrcaLab scenario."""
 
 from __future__ import annotations
 

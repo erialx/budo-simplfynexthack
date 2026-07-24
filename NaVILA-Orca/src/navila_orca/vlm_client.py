@@ -35,7 +35,7 @@ def recv_exact(sock: socket.socket, size: int) -> bytes:
 
 
 class LengthPrefixedJsonVLMClient:
-    """Synchronous client compatible with ``NaVILA-Bench/scripts/vlm_server.py``."""
+    """Synchronous client for the bundled NavVLM TCP inference server."""
 
     def __init__(
         self,

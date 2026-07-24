@@ -1,8 +1,7 @@
-"""Load NaVILA-Bench episodes without importing Isaac Lab."""
+"""Load project-owned navigation scenarios without IsaacLab datasets."""
 
 from __future__ import annotations
 
-import gzip
 import json
 from pathlib import Path
 from typing import Any
@@ -10,62 +9,45 @@ from typing import Any
 import numpy as np
 
 from .contracts import EpisodeSpec
-from .paths import NAVILA_BENCH_ROOT
+from .paths import DEFAULT_DEMO_EPISODE
 
 
-DEFAULT_DATASET = (
-    NAVILA_BENCH_ROOT
-    / "isaaclab_exts/omni.isaac.vlnce/assets/vln_ce_isaac_v1.json.gz"
-)
+DEFAULT_SCENARIO = DEFAULT_DEMO_EPISODE
 
 
-def load_episode(path: str | Path = DEFAULT_DATASET, index: int = 0) -> EpisodeSpec:
-    """Load one episode from the Isaac-converted R2R dataset.
+def load_episode(path: str | Path = DEFAULT_SCENARIO) -> EpisodeSpec:
+    """Load one explicit scenario JSON supplied with this project."""
 
-    The arrays remain in the dataset/Matterport world frame.  A flat MJWarp
-    smoke therefore reports navigation metrics as non-authoritative unless a
-    matching Orca scene and coordinate transform are supplied.
-    """
-
-    dataset_path = Path(path).expanduser().resolve()
-    with gzip.open(dataset_path, "rt", encoding="utf-8") as stream:
-        payload: dict[str, Any] = json.load(stream)
-    episodes = payload.get("episodes")
-    if not isinstance(episodes, list):
-        raise ValueError(f"Dataset {dataset_path} has no 'episodes' list")
-    if not 0 <= index < len(episodes):
-        raise IndexError(f"Episode index {index} is outside [0, {len(episodes)})")
-
-    raw = episodes[index]
-    goals = raw.get("goals") or []
-    if not goals:
-        raise ValueError(f"Episode {index} has no goals")
-    instruction = raw.get("instruction", {})
-    instruction_text = (
-        instruction.get("instruction_text", "")
-        if isinstance(instruction, dict)
-        else str(instruction)
-    ).strip()
-    reference_path = _xyz_array(raw.get("reference_path"), "reference_path")
-    gt_locations = _xyz_array(
-        raw.get("gt_locations", raw.get("reference_path")), "gt_locations"
+    scenario_path = Path(path).expanduser().resolve()
+    with scenario_path.open(encoding="utf-8") as stream:
+        raw: dict[str, Any] = json.load(stream)
+    required = (
+        "episode_id",
+        "scene_id",
+        "instruction",
+        "start_position",
+        "start_quat_wxyz",
+        "goal_position",
+        "goal_radius",
+        "reference_path",
+        "gt_locations",
     )
-    start_position = _vector(raw.get("start_position"), 3, "start_position")
-    start_rotation = _vector(raw.get("start_rotation"), 4, "start_rotation")
-    goal_position = _vector(
-        goals[0].get("position", reference_path[-1]), 3, "goal.position"
-    )
-
+    missing = tuple(name for name in required if name not in raw)
+    if missing:
+        raise ValueError(
+            f"scenario {scenario_path} is missing required field(s): {', '.join(missing)}"
+        )
     return EpisodeSpec(
-        episode_id=str(raw.get("episode_id", index)),
-        scene_id=str(raw.get("scene_id", "")),
-        instruction=instruction_text,
-        start_position=start_position,
-        start_quat_wxyz=start_rotation,
-        goal_position=goal_position,
-        goal_radius=float(goals[0].get("radius", 3.0)),
-        reference_path=reference_path,
-        gt_locations=gt_locations,
+        episode_id=str(raw["episode_id"]),
+        scene_id=str(raw["scene_id"]),
+        instruction=str(raw["instruction"]).strip(),
+        start_position=_vector(raw["start_position"], 3, "start_position"),
+        start_quat_wxyz=_vector(raw["start_quat_wxyz"], 4, "start_quat_wxyz"),
+        goal_position=_vector(raw["goal_position"], 3, "goal_position"),
+        goal_radius=float(raw["goal_radius"]),
+        reference_path=_xyz_array(raw["reference_path"], "reference_path"),
+        gt_locations=_xyz_array(raw["gt_locations"], "gt_locations"),
+        metadata=dict(raw.get("metadata", {})),
     )
 
 

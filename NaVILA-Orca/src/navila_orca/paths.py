@@ -1,35 +1,25 @@
-"""Project-local paths for the source components used by NaVILA-Orca."""
+"""Paths owned by this distributable NaVLM-Orca project.
+
+There are deliberately no fallbacks to sibling repositories or absolute local
+checkouts.  Everything that the runtime needs beyond installed OrcaLab/MJLab
+distributions lives below this project root.
+"""
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-COMPONENTS_ROOT = Path(
-    os.environ.get("NAVILA_ORCA_COMPONENTS_ROOT", PROJECT_ROOT / "components")
-).expanduser()
+PACKAGE_ROOT = Path(__file__).resolve().parent
+ASSETS_ROOT = PACKAGE_ROOT / "assets"
+CHECKPOINT_ROOT = ASSETS_ROOT / "checkpoints"
+DEFAULT_GO2_CHECKPOINT = CHECKPOINT_ROOT / "go2_flat.pt"
+BUNDLED_GO2_XML = PACKAGE_ROOT / "go2_task/assets/robots/unitree_go2/xmls/go2.xml"
+SCENES_ROOT = PROJECT_ROOT / "scenes"
+DEFAULT_WAREHOUSE_SCENE = SCENES_ROOT / "default_warehouse"
+DEFAULT_GLOBAL_SETTINGS = PROJECT_ROOT / "default_set.json"
+DEFAULT_DEMO_EPISODE = DEFAULT_WAREHOUSE_SCENE / "demo_episode.json"
 
-
-def component_path(name: str, legacy_path: str, env_var: str) -> Path:
-    """Prefer a component below this project, then fall back to the old path."""
-
-    configured = os.environ.get(env_var)
-    if configured:
-        return Path(configured).expanduser()
-    local = COMPONENTS_ROOT / name
-    return local if local.exists() else Path(legacy_path)
-
-
-NAVILA_ROOT = component_path("NaVILA", "/home/user/VLN/NaVILA", "NAVILA_ROOT")
-NAVILA_BENCH_ROOT = component_path(
-    "NaVILA-Bench", "/home/user/VLN/NaVILA-Bench", "NAVILA_BENCH_ROOT"
-)
-ORCALAB_RSLRL_ROOT = component_path(
-    "OrcaLab-RSLRL", "/home/user/OrcaLab-RSLRL", "ORCALAB_RSLRL_ROOT"
-)
-UNITREE_RL_MJLAB_ROOT = component_path(
-    "unitree_rl_mjlab", "/home/user/unitree_rl_mjlab", "UNITREE_RL_MJLAB_ROOT"
-)
-ORCA_RL_ROOT = component_path("orca_rl", "/home/user/orca_rl", "ORCA_RL_ROOT")
+# This is project source, not an editable dependency or an external checkout.
+GO2_TASK_PACKAGE = "navila_orca.go2_task.tasks"

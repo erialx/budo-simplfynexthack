@@ -18,13 +18,12 @@ from PIL import Image
 
 from .backends.mjlab_go2 import (
     DEFAULT_CHECKPOINT,
-    DEFAULT_TASK_REPOSITORY,
     MjlabGo2Backend,
 )
 from .contracts import RenderFrame, RobotState
-from .episodes import DEFAULT_DATASET, load_episode
+from .episodes import DEFAULT_SCENARIO, load_episode
 from .live_monitor import LiveNavigationMonitor
-from .paths import ORCALAB_RSLRL_ROOT
+from .paths import BUNDLED_GO2_XML, DEFAULT_GLOBAL_SETTINGS
 from .render.grpc_bridge import GrpcRenderBridge, ProgrammableRenderServer
 from .render.orca import DEFAULT_GO2_ASSET, OrcaLabRenderBridge
 from .render.orca_camera import (
@@ -126,10 +125,10 @@ def _doctor(args: argparse.Namespace) -> int:
         "expected_versions": COMPATIBLE_VERSION_SPECS,
         "version_errors": list(compatibility_errors(versions)),
         "paths": {
-            "dataset": _path_status(DEFAULT_DATASET),
+            "scenario": _path_status(DEFAULT_SCENARIO),
+            "global_settings": _path_status(DEFAULT_GLOBAL_SETTINGS),
             "go2_checkpoint": _path_status(DEFAULT_CHECKPOINT),
-            "unitree_task_repository": _path_status(DEFAULT_TASK_REPOSITORY),
-            "orcalab_rslrl": _path_status(ORCALAB_RSLRL_ROOT),
+            "go2_xml": _path_status(BUNDLED_GO2_XML),
         },
         "imports": {},
         "cuda": {},
@@ -140,7 +139,7 @@ def _doctor(args: argparse.Namespace) -> int:
         "av",
         "cv2",
         "orca_gym.sensor.rgbd_camera",
-        "orcalab_rslrl",
+        "navila_orca.go2_task.tasks",
         "mjlab",
         "mujoco_warp",
     ):
@@ -298,7 +297,7 @@ def _run(args: argparse.Namespace) -> int:
             "--scene-ready cannot be asserted yet: MjlabGo2Backend still uses "
             "flat physics and does not apply the episode scene/start transform"
         )
-    episode = load_episode(args.dataset, args.episode_index)
+    episode = load_episode(args.scenario)
     waypoint_instructions = _resolve_waypoint_instructions(args)
     episode = replace(
         episode,
@@ -315,7 +314,6 @@ def _run(args: argparse.Namespace) -> int:
         checkpoint=args.checkpoint,
         device=args.device,
         num_envs=1,
-        task_repository=args.task_repository,
         deterministic_play=not args.randomized_play,
         warmup_steps=args.warmup_steps,
     )
@@ -418,7 +416,6 @@ def _run(args: argparse.Namespace) -> int:
             "metrics": result.metrics,
             "final_state": _state_dict(result.final_state),
             "episode": {
-                "index": args.episode_index,
                 "episode_id": episode.episode_id,
                 "scene_id": episode.scene_id,
                 "instruction": episode.instruction,
@@ -427,10 +424,7 @@ def _run(args: argparse.Namespace) -> int:
             "runtime": {
                 "physics": "mjlab Unitree-Go2-Flat / MuJoCo Warp",
                 "checkpoint": str(Path(args.checkpoint).expanduser().resolve()),
-                "task_repository": str(
-                    Path(args.task_repository).expanduser().resolve()
-                ),
-                "dataset": str(Path(args.dataset).expanduser().resolve()),
+                "scenario": str(Path(args.scenario).expanduser().resolve()),
                 "device": args.device,
                 "control_dt": backend.control_dt,
                 "warmup_steps": args.warmup_steps,
@@ -525,11 +519,11 @@ def _resolve_waypoint_instructions(args: argparse.Namespace) -> tuple[str, ...]:
 
 def _resolve_instruction(
     args: argparse.Namespace,
-    dataset_instruction: str,
+    scenario_instruction: str,
     *,
     waypoint_instructions: Sequence[str] = (),
 ) -> str:
-    """Resolve an optional CLI/file prompt without modifying the dataset."""
+    """Resolve an optional CLI/file prompt without modifying the scenario."""
 
     if waypoint_instructions:
         instruction = " ".join(
@@ -550,8 +544,8 @@ def _resolve_instruction(
         instruction = str(args.instruction).strip()
         source = "--instruction"
     else:
-        instruction = str(dataset_instruction).strip()
-        source = "dataset"
+        instruction = str(scenario_instruction).strip()
+        source = "scenario"
     if not instruction:
         raise ValueError(f"navigation instruction from {source} is empty")
     return instruction
@@ -598,12 +592,15 @@ def _build_parser() -> argparse.ArgumentParser:
     doctor.set_defaults(func=_doctor)
 
     run = subparsers.add_parser("run", help="run a finite navigation pipeline")
-    run.add_argument("--dataset", default=str(DEFAULT_DATASET))
-    run.add_argument("--episode-index", type=int, default=0)
+    run.add_argument(
+        "--scenario",
+        default=str(DEFAULT_SCENARIO),
+        help="project-owned navigation scenario JSON",
+    )
     instruction_group = run.add_mutually_exclusive_group()
     instruction_group.add_argument(
         "--instruction",
-        help="override the dataset navigation instruction with this text",
+        help="override the scenario navigation instruction with this text",
     )
     instruction_group.add_argument(
         "--instruction-file",
@@ -615,7 +612,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--device", default="cuda:0")
     run.add_argument("--checkpoint", default=str(DEFAULT_CHECKPOINT))
-    run.add_argument("--task-repository", default=str(DEFAULT_TASK_REPOSITORY))
     run.add_argument(
         "--render-backend",
         choices=("grpc-loopback", "grpc", "orcalab"),

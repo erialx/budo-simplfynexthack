@@ -30,8 +30,8 @@ from PIL import Image
 DEFAULT_CAMERA_ACTOR_NAME = "navila_ego"
 DEFAULT_CAMERA_ASSET = "prefabs/agentcamera"
 DEFAULT_CAMERA_MOUNT_POSITION = (0.1, 0.0, 0.5)
-# The original IsaacLab camera uses (-0.5, 0.5, -0.5, 0.5) under Isaac's
-# camera-frame convention. Orca's CameraSensor post-multiplies AtomToRos, so
+# The NavVLM camera uses (-0.5, 0.5, -0.5, 0.5) under its source camera-frame
+# convention. Orca's CameraSensor post-multiplies AtomToRos, so
 # the equivalent forward +X / image-up +Z entity rotation is yaw -90 degrees.
 _SQRT_HALF = float(2.0**-0.5)
 DEFAULT_CAMERA_MOUNT_QUAT_WXYZ = (_SQRT_HALF, 0.0, 0.0, -_SQRT_HALF)

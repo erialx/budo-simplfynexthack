@@ -8,14 +8,12 @@ positions into OrcaStudio through OrcaGym's UpdateLocalEnv RPC, while
 from __future__ import annotations
 
 import importlib
-import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
 import numpy as np
 
-from navila_orca.paths import ORCALAB_RSLRL_ROOT
 from navila_orca.render.orca_camera import (
     DEFAULT_CAMERA_ACTOR_NAME,
     DEFAULT_CAMERA_ASSET,
@@ -24,7 +22,6 @@ from navila_orca.render.orca_camera import (
 )
 
 DEFAULT_GO2_ASSET = "assets/e071469a36d3c8aa/unitree_robots/prefabs/go2_usda"
-DEFAULT_ORCALAB_RSLRL = ORCALAB_RSLRL_ROOT
 
 
 class OrcaDependencyError(RuntimeError):
@@ -82,7 +79,6 @@ class OrcaLabRenderBridge:
         camera_mount_position: Sequence[float] = DEFAULT_CAMERA_MOUNT_POSITION,
         camera_mount_quat_wxyz: Sequence[float] = DEFAULT_CAMERA_MOUNT_QUAT_WXYZ,
         stabilize_camera_horizon: bool = False,
-        orcalab_rslrl_path: str | Path = DEFAULT_ORCALAB_RSLRL,
         renderer_factory: Callable[..., Any] | None = None,
         camera_factory: Callable[[str, int], Any] | None = None,
         camera_follower_factory: Callable[..., Any] | None = None,
@@ -130,7 +126,6 @@ class OrcaLabRenderBridge:
             raise ValueError("camera_mount_position must contain X Y Z")
         if len(self.camera_mount_quat_wxyz) != 4:
             raise ValueError("camera_mount_quat_wxyz must contain W X Y Z")
-        self.orcalab_rslrl_path = Path(orcalab_rslrl_path).expanduser()
         self._renderer_factory = renderer_factory
         self._camera_factory = camera_factory
         self._camera_follower_factory = camera_follower_factory
@@ -163,10 +158,7 @@ class OrcaLabRenderBridge:
         follower_factory = self._camera_follower_factory
         try:
             if renderer_factory is None:
-                path_text = str(self.orcalab_rslrl_path)
-                if path_text not in sys.path:
-                    sys.path.insert(0, path_text)
-                module = importlib.import_module("orcalab_rslrl.orcalab_batch_render")
+                module = importlib.import_module("navila_orca.orcalab_runtime.batch_render")
                 renderer_factory = module.OrcaLabBatchRenderer
             if camera_factory is None:
                 module = importlib.import_module("orca_gym.sensor.rgbd_camera")
@@ -177,8 +169,7 @@ class OrcaLabRenderBridge:
         except (ImportError, ModuleNotFoundError) as exc:
             raise OrcaDependencyError(
                 "OrcaLab rendering dependencies are unavailable. Activate the "
-                "local 'orcalab' environment, make components/OrcaLab-RSLRL "
-                "importable, and install this project with `pip install "
+                "local 'orcalab' environment and install this project with `pip install "
                 "--no-build-isolation --no-deps -e .`. Install any missing av "
                 "or OpenCV package at the versions recorded in README.md. "
                 f"Original error: {exc}"

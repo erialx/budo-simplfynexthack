@@ -4,8 +4,7 @@ import pytest
 
 from navila_orca.training import (
     CompatibilityError,
-    SMOKE_TASK_FACTORY,
-    build_training_smoke_argv,
+    build_go2_train_argv,
     compatibility_errors,
     ensure_compatible_versions,
 )
@@ -20,37 +19,27 @@ COMPATIBLE = {
 }
 
 
-def test_training_smoke_argv_is_explicit_and_one_iteration() -> None:
-    argv = build_training_smoke_argv(
+def test_go2_train_argv_is_explicit_and_project_owned() -> None:
+    argv = build_go2_train_argv(
         python="/opt/orca/bin/python",
-        device="cuda:2",
-        num_envs=16,
-        output="/tmp/navila-training-smoke",
+        task_id="Unitree-Go2-Flat",
+        max_iterations=1,
     )
 
     assert argv == [
         "/opt/orca/bin/python",
         "-m",
-        "orcalab_rslrl.tools.train",
-        "--task-factory",
-        SMOKE_TASK_FACTORY,
-        "--iterations",
+        "navila_orca.go2_train",
+        "Unitree-Go2-Flat",
+        "--agent.max-iterations",
         "1",
-        "--num-envs",
-        "16",
-        "--device",
-        "cuda:2",
-        "--log-dir",
-        "/tmp/navila-training-smoke",
-        "--wandb-mode",
-        "disabled",
     ]
 
 
-@pytest.mark.parametrize("num_envs", [0, 1, -4])
-def test_training_smoke_argv_rejects_too_few_envs(num_envs: int) -> None:
-    with pytest.raises(ValueError, match="num_envs >= 2"):
-        build_training_smoke_argv(num_envs=num_envs)
+@pytest.mark.parametrize("iterations", [0, -4])
+def test_go2_train_argv_rejects_invalid_iteration_count(iterations: int) -> None:
+    with pytest.raises(ValueError, match="max_iterations"):
+        build_go2_train_argv(max_iterations=iterations)
 
 
 def test_compatible_versions_are_accepted() -> None:

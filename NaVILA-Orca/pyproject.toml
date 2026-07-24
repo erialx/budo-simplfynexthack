@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "navila-orca"
+name = "navvlm-orcalab"
 version = "0.1.0"
-description = "Simulator-independent NaVILA navigation pipeline for OrcaLab/OrcaGym"
+description = "Self-contained NavVLM automatic-navigation example for OrcaLab"
 requires-python = ">=3.10"
 dependencies = [
   "grpcio>=1.60",
@@ -23,13 +23,31 @@ orca = [
   "websockets>=12",
 ]
 test = ["pytest>=8"]
+navvlm = [
+  "accelerate==0.27.2",
+  "einops==0.6.1",
+  "einops-exts==0.0.4",
+  "sentencepiece==0.1.99",
+  "s2wrapper @ git+https://github.com/bfshi/scaling_on_scales",
+  "timm==0.9.12",
+  "tokenizers>=0.15.2",
+  "tqdm",
+  "transformers==4.37.2",
+]
 
 [project.scripts]
-navila-orca = "navila_orca.cli:main"
-navila-orca-render-server = "navila_orca.render.grpc_bridge:server_main"
+navvlm-orcalab = "navila_orca.cli:main"
+navvlm-orcalab-render-server = "navila_orca.render.grpc_bridge:server_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+navila_orca = [
+  "assets/checkpoints/*.pt",
+  "go2_task/assets/robots/unitree_go2/xmls/*.xml",
+  "go2_task/assets/robots/unitree_go2/xmls/assets/*.obj",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

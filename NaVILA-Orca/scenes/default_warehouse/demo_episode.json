@@ -1,0 +1,15 @@
+{
+  "episode_id": "orca-warehouse-demo-001",
+  "scene_id": "industrial_warehouse_default_set",
+  "instruction": "Move forward toward the blue barrel, then stop before the yellow vehicle.",
+  "start_position": [0.0, 0.0, 0.32],
+  "start_quat_wxyz": [1.0, 0.0, 0.0, 0.0],
+  "goal_position": [2.0, 0.0, 0.32],
+  "goal_radius": 0.6,
+  "reference_path": [[0.0, 0.0, 0.32], [2.0, 0.0, 0.32]],
+  "gt_locations": [[0.0, 0.0, 0.32], [2.0, 0.0, 0.32]],
+  "metadata": {
+    "global_settings": "../../default_set.json",
+    "scene_type": "OrcaLab industrial warehouse"
+  }
+}

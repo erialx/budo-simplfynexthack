@@ -11,11 +11,10 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 from dataclasses import asdict
 from typing import Any, Sequence
 
-from .paths import ORCALAB_RSLRL_ROOT
+from .orcalab_runtime.scene_options import resolve_scene_options_profile
 
 
 PROFILE_FIELDS = (
@@ -39,18 +38,7 @@ PROFILE_FIELDS = (
 
 
 def _scene_options(profile: str) -> Any:
-    """Load the canonical profile shared with the training/render component."""
-
-    if not ORCALAB_RSLRL_ROOT.is_dir():
-        raise RuntimeError(
-            "OrcaLab-RSLRL component is unavailable at "
-            f"{ORCALAB_RSLRL_ROOT}; set ORCALAB_RSLRL_ROOT to use scene profiles"
-        )
-    component_root = str(ORCALAB_RSLRL_ROOT)
-    if component_root not in sys.path:
-        sys.path.insert(0, component_root)
-    from orcalab_rslrl.scene_options import resolve_scene_options_profile
-
+    """Load the project-owned canonical scene profile."""
     return resolve_scene_options_profile(profile)
 
 

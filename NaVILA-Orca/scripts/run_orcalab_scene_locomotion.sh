@@ -42,7 +42,6 @@ exec "${ORCA_PYTHON}" -m navila_orca.cli run \
   --scene-profile orca-train \
   --strict-scene-alignment \
   --manual-xml-override \
-  --instruction-file "${PROJECT_ROOT}/prompts/orcalab_scene_locomotion.txt" \
   --vlm-backend tcp \
   --vlm-host 127.0.0.1 \
   --vlm-port 54321 \

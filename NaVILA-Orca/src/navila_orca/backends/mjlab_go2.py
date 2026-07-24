@@ -9,17 +9,19 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import importlib
-import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from navila_orca.paths import ORCA_RL_ROOT, UNITREE_RL_MJLAB_ROOT
+from navila_orca.paths import (
+    BUNDLED_GO2_XML,
+    DEFAULT_GO2_CHECKPOINT,
+    GO2_TASK_PACKAGE,
+)
 
 
-DEFAULT_CHECKPOINT = ORCA_RL_ROOT / "checkpoints/test_model_Go2_mjlab_Flat.pt"
-DEFAULT_TASK_REPOSITORY = UNITREE_RL_MJLAB_ROOT
+DEFAULT_CHECKPOINT = DEFAULT_GO2_CHECKPOINT
 
 GO2_QPOS_JOINT_ORDER = (
     "FL_hip_joint",
@@ -98,7 +100,6 @@ class MjlabGo2Backend:
         checkpoint: str | Path = DEFAULT_CHECKPOINT,
         device: str = "cuda:0",
         num_envs: int = 1,
-        task_repository: str | Path = DEFAULT_TASK_REPOSITORY,
         deterministic_play: bool = True,
         warmup_steps: int = 100,
     ) -> None:
@@ -110,7 +111,6 @@ class MjlabGo2Backend:
         self.checkpoint = Path(checkpoint).expanduser()
         self.device = device
         self.num_envs = int(num_envs)
-        self.task_repository = Path(task_repository).expanduser()
         self.deterministic_play = bool(deterministic_play)
         self.warmup_steps = int(warmup_steps)
 
@@ -187,7 +187,7 @@ class MjlabGo2Backend:
             "task_id": self.task_id,
             "source_xml": str(
                 (
-                    self.task_repository / "src/assets/robots/unitree_go2/xmls/go2.xml"
+                    BUNDLED_GO2_XML
                 ).resolve()
             ),
             "checkpoint": str(self.checkpoint.resolve()),
@@ -235,12 +235,8 @@ class MjlabGo2Backend:
                 raise MjlabDependencyError(
                     f"device={self.device!r} requests CUDA, but Torch reports no CUDA device"
                 )
-            # The local unitree repository owns the top-level `src.tasks`
-            # package which performs the task-registry side effect.
-            repo_text = str(self.task_repository)
-            if repo_text not in sys.path:
-                sys.path.insert(0, repo_text)
-            importlib.import_module("src.tasks")
+            # Register the project-owned Unitree Go2 task with MJLab.
+            importlib.import_module(GO2_TASK_PACKAGE)
 
             from mjlab.envs import ManagerBasedRlEnv
             from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
@@ -278,7 +274,7 @@ class MjlabGo2Backend:
             raise MjlabDependencyError(
                 "MJLab Go2 is optional and could not be imported. Activate the "
                 "local 'orcalab' environment and ensure mjlab, mujoco-warp, "
-                "rsl-rl, and components/unitree_rl_mjlab are available. "
+                "rsl-rl, and the bundled Go2 task sources are available. "
                 f"Original error: {exc}"
             ) from exc
         except Exception:
