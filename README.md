@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/cover/warehouse-overview.png" alt="OrcaLab warehouse navigation scene" height="420" />
-  <img src="NaVILA-Orca/assets/cover/live-monitor.png" alt="Orca_VLN live monitor" height="420" />
+  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab warehouse navigation scene" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN live monitor" width="48%" />
 </p>
 
 > **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
@@ -26,15 +26,18 @@ The repository provides the OrcaLab side of the example: persistent ego observat
 ## Scene gallery
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/cover/kitchen-overview.png" alt="Kitchen scene overview" height="260" />
-  <img src="NaVILA-Orca/assets/cover/kitchen-robot-view.png" alt="Robot in the kitchen scene" height="260" />
-  <img src="NaVILA-Orca/assets/cover/warehouse-corridor.png" alt="Warehouse corridor scene" height="260" />
-  <img src="NaVILA-Orca/assets/cover/warehouse-robot-view.png" alt="Robot in the warehouse scene" height="260" />
+  <img src="NaVILA-Orca/assets/presentation/kitchen-overview.png" alt="Kitchen scene overview" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/kitchen-robot-view.png" alt="Robot in the kitchen scene" width="48%" />
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/cover/storage-aisle.png" alt="Storage aisle scene" height="260" />
-  <img src="NaVILA-Orca/assets/cover/storage-robot-view.png" alt="Robot in the storage scene" height="260" />
+  <img src="NaVILA-Orca/assets/presentation/warehouse-corridor.png" alt="Warehouse corridor scene" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/warehouse-robot-view.png" alt="Robot in the warehouse scene" width="48%" />
+</p>
+
+<p align="center">
+  <img src="NaVILA-Orca/assets/presentation/storage-aisle.png" alt="Storage aisle scene" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/storage-robot-view.png" alt="Robot in the storage scene" width="48%" />
 </p>
 
 ## Quickstart
