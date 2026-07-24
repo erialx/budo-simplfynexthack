@@ -171,6 +171,8 @@ conda activate orcalab
 
 比较默认 checkpoint 与新 checkpoint 的起步、转向、停止是否平稳。不要把低层步态训练结果误解释为 NaVILA 语言能力提升。
 
+自定义低层策略时，以 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) 作为默认训练参考，并保持 `vx / vy / wz / duration` 的接口不变。完整约束见 [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md)。高层 NaVILA 的 SFT/LoRA 路径见 [VLN fine-tuning](VLN_FINE_TUNING.md)。
+
 ## 八、常见错误：先判断哪一层出了问题
 
 | 现象 | 优先检查 | 常见原因 |

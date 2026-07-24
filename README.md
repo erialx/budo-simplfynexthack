@@ -104,6 +104,14 @@ python -m navila_orca.cli doctor
 
 The [developer guide](NaVILA-Orca/docs/GETTING_STARTED.md) covers the default scene, process startup, camera placement, action tracing, model/scene failure modes, and the first set of prompt and camera ablations.
 
+## Competition baseline
+
+Orca_VLN can be handed to participants as a working baseline rather than a collection of simulator internals. The organizer flow, deliverables, and four checkpoint structure are in [Hackathon baseline](NaVILA-Orca/docs/HACKATHON_BASELINE.md).
+
+- [Architecture](NaVILA-Orca/docs/ARCHITECTURE.md): the stable high-level VLN ↔ low-level locomotion boundary.
+- [VLN SFT / LoRA](NaVILA-Orca/docs/VLN_FINE_TUNING.md): collect, review, adapt, and evaluate high-level navigation decisions.
+- [Low-level locomotion](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md): optional custom-policy track, with OrcaLocomotion as the default reference.
+
 ## Contributing
 
 Issues and pull requests are welcome. Keep changes scoped to the VLN runtime, OrcaLab scene integration, Go2 execution path, or reproducible examples. Include the command you ran and the resulting artifact or error when reporting a runtime issue.
