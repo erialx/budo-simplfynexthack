@@ -15,6 +15,8 @@ The organizer provides:
 
 The baseline is simulation-first. A real EDU Go2 can be used for selected demonstrations, but hardware access is not required to reproduce or submit the core workflow.
 
+The supplied Go2 checkpoint is deliberately a general flat-ground policy. It is not tuned to the warehouse layout, the discrete NaVILA command vocabulary, or exact task stopping behavior. Teams should treat its tracking error and recovery behavior as visible baseline characteristics—not as a target to hide.
+
 ## Four checkpoints
 
 | Checkpoint | Team outcome | Evidence |
@@ -40,7 +42,15 @@ Optional. Collect reviewed rollouts and apply SFT or LoRA to NaVILA without chan
 
 ### Low-level locomotion
 
-Optional advanced track. Replace or improve the Go2 policy while preserving the velocity-command interface. Use [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) as the default low-level training reference. See [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md).
+Low-level execution is a scored dimension alongside high-level VLN. Improve command tracking, turning, stopping, stability, recovery, or terrain response while preserving the velocity-command interface. Use [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) as the default low-level training reference, or use IsaacLab/another platform and follow the model-alignment path in [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md).
+
+## Evaluation focus
+
+| Area | Evidence to review |
+| --- | --- |
+| VLN behavior | instruction adherence, visual grounding, valid actions, mission outcome |
+| Low-level model | commanded versus measured motion, turn/stop precision, stability, recovery |
+| End-to-end system | ego images, action trace, trajectory, measurements, reproducible run path |
 
 ## Submission checklist
 
