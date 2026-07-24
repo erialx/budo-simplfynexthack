@@ -32,6 +32,11 @@ The repository provides the OrcaLab side of the example: persistent ego observat
   <img src="NaVILA-Orca/assets/cover/warehouse-robot-view.png" alt="Robot in the warehouse scene" height="260" />
 </p>
 
+<p align="center">
+  <img src="NaVILA-Orca/assets/cover/storage-aisle.png" alt="Storage aisle scene" height="260" />
+  <img src="NaVILA-Orca/assets/cover/storage-robot-view.png" alt="Robot in the storage scene" height="260" />
+</p>
+
 ## Quickstart
 
 ```bash
