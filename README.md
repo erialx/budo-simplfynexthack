@@ -9,7 +9,7 @@
   </p>
 </p>
 
-> **Orca_VLN is a runnable baseline, not a fixed solution.**
+> **Orca_VLN is a baseline solution, you can choose to finetune it based on the specific task requirement.**
 > NaVILA decides the next navigation action from language and ego RGB; a Go2 policy executes that action in OrcaLab; the next camera frame closes the loop.
 
 ```text
