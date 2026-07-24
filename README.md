@@ -7,9 +7,9 @@
   <p align="center">
     A visual-language navigation example in OrcaLab.
     <br />
-    <a href="#quickstart">Quickstart</a> ·
-    <a href="#competition-baseline">Competition baseline</a> ·
-    <a href="NaVILA-Orca/docs/GETTING_STARTED.md">Docs</a>
+    <a href="#quickstart">🚀 Quickstart</a> ·
+    <a href="#competition-baseline">🏁 Competition baseline</a> ·
+    <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
   </p>
 </p>
 
@@ -27,7 +27,7 @@ instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  n
 
 The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
-## Egocentric Observations & Simulator Views
+## 👁️ Egocentric Observations & Simulator Views
 
 Each row pairs the agent’s ego observation (left) with its corresponding third-person simulator view (right).
 
@@ -46,7 +46,7 @@ Each row pairs the agent’s ego observation (left) with its corresponding third
   <img src="NaVILA-Orca/assets/presentation/storage-robot-view.png" alt="Robot in the storage scene" width="48%" />
 </p>
 
-## Quickstart
+## 🚀 Quickstart
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
@@ -70,7 +70,7 @@ conda activate orcalab
 
 Open `IndustrialWarehouse1_3dgs` in OrcaLab first, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
 
-## Competition baseline
+## 🏁 Competition baseline
 
 The default episode approaches the blue barrel and stops before the yellow vehicle. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
 
@@ -82,7 +82,7 @@ The default episode approaches the blue barrel and stops before the yellow vehic
 
 The supplied control model is a conservative flat-ground baseline. It has not been tuned around this warehouse, NaVILA’s discrete motion chunks, or task-specific stopping accuracy. That gap is intentional: low-level execution quality is a competition metric, not a hidden implementation detail.
 
-## Extend the baseline
+## 🧩 Extend the baseline
 
 - [Getting started](NaVILA-Orca/docs/GETTING_STARTED.md) — scene setup, processes, camera, and first run.
 - [Hackathon baseline](NaVILA-Orca/docs/HACKATHON_BASELINE.md) — checkpoints, tracks, evidence, and submission scope.
@@ -99,7 +99,7 @@ python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
   --output data/vln_review_queue.jsonl
 ```
 
-## Package
+## 📦 Package
 
 `NaVILA-Orca/` contains the runtime, default global setting, warehouse episode, robot assets, and baseline checkpoint. Build a clean archive with:
 
@@ -107,7 +107,7 @@ python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
 ./scripts/build_kit.sh
 ```
 
-## Acknowledgements
+## 🙌 Acknowledgements
 
 Orca_VLN uses [NaVILA](https://github.com/AnjieCheng/NaVILA) as its high-level vision-language navigation model. If you use NaVILA in your work, please cite:
 
