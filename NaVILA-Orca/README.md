@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="README_zh.md">中文</a></sub></p>
+
 # Orca_VLN developer kit
 
 This directory is the distributable OrcaLab runtime. Its GitHub project homepage is one level up: [Orca_VLN](../README.md).

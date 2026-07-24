@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="README_zh.md">中文</a></sub></p>
+
 <p align="center">
   <img src="NaVILA-Orca/assets/brand/orca-vln-navigation-logo.png" alt="Orca_VLN quadruped robot and navigation path" width="150" align="middle" />
   &nbsp;&nbsp;
