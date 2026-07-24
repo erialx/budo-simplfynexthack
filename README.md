@@ -6,7 +6,7 @@
     <a href="#quickstart">Quickstart</a> ·
     <a href="#vln-runtime">VLN runtime</a> ·
     <a href="NaVILA-Orca/docs/GETTING_STARTED.md">Developer guide</a> ·
-    <a href="#contributing">Contributing</a>
+    <a href="#acknowledgements">Acknowledgements</a>
   </p>
 </p>
 
@@ -109,13 +109,9 @@ Orca_VLN can be handed to participants as a working baseline rather than a colle
 - [VLN SFT / LoRA](NaVILA-Orca/docs/VLN_FINE_TUNING.md): collect, review, adapt, and evaluate high-level navigation decisions.
 - [Low-level locomotion](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md): train in OrcaLocomotion, IsaacLab, or another platform; integrate through the model-alignment contract.
 
-## Contributing
+## Acknowledgements
 
-Issues and pull requests are welcome. Keep changes scoped to the VLN runtime, OrcaLab scene integration, Go2 execution path, or reproducible examples. Include the command you ran and the resulting artifact or error when reporting a runtime issue.
-
-## NaVILA
-
-Orca_VLN builds on NaVILA. If you use the VLN model in this project, please cite:
+Orca_VLN uses [NaVILA](https://github.com/AnjieCheng/NaVILA) as its high-level vision-language navigation model. If you use NaVILA in your work, please cite:
 
 ```bibtex
 @inproceedings{cheng2025navila,
