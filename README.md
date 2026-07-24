@@ -32,24 +32,29 @@ instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  n
 
 The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
-## 👁️ Egocentric Observations & Simulator Views
+## 🧭 Ego Camera ↔ Simulator Views
 
-Each row pairs the agent’s ego observation (left) with its corresponding third-person simulator view (right).
+Left: the observation received by the VLN policy. Right: the corresponding scene-level simulator view.
 
+<p align="center"><sub><strong>Kitchen navigation</strong></sub></p>
 <p align="center">
   <img src="NaVILA-Orca/assets/presentation/kitchen-overview.png" alt="Kitchen scene overview" width="48%" />
   <img src="NaVILA-Orca/assets/presentation/kitchen-robot-view.png" alt="Robot in the kitchen scene" width="48%" />
 </p>
 
+<p align="center"><sub><strong>Warehouse navigation</strong></sub></p>
 <p align="center">
   <img src="NaVILA-Orca/assets/presentation/warehouse-corridor.png" alt="Warehouse corridor scene" width="48%" />
   <img src="NaVILA-Orca/assets/presentation/warehouse-robot-view.png" alt="Robot in the warehouse scene" width="48%" />
 </p>
 
+<p align="center"><sub><strong>Storage navigation</strong></sub></p>
 <p align="center">
   <img src="NaVILA-Orca/assets/presentation/storage-aisle.png" alt="Storage aisle scene" width="48%" />
   <img src="NaVILA-Orca/assets/presentation/storage-robot-view.png" alt="Robot in the storage scene" width="48%" />
 </p>
+
+<a id="quickstart"></a>
 
 ## 🚀 Quickstart
 
@@ -74,6 +79,8 @@ conda activate orcalab
 ```
 
 Open `IndustrialWarehouse1_3dgs` in OrcaLab first, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
+
+<a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
 
