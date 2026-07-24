@@ -122,3 +122,7 @@ Orca_VLN uses [NaVILA](https://github.com/AnjieCheng/NaVILA) as its high-level v
   year      = {2025}
 }
 ```
+
+## 📄 License
+
+Released under the [MIT License](LICENSE).
