@@ -1,19 +1,19 @@
 <p align="center">
-  <img src="NaVILA-Orca/assets/brand/orca-vln-navigation-logo.png" alt="Orca_VLN quadruped robot and navigation path" width="240" />
-  <br />
-  <sub>Built with</sub><br />
-  <img src="NaVILA-Orca/assets/brand/orca-platform-logo-blue.png" alt="ORCA Lab by Songying Technology" width="150" />
+  <img src="NaVILA-Orca/assets/brand/orca-vln-navigation-logo.png" alt="Orca_VLN quadruped robot and navigation path" width="150" align="middle" />
+  &nbsp;&nbsp;
+  <img src="NaVILA-Orca/assets/brand/orca-platform-logo-blue.png" alt="ORCA Lab by Songying Technology" width="125" align="middle" />
 </p>
 
+<h1 align="center">
+  <img src="NaVILA-Orca/assets/brand/orca-vln-wordmark.svg" alt="ORCA_VLN" width="340" />
+</h1>
+
 <p align="center">
-  <h1 align="center">Orca_VLN</h1>
-  <p align="center">
-    A visual-language navigation example in OrcaLab.
-    <br />
-    <a href="#quickstart">🚀 Quickstart</a> ·
-    <a href="#competition-baseline">🏁 Competition baseline</a> ·
-    <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
-  </p>
+  A visual-language navigation example in OrcaLab.
+  <br />
+  <a href="#quickstart">🚀 Quickstart</a> ·
+  <a href="#competition-baseline">🏁 Competition baseline</a> ·
+  <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
 </p>
 
 <p align="center">
