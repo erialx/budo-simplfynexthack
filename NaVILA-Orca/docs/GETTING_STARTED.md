@@ -1,8 +1,8 @@
-# 学生实验指南：让 Go2 在 OrcaLab 中听懂导航指令
+# 快速上手：让 Go2 在 OrcaLab 中听懂导航指令
 
 本实验不是“把模型跑起来”就结束。你要观察一条完整的机器人决策链：**看见什么、语言模型说了什么、四足机器人怎样执行、场景中发生了什么**。
 
-建议三人一组：一人操作 OrcaLab，一人观察 NaVILA server 日志，一人记录实验结果。
+建议把 OrcaLab、NaVILA server 和导航进程分到三个终端，便于定位每一层的问题。
 
 ## 一、实验目标与成功标准
 
@@ -51,7 +51,7 @@ export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 
 ### 2. NaVILA 环境
 
-NaVILA 及其模型是本项目的显式外部前提。课程教师应提供已经验证的 NaVILA 环境、模型目录和 VLM server 脚本；学生不应把 NaVILA/LLaVA 源码复制到本仓库。
+NaVILA 及其模型是本项目的显式外部前提。请使用已经验证的 NaVILA 环境、模型目录和 VLM server 脚本；不要把 NaVILA/LLaVA 源码复制到本仓库。
 
 本案例需要服务脚本接受这些参数：
 
@@ -162,7 +162,7 @@ conda activate orcalab
 ./scripts/train_go2.sh --agent.max-iterations 15001
 ```
 
-训练日志写入 `logs/`，不会进入学生发行包。训练完成后，将得到的 checkpoint 传给导航脚本：
+训练日志写入 `logs/`，不会进入分发包。训练完成后，将得到的 checkpoint 传给导航脚本：
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \

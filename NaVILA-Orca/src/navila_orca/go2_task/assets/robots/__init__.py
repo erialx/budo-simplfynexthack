@@ -1,6 +1,6 @@
 """The Go2 asset used by the bundled locomotion task.
 
-Other Unitree robots are intentionally not imported: this student kit exposes
+Other Unitree robots are intentionally not imported: this developer kit exposes
 only the robot that is part of the OrcaLab navigation example.
 """
 

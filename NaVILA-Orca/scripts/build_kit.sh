@@ -4,11 +4,11 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
 ARCHIVE_DIR="${PROJECT_ROOT}/dist"
-ARCHIVE_PATH="${ARCHIVE_DIR}/navvlm-orcalab-student-kit.tar.gz"
+ARCHIVE_PATH="${ARCHIVE_DIR}/navvlm-orcalab-kit.tar.gz"
 
 mkdir -p "${ARCHIVE_DIR}"
 
-# This is a teaching/reproduction archive, not a snapshot of a developer's
+# This is a clean reproduction archive, not a snapshot of a developer's
 # machine.  In particular, exclude linked legacy repositories, build output,
 # caches and any locally downloaded foundation-model checkpoints.
 tar \
@@ -24,4 +24,4 @@ tar \
   -czf "${ARCHIVE_PATH}" \
   -C "$(dirname "${PROJECT_ROOT}")" "${PROJECT_NAME}"
 
-printf 'student kit: %s\n' "${ARCHIVE_PATH}"
+printf 'kit: %s\n' "${ARCHIVE_PATH}"

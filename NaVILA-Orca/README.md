@@ -1,8 +1,8 @@
-# NaVILA–OrcaLab student kit
+# NaVILA–OrcaLab developer kit
 
 This directory is the distributable OrcaLab lesson. Its GitHub project homepage is one level up: [NaVILA–OrcaLab](../README.md).
 
-For a first run, open [the student guide](docs/STUDENT_GUIDE.md). The only commands most students need are:
+For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The three commands below cover the normal development loop:
 
 ```bash
 ./scripts/start_orcalab_gui.sh
@@ -14,7 +14,7 @@ Import `default_set.json` into an open industrial-warehouse 3DGS scene before ru
 
 ```bash
 ./scripts/train_go2.sh --agent.max-iterations 15001
-./scripts/build_student_kit.sh
+./scripts/build_kit.sh
 ```
 
 The kit contains the OrcaLab adapter, local Go2 task/MJCF/mesh assets, a default Go2 locomotion checkpoint, the global setting, and one reproducible warehouse episode. It does not include NaVILA/LLaVA source, model weights, 3DGS assets, or IsaacLab.

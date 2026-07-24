@@ -4,19 +4,12 @@
     A compact navigation stack for running NaVILA on a Go2 inside OrcaLab.
     <br />
     <a href="#quickstart">Quickstart</a> ·
-    <a href="NaVILA-Orca/docs/STUDENT_GUIDE.md">Student guide</a> ·
+    <a href="NaVILA-Orca/docs/GETTING_STARTED.md">Getting started</a> ·
     <a href="#layout">Repository layout</a>
   </p>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/OrcaLab-26.6.3-2f80ed?style=flat-square" alt="OrcaLab 26.6.3" />
-  <img src="https://img.shields.io/badge/MJLab-1.2.0-2f80ed?style=flat-square" alt="MJLab 1.2.0" />
-  <img src="https://img.shields.io/badge/robot-Go2-2f80ed?style=flat-square" alt="Go2" />
-  <img src="https://img.shields.io/badge/IsaacLab-not%20used-555?style=flat-square" alt="IsaacLab not used" />
-</p>
-
-NaVILA–OrcaLab is the OrcaLab side of a visual-language navigation system. NaVILA sees a rolling window of first-person images and emits a short navigation action; the local Go2 policy turns that action into stable quadruped motion; OrcaLab supplies the industrial-warehouse scene and camera view.
+NaVILA–OrcaLab is a practical starting point for developers who want to connect a visual-language navigation model to a quadruped in OrcaLab. NaVILA sees a rolling window of first-person images and emits a short navigation action; the local Go2 policy turns that action into stable quadruped motion; OrcaLab supplies the industrial-warehouse scene and camera view.
 
 The model stays separate. This repository does not vendor NaVILA/LLaVA source or weights: it connects to a course-provided NaVILA server over TCP. The Go2 task, MJCF, meshes, locomotion checkpoint, camera bridge, default global setting, and reproducible scene case live here.
 
@@ -77,7 +70,7 @@ NaVILA-Orca/
 ├── scenes/default_warehouse/        # the teaching episode
 ├── src/navila_orca/                 # OrcaLab ↔ Go2 ↔ NaVILA adapter
 ├── scripts/                         # start, run, train, package
-└── docs/                            # camera notes and student lab guide
+└── docs/                            # camera notes and getting-started guide
 ```
 
 Useful entry points:
@@ -89,12 +82,12 @@ python -m navila_orca.cli doctor
 # Train the local Go2 flat-ground policy.
 ./scripts/train_go2.sh --agent.max-iterations 15001
 
-# Build the student handout archive.
-./scripts/build_student_kit.sh
+# Build a clean distribution archive.
+./scripts/build_kit.sh
 ```
 
 ## Classroom use
 
-The [student guide](NaVILA-Orca/docs/STUDENT_GUIDE.md) is organized as a lab rather than an API reference: it covers scene setup, the three-terminal run, evidence to collect, language/camera ablations, low-level policy training, and a layer-by-layer troubleshooting table.
+The [getting-started guide](NaVILA-Orca/docs/GETTING_STARTED.md) walks through scene setup, the three-terminal run, what to inspect after each step, language/camera ablations, low-level policy training, and a layer-by-layer troubleshooting table.
 
 For the OrcaLab/MJLab programming model, see [mjlab](https://github.com/mujocolab/mjlab) and [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion/tree/orca_warp).

@@ -10,7 +10,7 @@ from navila_orca.episodes import load_episode
 
 def _write_scenario(path, *, include_goal: bool = True) -> None:
     payload = {
-        "episode_id": "student-demo",
+        "episode_id": "developer-demo",
         "scene_id": "industrial_warehouse",
         "instruction": "  Move toward the blue barrel.  ",
         "start_position": [1, 2, 3],
@@ -31,7 +31,7 @@ def test_load_episode_from_local_scenario(tmp_path):
 
     episode = load_episode(scenario)
 
-    assert episode.episode_id == "student-demo"
+    assert episode.episode_id == "developer-demo"
     assert episode.instruction == "Move toward the blue barrel."
     assert episode.goal_radius == 0.5
     np.testing.assert_allclose(episode.goal_position, [4, 5, 6])
