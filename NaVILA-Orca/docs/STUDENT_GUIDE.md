@@ -1,126 +1,185 @@
-# 学生复现指南：NavVLM 在 OrcaLab 中控制 Go2
+# 学生实验指南：让 Go2 在 OrcaLab 中听懂导航指令
 
-本指南只使用 `NaVILA-Orca` 目录中的源码和资产，不需要安装 IsaacLab，也不需要把其它源码仓库软链接到本项目。
+本实验不是“把模型跑起来”就结束。你要观察一条完整的机器人决策链：**看见什么、语言模型说了什么、四足机器人怎样执行、场景中发生了什么**。
 
-## 1. 准备环境
+建议三人一组：一人操作 OrcaLab，一人观察 NaVILA server 日志，一人记录实验结果。
 
-需要 Linux、NVIDIA GPU、CUDA 对应的 PyTorch，以及 OrcaLab/OrcaGym `26.6.3`。推荐在 OrcaLab 自己的 conda 环境中安装：
+## 一、实验目标与成功标准
+
+默认任务是：`Move forward toward the blue barrel, then stop before the yellow vehicle.`
+
+成功不只等于终端没有报错。完成一次有效实验时，应同时满足：
+
+- OrcaLab 中已有工业仓库、一个完整 Go2、蓝色桶和黄色车辆。
+- `mujococamera1080` 的图像会随着 Go2 移动而改变。
+- NaVILA server 收到 8 帧图像和任务文本，并返回一条可解析动作。
+- Go2 动作平稳，结束后 `outputs/scene_locomotion_smoke/` 内有结果 JSON 与 RGB 帧。
+
+## 二、先理解四个角色
+
+| 角色 | 输入 | 输出 | 不负责什么 |
+| --- | --- | --- | --- |
+| NaVILA | 8 帧 RGB + 自然语言 | 文本动作 | 关节控制、碰撞求解 |
+| 导航循环 | 文本动作 + 当前状态 | 速度命令和持续时间 | 生成视觉语言答案 |
+| Go2 locomotion | 速度命令 | 12 关节动作 | 理解“蓝桶”或“左转”语义 |
+| OrcaLab | Go2 位姿 | 场景 RGB 与可视化 | 训练或求解低层步态 |
+
+例如，NaVILA 说 `turn left 15 degrees` 后，导航循环把它解析为固定角速度和 0.5 秒持续时间；Go2 策略在 50 Hz 下连续执行，OrcaLab 相机再采集新画面。这就是高层 VLM 与低层控制的分工。
+
+## 三、准备工作
+
+### 1. OrcaLab 环境
+
+需要 Linux、NVIDIA GPU、OrcaLab/OrcaGym `26.6.3`、MJLab `1.2.0`、`mujoco-warp 3.5.0` 和 `rsl-rl-lib 5.x`。
 
 ```bash
 cd /path/to/NaVILA-Orca
 conda activate orcalab
 python -m pip install -e '.[orca]'
+python -m navila_orca.cli doctor
+python -m navila_orca.training --check-only
 ```
 
-此外安装与本地 Go2 训练栈匹配的 `mjlab==1.2.0`、`mujoco-warp==3.5.0` 和 `rsl-rl-lib` 5.x。若你的 OrcaLab Python 不在默认位置，所有脚本均可通过下面变量指定：
+`doctor` 中以下四个路径必须为 `exists: true`：默认任务、`default_set.json`、`go2_flat.pt`、Go2 XML。版本不一致时先不要继续做场景实验。
+
+如果 OrcaLab 不在默认路径，设置：
 
 ```bash
 export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-NavVLM 服务建议使用**独立环境**，避免模型所需的 PyTorch/CUDA 版本改写 OrcaLab 环境。先按你的 CUDA 版本安装 PyTorch，再安装本项目的显式 NavVLM 依赖：
+### 2. NaVILA 环境
 
-```bash
-conda create -n navvlm python=3.10 -y
-conda activate navvlm
-# 先根据本机 CUDA 安装匹配的 torch/torchvision
-python -m pip install -e '/path/to/NaVILA-Orca[navvlm]'
+NaVILA 及其模型是本项目的显式外部前提。课程教师应提供已经验证的 NaVILA 环境、模型目录和 VLM server 脚本；学生不应把 NaVILA/LLaVA 源码复制到本仓库。
+
+本案例需要服务脚本接受这些参数：
+
+```text
+--host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-`navvlm` 依赖组明确列出了 `transformers`、`accelerate`、`s2wrapper` 等模型运行依赖；没有从其它本地项目导入 Python 包。
-
-检查本地文件和安装状态：
+设置路径而不是修改本项目源码：
 
 ```bash
-${NAVILA_ORCA_PYTHON:-python} -m navila_orca.cli doctor
-${NAVILA_ORCA_PYTHON:-python} -m navila_orca.training --check-only
+export NAVILA_SERVER_SCRIPT=/absolute/path/to/NaVILA-Bench/scripts/vlm_server.py
+export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
+export NAVVLM_PYTHON=/absolute/path/to/navila/bin/python
 ```
 
-## 2. 获取场景和模型
+## 四、第一次运行：按顺序做
 
-1. 在 OrcaLab 资产库订阅并下载 `IndustrialWarehouse1_3dgs`（或使用功能相同的工业仓库 3DGS 场景）。该资产不在本压缩包中。
-2. 在 OrcaLab 打开该 3DGS 场景后，通过 global setting 的导入功能选择本项目根目录的 [`default_set.json`](../default_set.json)。这会创建案例所需的 Go2、箱子、蓝色桶和黄色车辆。
-3. 从 NavVLM 的原始发布渠道取得兼容模型，设置绝对路径：
+### 步骤 A：打开默认场景
 
-   ```bash
-   export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
-   ```
-
-`default_set.json` 不是 3DGS 场景本身；它必须在工业仓库场景已经打开后导入。默认案例定义在 [`scenes/default_warehouse/demo_episode.json`](../scenes/default_warehouse/demo_episode.json)，可复制后修改指令、起点和目标。
-
-## 3. 启动 OrcaLab 和常驻相机
-
-在第一个终端启动：
+终端 A：
 
 ```bash
 ./scripts/start_orcalab_gui.sh
 ```
 
-脚本会为 GUI 生命周期启动本项目内的 scene-profile watcher。每次打开新场景时它都会给运行时 MuJoCo XML 注入 `orca-train` 选项（`timestep=0.005`、关闭空气阻力）；不会改 OrcaLab 安装目录。
+GUI 中执行：
 
-导航脚本只创建一次 `prefabs/mujococamera1080`，随后反复更新其 transform 并调用 `GetCameraPNG`。它是持续开启的 MuJoCo RGB 相机，安装有 OrcaLab `26.6.3` 即可使用，无需旧版 `agentcamera` MCP 接口。相机默认绑定在 Go2 基座前上方（`0.35, 0.0, 0.48`），并保持地平线稳定。
+1. 订阅/下载并打开 `IndustrialWarehouse1_3dgs`。
+2. 使用 global setting 的导入功能选择 `NaVILA-Orca/default_set.json`。
+3. 在场景树中确认只有一个完整 Go2 actor。
+4. 目视确认蓝桶和黄色车辆在前方可见区域。
 
-## 4. 启动 NavVLM 服务
+`default_set.json` 只保存 actor 布局；它不是 3DGS 仓库本体。没有先加载工业仓库，导入 setting 不会产生可用于导航的视觉场景。
 
-第二个终端（`navvlm` 环境）：
+启动脚本会附带一个 scene-profile watcher。每次新场景生成 MuJoCo XML 时，watcher 都注入 `orca-train` profile（`timestep=0.005`、关闭空气阻力），不会修改 OrcaLab 安装目录。
+
+### 步骤 B：启动 NaVILA
+
+终端 B：
 
 ```bash
-conda activate navvlm
-export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
-export NAVVLM_PYTHON="$(command -v python)"
+conda activate navila
 ./scripts/start_navvlm_server.sh
 ```
 
-服务监听 `127.0.0.1:54321`。如需其它端口，设置 `NAVVLM_PORT`，并在导航命令中传相同的 `--vlm-port`。
+当日志出现服务正在 `127.0.0.1:54321` 监听时，保持此终端运行。若命令报“server file does not exist”，检查 `NAVILA_SERVER_SCRIPT`；若模型加载失败，检查 `NAVVLM_MODEL_PATH` 是否是模型根目录而不是单个权重文件。
 
-## 5. 运行默认自动导航案例
+### 步骤 C：运行导航
 
-确认当前 OrcaLab 场景只含一个完整 Go2 actor，且 OrcaGym gRPC 在 `127.0.0.1:50051`。第三个终端运行：
+终端 C：
 
 ```bash
+conda activate orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-该命令读取默认场景说明 `demo_episode.json`，从 NavVLM 接收“前进/转向/停止”文本动作并交给本地 Go2 策略执行。结果（轨迹、相机帧与 JSON）写入 `outputs/scene_locomotion_smoke/`。
+脚本的关键默认项：
 
-常用自定义方式：
+| 参数 | 默认行为 | 教学含义 |
+| --- | --- | --- |
+| `--robot-actor-name auto` | 要求场景中恰有一台完整 Go2 | 避免控制到错误 actor |
+| `--camera-asset-path prefabs/mujococamera1080` | 创建一次、持续采集 PNG | 看见的是机器人视角，不是 viewport |
+| `--camera-mount-position 0.35 0 0.48` | 相机位于基座前上方 | 接近头部视角，降低身体遮挡 |
+| `--warmup-steps 100` | 起步前零速度执行 100 个策略步 | 让策略状态稳定后再接收 VLM 命令 |
+| `--scene-profile orca-train` | 200 Hz 物理、50 Hz 控制 | 动作距离可以按 tick 精确复现 |
+
+## 五、读懂输出
+
+结果目录为 `outputs/scene_locomotion_smoke/`。每次实验至少保存：
+
+- RGB 帧：检查视角、图像是否随机器人移动而变化。
+- 运行 JSON：记录输入 instruction、解析后的动作、时间和轨迹。
+- scene alignment 文件：出现坐标或 actor 问题时用于核对 OrcaLab combined XML。
+
+建议每组建立一张实验表：指令、首次模型动作、最终位置、是否接近蓝桶、是否出现误转向、截图文件名。不要只记录“成功/失败”。
+
+## 六、三项递进任务
+
+### 任务 1：复现实验
+
+保持所有默认参数不变，跑两次默认案例。比较两次的动作序列与最终轨迹，讨论模型推理是否完全确定，以及仿真初始化是否可重复。
+
+### 任务 2：语言消融
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \
-  --scenario scenes/default_warehouse/demo_episode.json \
   --instruction 'Move to the blue barrel and stop.'
 ```
 
-若场景中有多个 Go2，显式传入 actor 名称：
+再尝试“先向左转，再靠近蓝桶”。记录不同表达是否导致不同动作。注意：这不是测语言模型的常识题，而是观察语言、图像和几何关系是否共同影响决策。
+
+### 任务 3：相机消融
+
+将相机略微提高：
 
 ```bash
-./scripts/run_orcalab_scene_locomotion.sh --robot-actor-name go2_000
+./scripts/run_orcalab_scene_locomotion.sh \
+  --camera-mount-position 0.35 0 0.58
 ```
 
-## 6. 训练 Go2 locomotion 策略
+比较两组 RGB 帧和 NaVILA 动作。相机位置改变的不是物理控制器，而是 VLM 的观察；因此若结果变化，应该从视觉信息变化解释。
 
-Go2 任务、MJCF、网格和默认检查点都已放在 `src/navila_orca/` 内。先做环境检查：
+## 七、训练 Go2（进阶）
 
-```bash
-./scripts/train_go2.sh --help
-```
-
-开始训练：
+这里训练的是**低层行走策略**，不是 NaVILA。它学习在给定速度命令时稳定走路：
 
 ```bash
 ./scripts/train_go2.sh --agent.max-iterations 15001
 ```
 
-训练日志由 MJLab 写入当前工作目录下的 `logs/`；它们不会进入发行压缩包。训练完成后，把输出 checkpoint 路径传给导航命令的 `--checkpoint`。
+训练日志写入 `logs/`，不会进入学生发行包。训练完成后，将得到的 checkpoint 传给导航脚本：
 
-## 7. 微调 NavVLM（可选）
+```bash
+./scripts/run_orcalab_scene_locomotion.sh \
+  --checkpoint /absolute/path/to/your_checkpoint.pt
+```
 
-`src/llava/` 是项目内的视觉语言训练源码。微调之前，需要你自行准备合法可用的图像/视频、语言指令、轨迹/动作监督数据，以及基础模型权重。建议先以默认案例收集 OrcaLab RGB 帧和动作序列，再按所用 NavVLM 发布版本的训练配置进行 SFT。由于数据集、模型授权和 GPU 规模会因课程而变，本包不捏造一条“无需数据即可训练”的命令。
+比较默认 checkpoint 与新 checkpoint 的起步、转向、停止是否平稳。不要把低层步态训练结果误解释为 NaVILA 语言能力提升。
 
-## 常见问题
+## 八、常见错误：先判断哪一层出了问题
 
-- `Actor does not exist`：先在 OrcaLab 导入 `default_set.json`，再运行导航；检查只有一个完整 Go2。
-- 相机属性缺失：确认是 `prefabs/mujococamera1080`，且 `orca-lab`、`orca-gym` 均为 `26.6.3`。
-- `Go2 checkpoint does not exist`：确认 `src/navila_orca/assets/checkpoints/go2_flat.pt` 仍在发行包中，或传 `--checkpoint /path/to/file.pt`。
-- VLM 无法连接：先启动 `start_navvlm_server.sh`，并核对 `NAVVLM_PORT` 与导航参数一致。
+| 现象 | 优先检查 | 常见原因 |
+| --- | --- | --- |
+| `Actor does not exist` | OrcaLab 场景树 | 未导入 setting、Go2 被删除或 actor 名不匹配 |
+| 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
+| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
+| VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
+| 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
+| Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |
+
+排错顺序永远是：场景/actor → 相机 → NaVILA server → 动作文本 → Go2 策略。这样不会把一个连接错误误判为“模型不会导航”。

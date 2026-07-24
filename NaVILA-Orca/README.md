@@ -1,65 +1,125 @@
-# NavVLM–OrcaLab 学生复现实验包
+# NavVLM × OrcaLab：面向教学的自主导航实验
 
-这是一个**独立的 OrcaLab 自动导航案例**：NavVLM 根据 Go2 头部 RGB 相机图像和自然语言指令输出动作，MJLab Go2 策略负责执行动作，OrcaLab 负责工业仓库场景、机器人和相机渲染。
+本项目是一套可复现的 OrcaLab 课程案例。学生给 Go2 一句自然语言指令，NaVILA 根据持续采集的第一视角 RGB 图像提出下一步动作；本项目把动作变成 Go2 的速度命令，并在 OrcaLab 工业仓库中展示执行过程。
 
-该目录不依赖同级的 NaVILA-Bench、NaVILA、unitree_rl_mjlab、orca_rl 或 OrcaLab-RSLRL 检出目录；运行所需的项目源码、Go2 任务、Go2 策略检查点、默认 global setting 和演示场景都在本目录中。**不包含、不调用 IsaacLab。**
+它的边界很明确：
 
-完整的从零复现流程见 [docs/STUDENT_GUIDE.md](docs/STUDENT_GUIDE.md)。
+- 本项目负责 **OrcaLab 场景、Go2 locomotion、相机、导航循环、结果记录和教学案例**。
+- NaVILA 是独立安装的视觉语言模型服务；本项目通过本地 TCP 协议向它请求动作，**不复制、不打包 NaVILA/LLaVA 源码**。
+- 项目不包含也不调用 IsaacLab。
 
-## 包含内容
+如果你是第一次使用，请从 [学生实验指南](docs/STUDENT_GUIDE.md) 开始；它给出了三终端的完整步骤、每一步应看到的现象及排错方式。
 
-| 位置 | 用途 |
+## 你将学到什么
+
+完成默认案例后，学生能够：
+
+1. 区分“高层语言决策”和“低层四足行走策略”的职责。
+2. 在 OrcaLab 中加载 3DGS 工业仓库并导入 global setting。
+3. 让 `mujococamera1080` 作为持续开启的 Go2 头部 RGB 相机。
+4. 观察 NaVILA 的文本动作如何转换成精确的 `vx / vy / wz / duration` 控制。
+5. 修改指令、相机外参、目标位置和 Go2 训练轮数，完成自己的实验设计。
+
+## 系统如何协作
+
+```text
+自然语言指令 + 最近 8 帧 Go2 RGB
+                 │
+                 ▼
+          NaVILA 服务（独立安装）
+                 │  "move forward 25 cm" / "turn left 15 degrees" / "stop"
+                 ▼
+     NavVLM–OrcaLab 动作解析与导航循环
+                 │
+                 ▼
+       本地 Go2 MJLab locomotion 策略（50 Hz）
+                 │
+       ┌─────────┴─────────┐
+       ▼                   ▼
+  MuJoCo/MJWarp       OrcaLab 工业仓库
+  计算低层运动        更新 Go2 位姿并采集 RGB
+```
+
+NaVILA 不直接控制 12 个关节；它只输出可读的导航动作。Go2 策略负责保持平衡和执行速度。这种分层是本案例最重要的教学点。
+
+## 项目内容
+
+| 路径 | 学生会用到的内容 |
 | --- | --- |
-| `default_set.json` | 默认 OrcaLab global setting：Go2、箱子、蓝色桶和黄色车辆 |
-| `scenes/default_warehouse/demo_episode.json` | 工业仓库导航示例的起点、目标与指令 |
-| `src/navila_orca/` | 导航循环、OrcaLab 渲染桥、`mujococamera1080` 常驻 RGB 相机、场景 profile 注入 |
-| `src/navila_orca/go2_task/` | 本地 Go2 MJLab 任务定义、MJCF 和网格 |
-| `src/navila_orca/assets/checkpoints/go2_flat.pt` | 默认 Go2 平地行走策略检查点 |
-| `src/llava/`、`src/navila_orca/navvlm_server.py` | NavVLM 推理服务源码和 TCP 服务入口 |
-| `scripts/` | 启动 OrcaLab、NavVLM、导航以及 Go2 训练的显式脚本 |
+| `default_set.json` | OrcaLab global setting：Go2、箱子、蓝桶、黄色车辆 |
+| `scenes/default_warehouse/demo_episode.json` | 默认任务的起点、目标、指令和参考路径 |
+| `src/navila_orca/` | OrcaLab ↔ Go2 ↔ NaVILA 的适配代码 |
+| `src/navila_orca/go2_task/` | Go2 的本地 MJLab 任务、MJCF 和网格 |
+| `src/navila_orca/assets/checkpoints/go2_flat.pt` | 本项目的默认平地 Go2 策略检查点 |
+| `scripts/` | 启动 GUI、NaVILA 服务、导航、训练和打包的命令 |
+| `docs/` | 相机实现说明与学生实验指南 |
 
-NavVLM 8B 权重没有随包附带；请按其原始发布渠道获得模型，并设置 `NAVVLM_MODEL_PATH`。工业仓库 3DGS 资产也需由用户在 OrcaLab 资产库订阅/下载；`default_set.json` 是该场景加载后要导入的 global setting，不会代替 3DGS 场景资产。
+工业仓库 3DGS 资产与 NaVILA 模型权重不在仓库中。前者须在 OrcaLab 资产库订阅，后者须按课程提供的 NaVILA 安装说明准备。
 
-## 最短运行路径
+## 15 分钟跑通默认案例
+
+### 0. 准备两个环境
+
+- `orcalab` 环境：安装 OrcaLab/OrcaGym `26.6.3`、MJLab 和本项目。
+- `navila` 环境：按课程提供的方法安装 NaVILA 和模型权重。
 
 ```bash
 cd NaVILA-Orca
 conda activate orcalab
 python -m pip install -e '.[orca]'
+```
 
-# 终端 1：打开 OrcaLab；导入 default_set.json 的操作见学生指南
+### 1. 在 OrcaLab 准备场景（终端 A）
+
+```bash
 ./scripts/start_orcalab_gui.sh
+```
 
-# 终端 2：在单独的 navvlm 环境中启动服务（填写你实际下载的模型目录）
-conda activate navvlm
+在 GUI 中加载 `IndustrialWarehouse1_3dgs`，然后用 global setting 的导入功能选择项目根目录的 `default_set.json`。完成后应看到一台 Go2、蓝色桶和黄色车辆。
+
+### 2. 启动课程提供的 NaVILA 服务（终端 B）
+
+```bash
+conda activate navila
+export NAVILA_SERVER_SCRIPT=/absolute/path/to/NaVILA-Bench/scripts/vlm_server.py
 export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
 export NAVVLM_PYTHON="$(command -v python)"
 ./scripts/start_navvlm_server.sh
+```
 
-# 终端 3：运行默认工业仓库导航案例
+服务默认监听 `127.0.0.1:54321`。若课程使用不同 server 文件，只需把 `NAVILA_SERVER_SCRIPT` 改为实际路径；本项目不假设 NaVILA 在哪个目录。
+
+### 3. 开始导航（终端 C）
+
+```bash
+conda activate orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-默认脚本使用 OrcaLab/OrcaGym `26.6.3`、Go2 actor 自动发现、`prefabs/mujococamera1080` 和 `orca-train` MuJoCo profile。场景切换后，`start_orcalab_gui.sh` 启动的 watcher 会再次注入 profile；不会改写 OrcaLab 的安装目录。
+导航过程写到 `outputs/scene_locomotion_smoke/`。先看终端中的动作文本，再打开保存的 RGB 帧，核对“图像 → 动作 → 位姿”是否一致。
 
-## 自己训练
+## 三类常用实验
 
-Go2 locomotion 训练入口完全使用本项目内的任务定义：
+| 实验 | 改什么 | 观察什么 |
+| --- | --- | --- |
+| 语言实验 | `--instruction 'Move to the blue barrel and stop.'` | NaVILA 的动作序列是否随目标改变 |
+| 视觉实验 | `--camera-mount-position X Y Z` | 头部相机视角改变后，VLM 的转向是否变化 |
+| 控制实验 | `--warmup-steps` 或 `--checkpoint` | 起步稳定性、速度跟踪与轨迹平滑度 |
+
+详尽步骤、任务清单和错误定位见 [学生实验指南](docs/STUDENT_GUIDE.md)。
+
+## 训练与打包
+
+训练本项目的 Go2 平地策略：
 
 ```bash
 ./scripts/train_go2.sh --agent.max-iterations 15001
 ```
 
-训练环境要求见学生指南。NavVLM 的微调需要另行准备图文/轨迹数据和基础模型；本仓库提供本地 `llava` 训练源码，但不会声称附带一个可直接重训的 NavVLM 数据集或权重。
-
-## 打包给学生
+生成无缓存、无输出文件的学生压缩包：
 
 ```bash
 ./scripts/build_student_kit.sh
 ```
 
-生成 `dist/navvlm-orcalab-student-kit.tar.gz`。归档含 Go2 checkpoint、源码、默认 setting 和文档；不含运行输出、缓存、模型权重及任何 IsaacLab 目录。
-
-## 参考与许可
-
-工程结构和 OrcaLab/MJLab 使用方式参考 [OrcaLocomotion 的 `orca_warp` 分支](https://github.com/openverse-orca/OrcaLocomotion/tree/orca_warp)。上游 NavVLM/NaVILA 许可文本保存在 `third_party/licenses/`；使用或再分发前请遵守各上游项目、OrcaLab 资产和模型权重的许可条款。
+工程结构参考 [OrcaLocomotion `orca_warp`](https://github.com/openverse-orca/OrcaLocomotion/tree/orca_warp)。
