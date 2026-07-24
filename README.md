@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">Orca_VLN</h1>
   <p align="center">
-    Closed-loop visual-language navigation for Go2 in OrcaLab.
+    A visual-language navigation example in OrcaLab.
     <br />
     <a href="#quickstart">Quickstart</a> ·
     <a href="#competition-baseline">Competition baseline</a> ·
@@ -9,14 +9,14 @@
   </p>
 </p>
 
-> **Orca_VLN is a baseline solution, you can choose to finetune it based on the specific task requirement.**
-> NaVILA decides the next navigation action from language and ego RGB; a Go2 policy executes that action in OrcaLab; the next camera frame closes the loop.
+> **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
+> NaVILA maps language and ego RGB to the next navigation action; OrcaLab updates the scene and returns the next visual observation.
 
 ```text
-instruction + ego RGB  →  NaVILA  →  velocity command  →  Go2  →  next ego RGB
+instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  next ego RGB
 ```
 
-The repository provides the OrcaLab side of the system: a persistent Go2 camera, scene lifecycle, a default warehouse episode, a runnable low-level policy, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
+The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
 ## Quickstart
 
@@ -40,19 +40,19 @@ conda activate orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-Open `IndustrialWarehouse1_3dgs` in OrcaLab first, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the Go2 and the reference objects used by the default episode.
+Open `IndustrialWarehouse1_3dgs` in OrcaLab first, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
 
 ## Competition baseline
 
-The default episode approaches the blue barrel and stops before the yellow vehicle. It is designed to make the full loop visible: instruction, NaVILA response, Go2 motion, ego camera frames, and saved measurements.
+The default episode approaches the blue barrel and stops before the yellow vehicle. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
 
 | Evaluation dimension | What teams improve | Baseline status |
 | --- | --- | --- |
 | **High-level VLN** | prompts, mission logic, inspection behavior, SFT/LoRA | NaVILA action loop is ready to run |
-| **Low-level locomotion** | command tracking, turning, stopping, stability, recovery | supplied Go2 policy is intentionally general, not navigation-tuned |
+| **Low-level control** | command tracking, turning, stopping, stability, recovery | supplied control model is intentionally general, not navigation-tuned |
 | **System evidence** | scene setup, camera capture, action trace, reproducibility | run artifacts are saved automatically |
 
-The supplied `go2_flat.pt` is a conservative flat-ground locomotion baseline. It has not been tuned around this warehouse, NaVILA’s discrete motion chunks, or task-specific stopping accuracy. That gap is intentional: low-level execution quality is a competition metric, not a hidden implementation detail.
+The supplied control model is a conservative flat-ground baseline. It has not been tuned around this warehouse, NaVILA’s discrete motion chunks, or task-specific stopping accuracy. That gap is intentional: low-level execution quality is a competition metric, not a hidden implementation detail.
 
 ## Extend the baseline
 
@@ -63,7 +63,7 @@ The supplied `go2_flat.pt` is a conservative flat-ground locomotion baseline. It
 - [Architecture](NaVILA-Orca/docs/ARCHITECTURE.md) — the high-level VLN ↔ low-level locomotion contract.
 
 ```bash
-# Verify the packaged Go2 model, XML, and version alignment.
+# Verify the packaged control model, XML, and version alignment.
 ./scripts/check_mjlab_alignment.sh
 
 # Export a baseline rollout for high-level data review.
@@ -73,7 +73,7 @@ python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
 
 ## Package
 
-`NaVILA-Orca/` contains the runtime, default global setting, warehouse episode, Go2 MJCF/mesh assets, and baseline checkpoint. Build a clean archive with:
+`NaVILA-Orca/` contains the runtime, default global setting, warehouse episode, robot assets, and baseline checkpoint. Build a clean archive with:
 
 ```bash
 ./scripts/build_kit.sh
