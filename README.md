@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">NaVILA–OrcaLab</h1>
+  <h1 align="center">Orca_VLN</h1>
   <p align="center">
     Visual-language navigation for legged robots in OrcaLab.
     <br />
@@ -10,7 +10,7 @@
   </p>
 </p>
 
-NaVILA–OrcaLab is a closed-loop VLN runtime for deploying NaVILA on a Go2 in OrcaLab. It turns language-grounded visual decisions into stable robot motion, maintains a persistent ego camera, and records the full navigation trace in a photorealistic industrial environment.
+Orca_VLN is a closed-loop VLN runtime for deploying NaVILA on a Go2 in OrcaLab. It turns language-grounded visual decisions into stable robot motion, maintains a persistent ego camera, and records the full navigation trace in a photorealistic industrial environment.
 
 The repository ships the OrcaLab-facing part of the stack: the Go2 locomotion runtime, camera bridge, scene lifecycle, default warehouse layout, navigation episode, and output artifacts. Connect a NaVILA server and run a complete visual-language navigation loop without wiring the simulator and robot-control layers yourself.
 
@@ -108,15 +108,15 @@ The [developer guide](NaVILA-Orca/docs/GETTING_STARTED.md) covers the default sc
 
 Issues and pull requests are welcome. Keep changes scoped to the VLN runtime, OrcaLab scene integration, Go2 execution path, or reproducible examples. Include the command you ran and the resulting artifact or error when reporting a runtime issue.
 
-## Citation
+## NaVILA
 
-If this project supports your work, please cite it as:
+Orca_VLN builds on NaVILA. If you use the VLN model in this project, please cite:
 
 ```bibtex
-@software{navila_orcalab,
-  title  = {NaVILA--OrcaLab},
-  author = {Openverse Orca},
-  url    = {https://github.com/openverse-orca/Orca_VLN},
-  year   = {2026}
+@inproceedings{cheng2025navila,
+  title     = {Navila: Legged robot vision-language-action model for navigation},
+  author    = {Cheng, An-Chieh and Ji, Yandong and Yang, Zhaojing and Gongye, Zaitian and Zou, Xueyan and Kautz, Jan and B{\i}y{\i}k, Erdem and Yin, Hongxu and Liu, Sifei and Wang, Xiaolong},
+  booktitle = {RSS},
+  year      = {2025}
 }
 ```

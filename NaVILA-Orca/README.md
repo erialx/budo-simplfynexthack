@@ -1,6 +1,6 @@
-# NaVILA–OrcaLab developer kit
+# Orca_VLN developer kit
 
-This directory is the distributable OrcaLab lesson. Its GitHub project homepage is one level up: [NaVILA–OrcaLab](../README.md).
+This directory is the distributable OrcaLab runtime. Its GitHub project homepage is one level up: [Orca_VLN](../README.md).
 
 For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The three commands below cover the normal development loop:
 
