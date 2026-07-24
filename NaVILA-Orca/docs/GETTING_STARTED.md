@@ -1,36 +1,38 @@
-# 快速上手：让 Go2 在 OrcaLab 中听懂导航指令
+<p align="right"><sub><strong>English</strong> · <a href="GETTING_STARTED_zh.md">中文</a></sub></p>
 
-本实验不是“把模型跑起来”就结束。你要观察一条完整的机器人决策链：**看见什么、语言模型说了什么、四足机器人怎样执行、场景中发生了什么**。
+# Getting started: run a navigation instruction in OrcaLab
 
-建议把 OrcaLab、NaVILA server 和导航进程分到三个终端，便于定位每一层的问题。
+The goal is not merely to launch a model. Observe the full robot decision chain: **what it sees, what the language model says, how the quadruped executes, and what changes in the scene**.
 
-## 一、实验目标与成功标准
+Run OrcaLab, the NaVILA server, and the navigation process in three terminals. Keeping the layers separate makes failures easy to isolate.
 
-默认任务是：`Move forward toward the blue barrel, then stop before the yellow vehicle.`
+## 1. Goal and success criteria
 
-成功不只等于终端没有报错。完成一次有效实验时，应同时满足：
+The default instruction is: `Move forward toward the blue barrel, then stop before the yellow vehicle.`
 
-- OrcaLab 中已有工业仓库、一个完整 Go2、蓝色桶和黄色车辆。
-- `mujococamera1080` 的图像会随着 Go2 移动而改变。
-- NaVILA server 收到 8 帧图像和任务文本，并返回一条可解析动作。
-- Go2 动作平稳，结束后 `outputs/scene_locomotion_smoke/` 内有结果 JSON 与 RGB 帧。
+A successful run is more than an error-free terminal. It should satisfy all of the following:
 
-## 二、先理解四个角色
+- OrcaLab contains the industrial warehouse, one complete Go2, a blue barrel, and a yellow vehicle.
+- Images from `mujococamera1080` change as the Go2 moves.
+- The NaVILA server receives eight images plus the task text and returns a parseable action.
+- Go2 moves stably; `outputs/scene_locomotion_smoke/` contains result JSON and RGB frames after the run.
 
-| 角色 | 输入 | 输出 | 不负责什么 |
+## 2. Four roles in the system
+
+| Layer | Input | Output | Does not handle |
 | --- | --- | --- | --- |
-| NaVILA | 8 帧 RGB + 自然语言 | 文本动作 | 关节控制、碰撞求解 |
-| 导航循环 | 文本动作 + 当前状态 | 速度命令和持续时间 | 生成视觉语言答案 |
-| Go2 locomotion | 速度命令 | 12 关节动作 | 理解“蓝桶”或“左转”语义 |
-| OrcaLab | Go2 位姿 | 场景 RGB 与可视化 | 训练或求解低层步态 |
+| NaVILA | 8 RGB frames + natural language | textual action | joint control or collision solving |
+| Navigation loop | textual action + current state | velocity target and duration | visual-language inference |
+| Go2 locomotion | velocity target | 12 joint actions | semantic meaning such as “blue barrel” |
+| OrcaLab | Go2 pose | scene RGB and visualization | low-level gait training or solving |
 
-例如，NaVILA 说 `turn left 15 degrees` 后，导航循环把它解析为固定角速度和 0.5 秒持续时间；Go2 策略在 50 Hz 下连续执行，OrcaLab 相机再采集新画面。这就是高层 VLM 与低层控制的分工。
+For example, when NaVILA returns `turn left 15 degrees`, the navigation loop converts it to a fixed yaw velocity for 0.5 seconds. The Go2 policy executes continuously at 50 Hz, then the OrcaLab camera returns the next image. This is the high-level VLM / low-level control boundary.
 
-## 三、准备工作
+## 3. Prerequisites
 
-### 1. OrcaLab 环境
+### 1. OrcaLab environment
 
-需要 Linux、NVIDIA GPU、OrcaLab/OrcaGym `26.6.3`、MJLab `1.2.0`、`mujoco-warp 3.5.0` 和 `rsl-rl-lib 5.x`。
+You need Linux, an NVIDIA GPU, OrcaLab/OrcaGym `26.6.3`, MJLab `1.2.0`, `mujoco-warp 3.5.0`, and `rsl-rl-lib 5.x`.
 
 ```bash
 cd /path/to/NaVILA-Orca
@@ -40,26 +42,26 @@ python -m navila_orca.cli doctor
 python -m navila_orca.training
 ```
 
-`doctor` 中以下四个路径必须为 `exists: true`：默认任务、`default_set.json`、`go2_flat.pt`、Go2 XML。版本不一致时先不要继续做场景实验。
+In `doctor`, the default task, `default_set.json`, `go2_flat.pt`, and the Go2 XML must all report `exists: true`. Resolve version mismatches before doing scene work.
 
-如果 OrcaLab 不在默认路径，设置：
+If OrcaLab is not installed at the default location, set:
 
 ```bash
 export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-### 2. NaVILA 环境
+### 2. NaVILA environment
 
-NaVILA 及其模型是本项目的显式外部前提。请使用已经验证的 NaVILA 环境、模型目录和 VLM server 脚本；不要把 NaVILA/LLaVA 源码复制到本仓库。
+NaVILA and its model are explicit external prerequisites. Use a verified NaVILA environment, model directory, and VLM server script; do not copy NaVILA/LLaVA source into this repository.
 
-本案例需要服务脚本接受这些参数：
+The server script must accept:
 
 ```text
 --host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-设置路径而不是修改本项目源码：
+Configure paths rather than editing this repository:
 
 ```bash
 export NAVILA_SERVER_SCRIPT=/absolute/path/to/NaVILA-Bench/scripts/vlm_server.py
@@ -67,108 +69,108 @@ export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
 export NAVVLM_PYTHON=/absolute/path/to/navila/bin/python
 ```
 
-## 四、第一次运行：按顺序做
+## 4. First run
 
-### 步骤 A：打开默认场景
+### Step A: open the default scene
 
-终端 A：
+In terminal A:
 
 ```bash
 ./scripts/start_orcalab_gui.sh
 ```
 
-GUI 中执行：
+In the GUI:
 
-1. 订阅/下载并打开 `IndustrialWarehouse1_3dgs`。
-2. 使用 global setting 的导入功能选择 `NaVILA-Orca/default_set.json`。
-3. 在场景树中确认只有一个完整 Go2 actor。
-4. 目视确认蓝桶和黄色车辆在前方可见区域。
+1. Subscribe to/download and open `IndustrialWarehouse1_3dgs`.
+2. Import `NaVILA-Orca/default_set.json` through the global-setting importer.
+3. Confirm the scene tree contains exactly one complete Go2 actor.
+4. Confirm that the blue barrel and yellow vehicle are visible ahead.
 
-`default_set.json` 只保存 actor 布局；它不是 3DGS 仓库本体。没有先加载工业仓库，导入 setting 不会产生可用于导航的视觉场景。
+`default_set.json` stores only actor layout; it is not the industrial-warehouse 3DGS scene. Importing it without first loading the warehouse does not create a navigable visual environment.
 
-启动脚本会附带一个 scene-profile watcher。每次新场景生成 MuJoCo XML 时，watcher 都注入 `orca-train` profile（`timestep=0.005`、关闭空气阻力），不会修改 OrcaLab 安装目录。
+The launcher includes a scene-profile watcher. Whenever a new scene produces MuJoCo XML, it injects the `orca-train` profile (`timestep=0.005`, air resistance disabled) without modifying the OrcaLab installation.
 
-### 步骤 B：启动 NaVILA
+### Step B: start NaVILA
 
-终端 B：
+In terminal B:
 
 ```bash
 conda activate navila
 ./scripts/start_navvlm_server.sh
 ```
 
-当日志出现服务正在 `127.0.0.1:54321` 监听时，保持此终端运行。若命令报“server file does not exist”，检查 `NAVILA_SERVER_SCRIPT`；若模型加载失败，检查 `NAVVLM_MODEL_PATH` 是否是模型根目录而不是单个权重文件。
+Keep this terminal running after it reports listening on `127.0.0.1:54321`. For “server file does not exist”, check `NAVILA_SERVER_SCRIPT`. For model-load failures, ensure `NAVVLM_MODEL_PATH` points to the model root, not a single weight file.
 
-### 步骤 C：运行导航
+### Step C: run navigation
 
-终端 C：
+In terminal C:
 
 ```bash
 conda activate orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-脚本的关键默认项：
+Important defaults:
 
-| 参数 | 默认行为 | 教学含义 |
+| Option | Default behavior | Why it matters |
 | --- | --- | --- |
-| `--robot-actor-name auto` | 要求场景中恰有一台完整 Go2 | 避免控制到错误 actor |
-| `--camera-asset-path prefabs/mujococamera1080` | 创建一次、持续采集 PNG | 看见的是机器人视角，不是 viewport |
-| `--camera-mount-position 0.35 0 0.48` | 相机位于基座前上方 | 接近头部视角，降低身体遮挡 |
-| `--warmup-steps 100` | 起步前零速度执行 100 个策略步 | 让策略状态稳定后再接收 VLM 命令 |
-| `--scene-profile orca-train` | 200 Hz 物理、50 Hz 控制 | 动作距离可以按 tick 精确复现 |
+| `--robot-actor-name auto` | requires exactly one complete Go2 in the scene | prevents controlling the wrong actor |
+| `--camera-asset-path prefabs/mujococamera1080` | creates once and captures PNG continuously | uses robot ego view, not the viewport |
+| `--camera-mount-position 0.35 0 0.48` | mounts the camera in front of and above the base | approximates head view and reduces body occlusion |
+| `--warmup-steps 100` | executes 100 zero-velocity policy steps before motion | stabilizes policy state before VLM commands |
+| `--scene-profile orca-train` | 200 Hz physics and 50 Hz control | makes action distance reproducible by tick |
 
-## 五、读懂输出
+## 5. Read the outputs
 
-结果目录为 `outputs/scene_locomotion_smoke/`。每次实验至少保存：
+Results are written to `outputs/scene_locomotion_smoke/`. Every run saves at least:
 
-- RGB 帧：检查视角、图像是否随机器人移动而变化。
-- 运行 JSON：记录输入 instruction、解析后的动作、时间和轨迹。
-- scene alignment 文件：出现坐标或 actor 问题时用于核对 OrcaLab combined XML。
+- RGB frames for checking camera placement and image changes during motion.
+- Run JSON containing the instruction, parsed action, timing, and trajectory.
+- A scene-alignment file for investigating coordinate or actor issues in the OrcaLab combined XML.
 
-建议每组建立一张实验表：指令、首次模型动作、最终位置、是否接近蓝桶、是否出现误转向、截图文件名。不要只记录“成功/失败”。
+Maintain an experiment table for each run: instruction, first model action, final position, whether it approached the blue barrel, unexpected turns, and screenshot filename. Do not record only “pass/fail”.
 
-## 六、三项递进任务
+## 6. Three progressive tasks
 
-### 任务 1：复现实验
+### Task 1: reproduce the baseline
 
-保持所有默认参数不变，跑两次默认案例。比较两次的动作序列与最终轨迹，讨论模型推理是否完全确定，以及仿真初始化是否可重复。
+Keep all defaults and run the case twice. Compare action sequences and final trajectories. Discuss whether model inference is deterministic and whether simulation initialization is repeatable.
 
-### 任务 2：语言消融
+### Task 2: language ablation
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \
   --instruction 'Move to the blue barrel and stop.'
 ```
 
-再尝试“先向左转，再靠近蓝桶”。记录不同表达是否导致不同动作。注意：这不是测语言模型的常识题，而是观察语言、图像和几何关系是否共同影响决策。
+Then try “turn left first, then approach the blue barrel.” Record whether wording changes the returned action. This is not a language-model trivia test; it asks whether language, images, and geometry jointly influence the decision.
 
-### 任务 3：相机消融
+### Task 3: camera ablation
 
-将相机略微提高：
+Raise the camera slightly:
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \
   --camera-mount-position 0.35 0 0.58
 ```
 
-比较两组 RGB 帧和 NaVILA 动作。相机位置改变的不是物理控制器，而是 VLM 的观察；因此若结果变化，应该从视觉信息变化解释。
+Compare RGB frames and NaVILA actions. Changing camera position changes the VLM observation, not the physical controller; explain any behavioral change as a change in visual information.
 
-## 七、接入自定义 Go2 policy（进阶）
+## 7. Integrate a custom Go2 policy (advanced)
 
-默认 checkpoint 已足够复现 VLN baseline。若要使用自行训练的 low-level policy，可以选择 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion)、IsaacLab 或其他训练平台；训练平台不属于本项目的限制范围。
+The default checkpoint is sufficient to reproduce the VLN baseline. To use a custom low-level policy, choose [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion), IsaacLab, or another training platform; training platform choice is not restricted by this project.
 
-MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自定义模型的接入重点是：Go2 关节顺序/符号、根部位姿、动作顺序、控制频率，以及 `vx / vy / wz / duration` 的速度命令接口。详细的直接加载与 adapter 路径见 [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md)。高层 NaVILA 的 SFT/LoRA 路径见 [VLN fine-tuning](VLN_FINE_TUNING.md)。
+MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom integration must align Go2 joint order/sign, root pose, action order, control frequency, and the `vx / vy / wz / duration` velocity-command interface. See [Low-level locomotion](LOW_LEVEL_LOCOMOTION.md) for direct loading and adapter paths, and [VLN fine-tuning](VLN_FINE_TUNING.md) for high-level NaVILA SFT/LoRA.
 
-## 八、常见错误：先判断哪一层出了问题
+## 8. Common failures: locate the failing layer first
 
-| 现象 | 优先检查 | 常见原因 |
+| Symptom | Check first | Common cause |
 | --- | --- | --- |
-| `Actor does not exist` | OrcaLab 场景树 | 未导入 setting、Go2 被删除或 actor 名不匹配 |
-| 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
-| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
-| VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
-| 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
-| Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |
+| `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
+| zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
+| missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
+| VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |
+| model cannot load | `NAVVLM_MODEL_PATH` | wrong directory or incomplete NaVILA environment |
+| Go2 shakes or falls | checkpoint, warmup, scene start pose | incompatible checkpoint, penetration at start, or unstable policy state |
 
-排错顺序永远是：场景/actor → 相机 → NaVILA server → 动作文本 → Go2 策略。这样不会把一个连接错误误判为“模型不会导航”。
+Always debug in this order: scene/actor → camera → NaVILA server → action text → Go2 policy. This avoids misdiagnosing a connectivity error as a navigation-model failure.

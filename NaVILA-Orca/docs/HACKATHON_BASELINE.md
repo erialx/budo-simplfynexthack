@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="HACKATHON_BASELINE_zh.md">中文</a></sub></p>
+
 # Orca_VLN hackathon baseline
 
 Orca_VLN is the organizer-provided simulation baseline. Teams begin with a working visual-language navigation loop in OrcaLab, then improve the mission behavior without rebuilding the robot stack.

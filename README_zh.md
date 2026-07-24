@@ -15,7 +15,7 @@
   <br />
   <a href="#quickstart">🚀 快速开始</a> ·
   <a href="#competition-baseline">🏁 竞赛基线</a> ·
-  <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 文档</a>
+  <a href="NaVILA-Orca/docs/GETTING_STARTED_zh.md">📚 文档</a>
 </p>
 
 <p align="center">
@@ -93,11 +93,11 @@ conda activate orcalab
 
 ## 🧩 扩展基线
 
-- [快速上手](NaVILA-Orca/docs/GETTING_STARTED.md) — 场景配置、进程、相机和首次运行。
-- [Hackathon 基线](NaVILA-Orca/docs/HACKATHON_BASELINE.md) — 检查点、赛道、证据和提交范围。
-- [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — 经审核 rollout 的导出及 SFT/LoRA 方向。
-- [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md) — 可使用 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定 adapter 对齐模型。
-- [架构](NaVILA-Orca/docs/ARCHITECTURE.md) — 高层 VLN ↔ 低层运动控制的接口约定。
+- [快速上手](NaVILA-Orca/docs/GETTING_STARTED_zh.md) — 场景配置、进程、相机和首次运行。
+- [Hackathon 基线](NaVILA-Orca/docs/HACKATHON_BASELINE_zh.md) — 检查点、赛道、证据和提交范围。
+- [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 经审核 rollout 的导出及 SFT/LoRA 方向。
+- [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION_zh.md) — 可使用 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定 adapter 对齐模型。
+- [架构](NaVILA-Orca/docs/ARCHITECTURE_zh.md) — 高层 VLN ↔ 低层运动控制的接口约定。
 
 ```bash
 # 检查随包提供的控制模型、XML 与版本对齐。

@@ -1,26 +1,21 @@
-# OrcaLab 26.6.3 常驻 MuJoCo Camera
+<p align="right"><sub><strong>English</strong> · <a href="ORCALAB_26_6_3_MUJOCO_CAMERA_zh.md">中文</a></sub></p>
 
-NaVILA-Orca 使用精确锁定的 `orca-lab==26.6.3` 和
-`orca-gym==26.6.3`。Ego RGB 不使用 `prefabs/agentcamera`；该 asset 通过
-26.6.3 的公开 Edit RPC 创建时不暴露旧的 `IsRecording` / `ColorCamera`
-属性。
+# OrcaLab 26.6.3 persistent MuJoCo camera
 
-运行时改用 `prefabs/mujococamera1080`：创建一次、每次 Go2 状态更新后
-通过 `SetActorTransform` 写入头部 world pose、再通过 `GetCameraPNG` 读取
-RGB。任务结束时删除该 actor。
+NaVILA-Orca pins `orca-lab==26.6.3` and `orca-gym==26.6.3`. Ego RGB does not use `prefabs/agentcamera`: when created by the public Edit RPC in 26.6.3, that asset does not expose the legacy `IsRecording` / `ColorCamera` properties.
 
-该路径已在 26.6.3 GUI 中实测：同一 `mujococamera1080` actor 可连续完成
-两次 `GetCameraPNG`，两帧文件均有效且在中间 `SetActorTransform` 后内容
-不同。
+The runtime uses `prefabs/mujococamera1080` instead. It creates the actor once, writes its head world pose with `SetActorTransform` after every Go2 state update, then reads RGB with `GetCameraPNG`. The actor is deleted only when the episode ends.
 
-安装：
+This path has been verified in the 26.6.3 GUI: the same `mujococamera1080` actor can complete two successive `GetCameraPNG` calls; both files are valid and their contents differ after an intervening `SetActorTransform`.
+
+Install:
 
 ```bash
 python -m pip install --upgrade --force-reinstall \
   'orca-lab==26.6.3' 'orca-gym==26.6.3'
 ```
 
-升级后退出并重新启动 OrcaLab GUI，再运行：
+After upgrading, quit and restart the OrcaLab GUI, then run:
 
 ```bash
 ./scripts/run_orcalab_camera_smoke.sh

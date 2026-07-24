@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="LOW_LEVEL_LOCOMOTION_zh.md">中文</a></sub></p>
+
 # Low-level locomotion: train anywhere, integrate deliberately
 
 The packaged Go2 checkpoint is the runnable baseline and low-level execution is a competition metric. The model is intentionally a general flat-ground policy: it is not specialized for warehouse navigation, discrete NaVILA action chunks, or exact stopping near task objects. Participants can train a low-level policy in [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) (the default reference), IsaacLab, or another simulator/training stack.

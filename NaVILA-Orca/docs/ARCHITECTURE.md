@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="ARCHITECTURE_zh.md">中文</a></sub></p>
+
 # Architecture: a stable boundary between VLN and locomotion
 
 Orca_VLN is deliberately split into a high-level navigation layer and a low-level motion layer. Teams can improve either layer without having to retrain or rewrite the other.
