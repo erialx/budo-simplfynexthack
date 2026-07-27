@@ -51,9 +51,9 @@ export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-### 2. NaVILA runtime in the existing OrcaLab environment
+### 2. NaVILA runtime in its compatible environment
 
-NaVILA and its model are explicit external prerequisites. Reuse the existing `orcalab` environment: install the separately supplied NaVILA runtime into it once, then run both the OrcaLab adapter and NaVILA server from that environment. Orca_VLN provides the small TCP server adapter, so NaVILA-Bench is not required.
+NaVILA and its model are explicit external prerequisites. Keep it in its dedicated Python 3.10 / PyTorch 2.3 environment; OrcaLab currently uses Python 3.12 / PyTorch 2.12, and installing NaVILA there would replace incompatible core packages. Orca_VLN provides the small TCP server adapter, so NaVILA-Bench is not required.
 
 The server script must accept:
 
@@ -64,9 +64,8 @@ The server script must accept:
 For the packaged `/home/user/VLN` workspace, use these absolute paths:
 
 ```bash
-conda activate orcalab
-python -m pip install -e /home/user/VLN/NaVILA  # once only
-./scripts/download_navila_model.sh              # once only; downloads about 16 GB
+conda activate /home/user/VLN/.conda/envs/navila
+export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
@@ -97,8 +96,7 @@ The launcher includes a scene-profile watcher. Whenever a new scene produces MuJ
 In terminal B:
 
 ```bash
-# Reuse the orcalab environment from the setup above.
-conda activate orcalab
+conda activate /home/user/VLN/.conda/envs/navila
 ./scripts/start_navvlm_server.sh
 ```
 

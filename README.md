@@ -67,20 +67,16 @@ conda activate orcalab
 python -m pip install -e '.[orca]'
 ./scripts/start_orcalab_gui.sh
 
-# B — NaVILA service (reuse the same orcalab environment)
-# One time only: install the course-provided NaVILA runtime into this environment.
-python -m pip install -e /home/user/VLN/NaVILA
-
-# One time only: download the external checkpoint (about 16 GB) to the fixed path.
-./scripts/download_navila_model.sh
-
-# Project-owned TCP adapter plus the downloaded NaVILA model directory.
+# B — NaVILA service (dedicated, compatible Python environment)
+# NaVILA requires Python 3.10 / PyTorch 2.3; do not install it into orcalab.
+conda activate /home/user/VLN/.conda/envs/navila
+export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ./scripts/start_navvlm_server.sh
 
 # C — Orca_VLN
-# Still in the same orcalab environment.
+conda activate orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 

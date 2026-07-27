@@ -51,9 +51,9 @@ export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-### 2. 在现有 OrcaLab 环境中运行 NaVILA
+### 2. 在兼容的 NaVILA 环境中运行服务
 
-NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab` 环境：仅首次把单独提供的 NaVILA runtime 安装进该环境；之后 OrcaLab adapter 与 NaVILA server 都从同一个环境启动。Orca_VLN 自带轻量 TCP server adapter，不需要 NaVILA-Bench。
+NaVILA 及其模型是本项目的显式外部前提。请保留其专用的 Python 3.10 / PyTorch 2.3 环境；当前 OrcaLab 使用 Python 3.12 / PyTorch 2.12，在其中安装 NaVILA 会替换不兼容的核心包。Orca_VLN 自带轻量 TCP server adapter，不需要 NaVILA-Bench。
 
 本案例需要服务脚本接受这些参数：
 
@@ -64,9 +64,8 @@ NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab`
 对于打包后的 `/home/user/VLN` 工作区，使用以下绝对路径：
 
 ```bash
-conda activate orcalab
-python -m pip install -e /home/user/VLN/NaVILA  # 仅首次执行
-./scripts/download_navila_model.sh              # 仅首次执行；下载约 16 GB
+conda activate /home/user/VLN/.conda/envs/navila
+export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
@@ -97,8 +96,7 @@ GUI 中执行：
 终端 B：
 
 ```bash
-# 复用上一步的 orcalab 环境。
-conda activate orcalab
+conda activate /home/user/VLN/.conda/envs/navila
 ./scripts/start_navvlm_server.sh
 ```
 
