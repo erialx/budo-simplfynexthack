@@ -53,7 +53,7 @@ export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 
 ### 2. NaVILA runtime in the existing OrcaLab environment
 
-NaVILA and its model are explicit external prerequisites. Reuse the existing `orcalab` environment: install the separately supplied NaVILA runtime into it once, then run both the OrcaLab adapter and NaVILA server from that environment.
+NaVILA and its model are explicit external prerequisites. Reuse the existing `orcalab` environment: install the separately supplied NaVILA runtime into it once, then run both the OrcaLab adapter and NaVILA server from that environment. Orca_VLN provides the small TCP server adapter, so NaVILA-Bench is not required.
 
 The server script must accept:
 
@@ -66,7 +66,7 @@ For the packaged `/home/user/VLN` workspace, use these absolute paths:
 ```bash
 conda activate orcalab
 python -m pip install -e /home/user/VLN/NaVILA  # once only
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Bench/scripts/vlm_server.py
+export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
 

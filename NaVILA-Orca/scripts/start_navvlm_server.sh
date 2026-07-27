@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
 NAVVLM_PYTHON="${NAVVLM_PYTHON:-python}"
-NAVILA_SERVER_SCRIPT="${NAVILA_SERVER_SCRIPT:-${WORKSPACE_ROOT}/NaVILA-Bench/scripts/vlm_server.py}"
+NAVILA_SERVER_SCRIPT="${NAVILA_SERVER_SCRIPT:-${PROJECT_ROOT}/scripts/navila_vlm_server.py}"
 MODEL_PATH="${NAVVLM_MODEL_PATH:-${WORKSPACE_ROOT}/models/navila-llama3-8b-8f}"
 
 if [[ ! -f "${NAVILA_SERVER_SCRIPT}" ]]; then

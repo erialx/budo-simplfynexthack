@@ -53,7 +53,7 @@ export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 
 ### 2. 在现有 OrcaLab 环境中运行 NaVILA
 
-NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab` 环境：仅首次把单独提供的 NaVILA runtime 安装进该环境；之后 OrcaLab adapter 与 NaVILA server 都从同一个环境启动。
+NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab` 环境：仅首次把单独提供的 NaVILA runtime 安装进该环境；之后 OrcaLab adapter 与 NaVILA server 都从同一个环境启动。Orca_VLN 自带轻量 TCP server adapter，不需要 NaVILA-Bench。
 
 本案例需要服务脚本接受这些参数：
 
@@ -66,7 +66,7 @@ NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab`
 ```bash
 conda activate orcalab
 python -m pip install -e /home/user/VLN/NaVILA  # 仅首次执行
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Bench/scripts/vlm_server.py
+export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
 
