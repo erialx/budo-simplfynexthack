@@ -55,20 +55,22 @@ export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 
 NaVILA and its model are explicit external prerequisites. Keep it in its dedicated Python 3.10 / PyTorch 2.3 environment; OrcaLab currently uses Python 3.12 / PyTorch 2.12, and installing NaVILA there would replace incompatible core packages. Orca_VLN provides the small TCP server adapter, so NaVILA-Bench is not required.
 
+Do not use NaVILA's `environment_setup.sh` for this runtime: it creates a named environment, installs FlashAttention before its required PyTorch version, and includes training/evaluation setup that the TCP service does not need. From the workspace root, create the reviewed inference environment instead:
+
 The server script must accept:
 
 ```text
 --host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-For the packaged `/home/user/VLN` workspace, use these absolute paths:
-
 ```bash
-conda activate /home/user/VLN/.conda/envs/navila
-export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
-export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
+cd /path/to/Orca_VLN
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+./NaVILA-Orca/scripts/download_navila_model.sh
 ```
+
+The installer creates `/path/to/Orca_VLN/.conda/envs/navila`, checks out NaVILA at the reviewed revision, installs PyTorch `2.3.0` / torchvision `0.18.0` from the CUDA 12.1 wheel index, then installs the matching official FlashAttention 2.5.8 wheel and the NaVILA Transformers patch. It does not modify the `orcalab` environment. Set `NAVILA_ENV_PREFIX`, `NAVILA_SOURCE`, or `NAVILA_REVISION` before running it only when intentionally using a different layout or reviewed source revision.
 
 ## 4. First run
 
@@ -96,7 +98,7 @@ The launcher includes a scene-profile watcher. Whenever a new scene produces MuJ
 In terminal B:
 
 ```bash
-conda activate /home/user/VLN/.conda/envs/navila
+conda activate /path/to/Orca_VLN/.conda/envs/navila
 ./scripts/start_navvlm_server.sh
 ```
 

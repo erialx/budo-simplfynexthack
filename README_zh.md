@@ -57,7 +57,19 @@
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
-cd Orca_VLN/NaVILA-Orca
+cd Orca_VLN
+export ORCA_VLN_ROOT="$PWD"
+
+# 仅首次安装 NaVILA 推理环境。
+# 它会创建 ${ORCA_VLN_ROOT}/.conda/envs/navila，
+# 并在 ${ORCA_VLN_ROOT}/NaVILA 检出经过验证的 NaVILA 源码版本。
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+
+# 若本地尚无 checkpoint，只需下载一次。
+./NaVILA-Orca/scripts/download_navila_model.sh
+
+cd NaVILA-Orca
 
 # A — OrcaLab
 conda activate orcalab
@@ -66,10 +78,7 @@ python -m pip install -e '.[orca]'
 
 # B — NaVILA 服务（使用兼容的专用 Python 环境）
 # NaVILA 需要 Python 3.10 / PyTorch 2.3；不要装进 orcalab。
-conda activate /home/user/VLN/.conda/envs/navila
-export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
-export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
 ./scripts/start_navvlm_server.sh
 
 # C — Orca_VLN

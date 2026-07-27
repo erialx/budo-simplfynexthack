@@ -60,7 +60,19 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
-cd Orca_VLN/NaVILA-Orca
+cd Orca_VLN
+export ORCA_VLN_ROOT="$PWD"
+
+# One-time NaVILA inference runtime installation.
+# This creates ${ORCA_VLN_ROOT}/.conda/envs/navila and checks out the reviewed
+# NaVILA source revision at ${ORCA_VLN_ROOT}/NaVILA.
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+
+# Download the checkpoint once if it is not already present.
+./NaVILA-Orca/scripts/download_navila_model.sh
+
+cd NaVILA-Orca
 
 # A — OrcaLab
 conda activate orcalab
@@ -69,10 +81,7 @@ python -m pip install -e '.[orca]'
 
 # B — NaVILA service (dedicated, compatible Python environment)
 # NaVILA requires Python 3.10 / PyTorch 2.3; do not install it into orcalab.
-conda activate /home/user/VLN/.conda/envs/navila
-export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
-export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
 ./scripts/start_navvlm_server.sh
 
 # C — Orca_VLN

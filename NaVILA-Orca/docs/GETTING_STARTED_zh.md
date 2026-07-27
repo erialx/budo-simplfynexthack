@@ -55,20 +55,22 @@ export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 
 NaVILA 及其模型是本项目的显式外部前提。请保留其专用的 Python 3.10 / PyTorch 2.3 环境；当前 OrcaLab 使用 Python 3.12 / PyTorch 2.12，在其中安装 NaVILA 会替换不兼容的核心包。Orca_VLN 自带轻量 TCP server adapter，不需要 NaVILA-Bench。
 
+不要直接使用 NaVILA 的 `environment_setup.sh`：它创建的是按名称的环境、在所需 PyTorch 之前安装 FlashAttention，并包含 TCP 服务不需要的训练/评测配置。请在工作区根目录按以下方式创建经过验证的推理环境：
+
 本案例需要服务脚本接受这些参数：
 
 ```text
 --host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-对于打包后的 `/home/user/VLN` 工作区，使用以下绝对路径：
-
 ```bash
-conda activate /home/user/VLN/.conda/envs/navila
-export NAVVLM_PYTHON=/home/user/VLN/.conda/envs/navila/bin/python
-export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
-export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
+cd /path/to/Orca_VLN
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+./NaVILA-Orca/scripts/download_navila_model.sh
 ```
+
+安装脚本会创建 `/path/to/Orca_VLN/.conda/envs/navila`，检出经过验证的 NaVILA 版本，从 CUDA 12.1 wheel 源安装 PyTorch `2.3.0` / torchvision `0.18.0`，再安装匹配的官方 FlashAttention 2.5.8 wheel 与 NaVILA 的 Transformers 补丁。它不会修改 `orcalab` 环境。只有在确实需要不同目录或已经审核过的不同源码版本时，才在运行前设置 `NAVILA_ENV_PREFIX`、`NAVILA_SOURCE` 或 `NAVILA_REVISION`。
 
 ## 四、第一次运行：按顺序做
 
@@ -96,7 +98,7 @@ GUI 中执行：
 终端 B：
 
 ```bash
-conda activate /home/user/VLN/.conda/envs/navila
+conda activate /path/to/Orca_VLN/.conda/envs/navila
 ./scripts/start_navvlm_server.sh
 ```
 
