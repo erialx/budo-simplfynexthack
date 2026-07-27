@@ -6,8 +6,17 @@ source "${SCRIPT_DIR}/orcalab_env.sh"
 navila_orca_require_gui
 
 ORCALAB_BIN="${NAVILA_ORCA_ORCALAB_BIN}"
-WORKSPACE="${NAVILA_ORCA_WORKSPACE:-/home/user/Orca/OrcaLab/DefaultProject}"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
+WORKSPACE="${NAVILA_ORCA_WORKSPACE:-${WORKSPACE_ROOT}/orcalab_workspace}"
 PROFILE_WATCHER="${SCRIPT_DIR}/watch_orcalab_scene_profile.sh"
+
+if [[ ! -d "${WORKSPACE}" ]]; then
+  mkdir -p "${WORKSPACE}"
+fi
+if [[ ! -f "${WORKSPACE}/.orcalab/config.toml" ]]; then
+  "${ORCALAB_BIN}" "${WORKSPACE}" --init-config
+fi
 
 "${ORCALAB_BIN}" "${WORKSPACE}" \
   --scene orcalab_day \

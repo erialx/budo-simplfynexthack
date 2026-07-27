@@ -55,39 +55,47 @@
 
 ## 🚀 快速开始
 
+**开始前：** 使用 Ubuntu 22.04/24.04、通过 `nvidia-smi` 检查的 NVIDIA 驱动、Git，以及 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)。OrcaLab 与 NaVILA 必须使用两个独立的 Conda 前缀环境。
+
+### 一次性安装
+
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 export ORCA_VLN_ROOT="$PWD"
 
-# 仅首次安装 NaVILA 推理环境。
-# 它会创建 ${ORCA_VLN_ROOT}/.conda/envs/navila，
-# 并在 ${ORCA_VLN_ROOT}/NaVILA 检出经过验证的 NaVILA 源码版本。
+# 创建经过验证的 Python 3.12 OrcaLab/MJLab 环境。
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
+
+# 创建独立的 Python 3.10 NaVILA 推理环境。
 ./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/setup_navila_env.sh --verify
-
-# 若本地尚无 checkpoint，只需下载一次。
 ./NaVILA-Orca/scripts/download_navila_model.sh
+```
 
-cd NaVILA-Orca
+### 三个终端运行
 
-# A — OrcaLab
-conda activate orcalab
-# 启动脚本使用当前激活的 Conda 环境；Miniconda 与 Anaconda 均可。
-python -m pip install -e '.[orca]'
+```bash
+# A — OrcaLab GUI
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/start_orcalab_gui.sh
+```
 
-# B — NaVILA 服务（使用兼容的专用 Python 环境）
-# NaVILA 需要 Python 3.10 / PyTorch 2.3；不要装进 orcalab。
+```bash
+# B — NaVILA 服务
 conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/start_navvlm_server.sh
+```
 
-# C — Orca_VLN
-conda activate orcalab
+```bash
+# C — 闭环导航
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-先在 OrcaLab 中打开 `IndustrialWarehouse1_3dgs`，再导入 [`default_set.json`](NaVILA-Orca/default_set.json)。该配置会加载默认任务所需的参考对象。
+在终端 A 的 OrcaLab 中打开 `IndustrialWarehouse1_3dgs`，再导入 [`default_set.json`](NaVILA-Orca/default_set.json)。该配置会加载默认任务所需的参考对象。
 
 <a id="competition-baseline"></a>
 

@@ -19,7 +19,11 @@ orca = [
   "opencv-python>=4.10",
   "orca-gym==26.6.3",
   "orca-lab==26.6.3",
-  "torch>=2.6",
+  "mjlab==1.2.0",
+  "mujoco-warp==3.5.0",
+  "rsl-rl-lib==5.0.1",
+  "torch==2.12.0",
+  "torchvision==0.27.0",
   "websockets>=12",
 ]
 test = ["pytest>=8"]

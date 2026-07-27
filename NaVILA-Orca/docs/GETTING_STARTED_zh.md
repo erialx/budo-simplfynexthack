@@ -28,49 +28,30 @@
 
 例如，NaVILA 说 `turn left 15 degrees` 后，导航循环把它解析为固定角速度和 0.5 秒持续时间；Go2 策略在 50 Hz 下连续执行，OrcaLab 相机再采集新画面。这就是高层 VLM 与低层控制的分工。
 
-## 三、准备工作
+## 三、从零安装
 
-### 1. OrcaLab 环境
-
-需要 Linux、NVIDIA GPU、OrcaLab/OrcaGym `26.6.3`、MJLab `1.2.0`、`mujoco-warp 3.5.0` 和 `rsl-rl-lib 5.x`。
+先安装 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)、Git 和 NVIDIA 驱动。必须先确认 `nvidia-smi` 成功，再克隆本仓库并按顺序执行：
 
 ```bash
-cd /path/to/NaVILA-Orca
-conda activate orcalab
-python -m pip install -e '.[orca]'
-python -m navila_orca.cli doctor
-python -m navila_orca.training
-```
+git clone https://github.com/openverse-orca/Orca_VLN.git
+cd Orca_VLN
 
-`doctor` 中以下四个路径必须为 `exists: true`：默认任务、`default_set.json`、`go2_flat.pt`、Go2 XML。版本不一致时先不要继续做场景实验。
+# Python 3.12：OrcaLab 26.6.3、MJLab 1.2.0 与本项目。
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
 
-所有启动脚本都会使用执行 `conda activate orcalab` 的终端中的 `CONDA_PREFIX/bin/python`；不会硬编码 Anaconda 或 Miniconda 路径。GUI 可执行文件也从同一个环境解析。只有明确不激活 Conda 时，才需要显式设置以下两个路径：
-
-```bash
-export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
-export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
-```
-
-### 2. 在兼容的 NaVILA 环境中运行服务
-
-NaVILA 及其模型是本项目的显式外部前提。请保留其专用的 Python 3.10 / PyTorch 2.3 环境；当前 OrcaLab 使用 Python 3.12 / PyTorch 2.12，在其中安装 NaVILA 会替换不兼容的核心包。Orca_VLN 自带轻量 TCP server adapter，不需要 NaVILA-Bench。
-
-不要直接使用 NaVILA 的 `environment_setup.sh`：它创建的是按名称的环境、在所需 PyTorch 之前安装 FlashAttention，并包含 TCP 服务不需要的训练/评测配置。请在工作区根目录按以下方式创建经过验证的推理环境：
-
-本案例需要服务脚本接受这些参数：
-
-```text
---host 127.0.0.1  --port 54321  --model_path /path/to/model
-```
-
-```bash
-cd /path/to/Orca_VLN
+# Python 3.10：NaVILA、匹配的 PyTorch/FlashAttention 与 checkpoint。
 ./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/setup_navila_env.sh --verify
 ./NaVILA-Orca/scripts/download_navila_model.sh
 ```
 
-安装脚本会创建 `/path/to/Orca_VLN/.conda/envs/navila`，检出经过验证的 NaVILA 版本，从 CUDA 12.1 wheel 源安装 PyTorch `2.3.0` / torchvision `0.18.0`，再安装匹配的官方 FlashAttention 2.5.8 wheel 与 NaVILA 的 Transformers 补丁。它不会修改 `orcalab` 环境。只有在确实需要不同目录或已经审核过的不同源码版本时，才在运行前设置 `NAVILA_ENV_PREFIX`、`NAVILA_SOURCE` 或 `NAVILA_REVISION`。
+两个脚本会在 `Orca_VLN/.conda/envs/` 下创建彼此隔离的 `orcalab` 与 `navila` 前缀环境，互不修改。OrcaLab 安装器固定 `orca-lab` / `orca-gym` `26.6.3`、MJLab `1.2.0`、MuJoCo-Warp `3.5.0` 和 RSL-RL `5.0.1`；NaVILA 安装器固定已验证的 Python 3.10 / PyTorch 2.3 依赖栈。
+
+任意时候可验证环境：
+
+```bash
+./NaVILA-Orca/scripts/setup_orcalab_env.sh --verify
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+```
 
 ## 四、第一次运行：按顺序做
 
@@ -79,6 +60,7 @@ cd /path/to/Orca_VLN
 终端 A：
 
 ```bash
+conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 ./scripts/start_orcalab_gui.sh
 ```
 
@@ -109,7 +91,7 @@ conda activate /path/to/Orca_VLN/.conda/envs/navila
 终端 C：
 
 ```bash
-conda activate orcalab
+conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 

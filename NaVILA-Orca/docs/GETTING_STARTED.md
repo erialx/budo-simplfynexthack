@@ -28,49 +28,30 @@ A successful run is more than an error-free terminal. It should satisfy all of t
 
 For example, when NaVILA returns `turn left 15 degrees`, the navigation loop converts it to a fixed yaw velocity for 0.5 seconds. The Go2 policy executes continuously at 50 Hz, then the OrcaLab camera returns the next image. This is the high-level VLM / low-level control boundary.
 
-## 3. Prerequisites
+## 3. Install from zero
 
-### 1. OrcaLab environment
-
-You need Linux, an NVIDIA GPU, OrcaLab/OrcaGym `26.6.3`, MJLab `1.2.0`, `mujoco-warp 3.5.0`, and `rsl-rl-lib 5.x`.
+Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), Git, and an NVIDIA driver first. Do not proceed until `nvidia-smi` succeeds. Then clone this repository and run exactly these commands:
 
 ```bash
-cd /path/to/NaVILA-Orca
-conda activate orcalab
-python -m pip install -e '.[orca]'
-python -m navila_orca.cli doctor
-python -m navila_orca.training
-```
+git clone https://github.com/openverse-orca/Orca_VLN.git
+cd Orca_VLN
 
-In `doctor`, the default task, `default_set.json`, `go2_flat.pt`, and the Go2 XML must all report `exists: true`. Resolve version mismatches before doing scene work.
+# Python 3.12: OrcaLab 26.6.3, MJLab 1.2.0, and this project.
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
 
-Every launcher uses `CONDA_PREFIX/bin/python` from the terminal in which you ran `conda activate orcalab`; it does not hard-code an Anaconda or Miniconda path. The GUI executable is resolved from that same environment. If you intentionally launch without activating Conda, set both paths explicitly:
-
-```bash
-export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
-export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
-```
-
-### 2. NaVILA runtime in its compatible environment
-
-NaVILA and its model are explicit external prerequisites. Keep it in its dedicated Python 3.10 / PyTorch 2.3 environment; OrcaLab currently uses Python 3.12 / PyTorch 2.12, and installing NaVILA there would replace incompatible core packages. Orca_VLN provides the small TCP server adapter, so NaVILA-Bench is not required.
-
-Do not use NaVILA's `environment_setup.sh` for this runtime: it creates a named environment, installs FlashAttention before its required PyTorch version, and includes training/evaluation setup that the TCP service does not need. From the workspace root, create the reviewed inference environment instead:
-
-The server script must accept:
-
-```text
---host 127.0.0.1  --port 54321  --model_path /path/to/model
-```
-
-```bash
-cd /path/to/Orca_VLN
+# Python 3.10: NaVILA, matching PyTorch/FlashAttention, and checkpoint.
 ./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/setup_navila_env.sh --verify
 ./NaVILA-Orca/scripts/download_navila_model.sh
 ```
 
-The installer creates `/path/to/Orca_VLN/.conda/envs/navila`, checks out NaVILA at the reviewed revision, installs PyTorch `2.3.0` / torchvision `0.18.0` from the CUDA 12.1 wheel index, then installs the matching official FlashAttention 2.5.8 wheel and the NaVILA Transformers patch. It does not modify the `orcalab` environment. Set `NAVILA_ENV_PREFIX`, `NAVILA_SOURCE`, or `NAVILA_REVISION` before running it only when intentionally using a different layout or reviewed source revision.
+The scripts create two isolated prefixes under `Orca_VLN/.conda/envs/`: `orcalab` and `navila`. They never modify each other. The OrcaLab installer pins `orca-lab` / `orca-gym` `26.6.3`, MJLab `1.2.0`, MuJoCo-Warp `3.5.0`, and RSL-RL `5.0.1`; the NaVILA installer pins its reviewed Python 3.10 / PyTorch 2.3 stack.
+
+Verify either environment at any time:
+
+```bash
+./NaVILA-Orca/scripts/setup_orcalab_env.sh --verify
+./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+```
 
 ## 4. First run
 
@@ -79,6 +60,7 @@ The installer creates `/path/to/Orca_VLN/.conda/envs/navila`, checks out NaVILA 
 In terminal A:
 
 ```bash
+conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 ./scripts/start_orcalab_gui.sh
 ```
 
@@ -109,7 +91,7 @@ Keep this terminal running after it reports listening on `127.0.0.1:54321`. For 
 In terminal C:
 
 ```bash
-conda activate orcalab
+conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 

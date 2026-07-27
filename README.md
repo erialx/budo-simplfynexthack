@@ -58,39 +58,47 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 
 ## 🚀 Quickstart
 
+**Before starting:** use Ubuntu 22.04/24.04 with an NVIDIA GPU whose driver passes `nvidia-smi`, Git, and [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/). OrcaLab and NaVILA intentionally use separate Conda prefixes.
+
+### Install once
+
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 export ORCA_VLN_ROOT="$PWD"
 
-# One-time NaVILA inference runtime installation.
-# This creates ${ORCA_VLN_ROOT}/.conda/envs/navila and checks out the reviewed
-# NaVILA source revision at ${ORCA_VLN_ROOT}/NaVILA.
+# Creates the tested Python 3.12 OrcaLab/MJLab environment.
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
+
+# Creates the separate Python 3.10 NaVILA inference environment.
 ./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/setup_navila_env.sh --verify
-
-# Download the checkpoint once if it is not already present.
 ./NaVILA-Orca/scripts/download_navila_model.sh
+```
 
-cd NaVILA-Orca
+### Run in three terminals
 
-# A — OrcaLab
-conda activate orcalab
-# Launchers use this active Conda environment; Miniconda and Anaconda work alike.
-python -m pip install -e '.[orca]'
+```bash
+# A — OrcaLab GUI
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/start_orcalab_gui.sh
+```
 
-# B — NaVILA service (dedicated, compatible Python environment)
-# NaVILA requires Python 3.10 / PyTorch 2.3; do not install it into orcalab.
+```bash
+# B — NaVILA service
 conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/start_navvlm_server.sh
+```
 
-# C — Orca_VLN
-conda activate orcalab
+```bash
+# C — closed-loop navigation
+conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
+cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-Open `IndustrialWarehouse1_3dgs` in OrcaLab first, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
+In terminal A, open `IndustrialWarehouse1_3dgs`, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
 
 <a id="competition-baseline"></a>
 
