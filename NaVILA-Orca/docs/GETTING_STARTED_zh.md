@@ -51,9 +51,9 @@ export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-### 2. NaVILA 环境
+### 2. 在现有 OrcaLab 环境中运行 NaVILA
 
-NaVILA 及其模型是本项目的显式外部前提。请使用已经验证的 NaVILA 环境、模型目录和 VLM server 脚本；不要把 NaVILA/LLaVA 源码复制到本仓库。
+NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab` 环境：仅首次把单独提供的 NaVILA runtime 安装进该环境；之后 OrcaLab adapter 与 NaVILA server 都从同一个环境启动。
 
 本案例需要服务脚本接受这些参数：
 
@@ -61,12 +61,13 @@ NaVILA 及其模型是本项目的显式外部前提。请使用已经验证的 
 --host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-设置路径而不是修改本项目源码：
+对于打包后的 `/home/user/VLN` 工作区，使用以下绝对路径：
 
 ```bash
-export NAVILA_SERVER_SCRIPT=/absolute/path/to/NaVILA-Bench/scripts/vlm_server.py
-export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
-export NAVVLM_PYTHON=/absolute/path/to/navila/bin/python
+conda activate orcalab
+python -m pip install -e /home/user/VLN/NaVILA  # 仅首次执行
+export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Bench/scripts/vlm_server.py
+export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
 
 ## 四、第一次运行：按顺序做
@@ -95,7 +96,8 @@ GUI 中执行：
 终端 B：
 
 ```bash
-conda activate navila
+# 复用上一步的 orcalab 环境。
+conda activate orcalab
 ./scripts/start_navvlm_server.sh
 ```
 

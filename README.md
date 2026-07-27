@@ -67,14 +67,17 @@ conda activate orcalab
 python -m pip install -e '.[orca]'
 ./scripts/start_orcalab_gui.sh
 
-# B — NaVILA service
-conda activate navila
-export NAVILA_SERVER_SCRIPT=/path/to/NaVILA-Bench/scripts/vlm_server.py
-export NAVVLM_MODEL_PATH=/path/to/navvlm-llama3-8b-8f
+# B — NaVILA service (reuse the same orcalab environment)
+# One time only: install the course-provided NaVILA runtime into this environment.
+python -m pip install -e /home/user/VLN/NaVILA
+
+# Packaged workspace defaults; keep these explicit if the workspace is elsewhere.
+export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Bench/scripts/vlm_server.py
+export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ./scripts/start_navvlm_server.sh
 
 # C — Orca_VLN
-conda activate orcalab
+# Still in the same orcalab environment.
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 

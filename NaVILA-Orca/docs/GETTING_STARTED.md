@@ -51,9 +51,9 @@ export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
 export NAVILA_ORCA_ORCALAB_BIN=/absolute/path/to/orcalab/bin/orcalab
 ```
 
-### 2. NaVILA environment
+### 2. NaVILA runtime in the existing OrcaLab environment
 
-NaVILA and its model are explicit external prerequisites. Use a verified NaVILA environment, model directory, and VLM server script; do not copy NaVILA/LLaVA source into this repository.
+NaVILA and its model are explicit external prerequisites. Reuse the existing `orcalab` environment: install the separately supplied NaVILA runtime into it once, then run both the OrcaLab adapter and NaVILA server from that environment.
 
 The server script must accept:
 
@@ -61,12 +61,13 @@ The server script must accept:
 --host 127.0.0.1  --port 54321  --model_path /path/to/model
 ```
 
-Configure paths rather than editing this repository:
+For the packaged `/home/user/VLN` workspace, use these absolute paths:
 
 ```bash
-export NAVILA_SERVER_SCRIPT=/absolute/path/to/NaVILA-Bench/scripts/vlm_server.py
-export NAVVLM_MODEL_PATH=/absolute/path/to/navvlm-llama3-8b-8f
-export NAVVLM_PYTHON=/absolute/path/to/navila/bin/python
+conda activate orcalab
+python -m pip install -e /home/user/VLN/NaVILA  # once only
+export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Bench/scripts/vlm_server.py
+export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
 
 ## 4. First run
@@ -95,7 +96,8 @@ The launcher includes a scene-profile watcher. Whenever a new scene produces MuJ
 In terminal B:
 
 ```bash
-conda activate navila
+# Reuse the orcalab environment from the setup above.
+conda activate orcalab
 ./scripts/start_navvlm_server.sh
 ```
 
