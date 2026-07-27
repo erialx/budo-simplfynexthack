@@ -44,7 +44,7 @@ python -m navila_orca.training
 
 `doctor` 中以下四个路径必须为 `exists: true`：默认任务、`default_set.json`、`go2_flat.pt`、Go2 XML。版本不一致时先不要继续做场景实验。
 
-如果 OrcaLab 不在默认路径，设置：
+所有启动脚本都会使用执行 `conda activate orcalab` 的终端中的 `CONDA_PREFIX/bin/python`；不会硬编码 Anaconda 或 Miniconda 路径。GUI 可执行文件也从同一个环境解析。只有明确不激活 Conda 时，才需要显式设置以下两个路径：
 
 ```bash
 export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python

@@ -3,7 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
-ORCALAB_PYTHON="${NAVILA_ORCA_PYTHON:-/home/user/anaconda3/envs/orcalab/bin/python}"
+source "${SCRIPT_DIR}/orcalab_env.sh"
+navila_orca_resolve_runtime
+ORCALAB_PYTHON="${NAVILA_ORCA_PYTHON}"
 OUTPUT_ARGS=()
 if [[ -n "${NAVILA_ORCA_OUTPUT:-}" ]]; then
   OUTPUT_ARGS=(--output "${NAVILA_ORCA_OUTPUT}")

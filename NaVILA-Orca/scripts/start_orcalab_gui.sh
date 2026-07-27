@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ORCALAB_BIN="${NAVILA_ORCA_ORCALAB_BIN:-/home/user/anaconda3/envs/orcalab/bin/orcalab}"
-WORKSPACE="${NAVILA_ORCA_WORKSPACE:-/home/user/Orca/OrcaLab/DefaultProject}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/orcalab_env.sh"
+navila_orca_require_gui
+
+ORCALAB_BIN="${NAVILA_ORCA_ORCALAB_BIN}"
+WORKSPACE="${NAVILA_ORCA_WORKSPACE:-/home/user/Orca/OrcaLab/DefaultProject}"
 PROFILE_WATCHER="${SCRIPT_DIR}/watch_orcalab_scene_profile.sh"
 
 "${ORCALAB_BIN}" "${WORKSPACE}" \

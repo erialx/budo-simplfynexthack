@@ -73,6 +73,7 @@ cd NaVILA-Orca
 
 # A — OrcaLab
 conda activate orcalab
+# 启动脚本使用当前激活的 Conda 环境；Miniconda 与 Anaconda 均可。
 python -m pip install -e '.[orca]'
 ./scripts/start_orcalab_gui.sh
 

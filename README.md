@@ -76,6 +76,7 @@ cd NaVILA-Orca
 
 # A — OrcaLab
 conda activate orcalab
+# Launchers use this active Conda environment; Miniconda and Anaconda work alike.
 python -m pip install -e '.[orca]'
 ./scripts/start_orcalab_gui.sh
 

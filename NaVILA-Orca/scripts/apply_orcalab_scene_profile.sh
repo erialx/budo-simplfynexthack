@@ -2,13 +2,11 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ORCA_PYTHON="${NAVILA_ORCA_PYTHON:-/home/user/anaconda3/envs/orcalab/bin/python}"
+SCRIPT_DIR="${PROJECT_ROOT}/scripts"
+source "${SCRIPT_DIR}/orcalab_env.sh"
+navila_orca_resolve_runtime
+ORCA_PYTHON="${NAVILA_ORCA_PYTHON}"
 export PYTHONPATH="${PROJECT_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
-
-if [[ ! -x "${ORCA_PYTHON}" ]]; then
-  echo "OrcaLab Python 不存在或不可执行: ${ORCA_PYTHON}" >&2
-  exit 2
-fi
 
 EXPECTED_ORCA_VERSION="26.6.3"
 for ORCA_DISTRIBUTION in orca-lab orca-gym; do

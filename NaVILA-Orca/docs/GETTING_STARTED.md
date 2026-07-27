@@ -44,7 +44,7 @@ python -m navila_orca.training
 
 In `doctor`, the default task, `default_set.json`, `go2_flat.pt`, and the Go2 XML must all report `exists: true`. Resolve version mismatches before doing scene work.
 
-If OrcaLab is not installed at the default location, set:
+Every launcher uses `CONDA_PREFIX/bin/python` from the terminal in which you ran `conda activate orcalab`; it does not hard-code an Anaconda or Miniconda path. The GUI executable is resolved from that same environment. If you intentionally launch without activating Conda, set both paths explicitly:
 
 ```bash
 export NAVILA_ORCA_PYTHON=/absolute/path/to/orcalab/bin/python
