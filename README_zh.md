@@ -68,7 +68,10 @@ python -m pip install -e '.[orca]'
 # 仅首次执行：把课程提供的 NaVILA runtime 安装进当前环境。
 python -m pip install -e /home/user/VLN/NaVILA
 
-# 项目自带 TCP adapter；模型目录仍来自外部 NaVILA。
+# 仅首次执行：把外部 checkpoint（约 16 GB）下载到固定路径。
+./scripts/download_navila_model.sh
+
+# 项目自带 TCP adapter；模型目录来自已下载的外部 NaVILA checkpoint。
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ./scripts/start_navvlm_server.sh

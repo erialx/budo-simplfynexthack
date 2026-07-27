@@ -66,6 +66,7 @@ NaVILA 及其模型是本项目的显式外部前提。复用现有的 `orcalab`
 ```bash
 conda activate orcalab
 python -m pip install -e /home/user/VLN/NaVILA  # 仅首次执行
+./scripts/download_navila_model.sh              # 仅首次执行；下载约 16 GB
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```

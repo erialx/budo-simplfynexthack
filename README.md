@@ -71,7 +71,10 @@ python -m pip install -e '.[orca]'
 # One time only: install the course-provided NaVILA runtime into this environment.
 python -m pip install -e /home/user/VLN/NaVILA
 
-# Project-owned TCP adapter plus the external NaVILA model directory.
+# One time only: download the external checkpoint (about 16 GB) to the fixed path.
+./scripts/download_navila_model.sh
+
+# Project-owned TCP adapter plus the downloaded NaVILA model directory.
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ./scripts/start_navvlm_server.sh

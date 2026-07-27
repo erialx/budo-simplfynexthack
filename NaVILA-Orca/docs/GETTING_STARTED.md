@@ -66,6 +66,7 @@ For the packaged `/home/user/VLN` workspace, use these absolute paths:
 ```bash
 conda activate orcalab
 python -m pip install -e /home/user/VLN/NaVILA  # once only
+./scripts/download_navila_model.sh              # once only; downloads about 16 GB
 export NAVILA_SERVER_SCRIPT=/home/user/VLN/NaVILA-Orca/scripts/navila_vlm_server.py
 export NAVVLM_MODEL_PATH=/home/user/VLN/models/navila-llama3-8b-8f
 ```
