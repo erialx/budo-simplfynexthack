@@ -101,26 +101,39 @@ cd Orca_VLN
 因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
 `deactivate`。
 
-### 三个终端运行
+### 按顺序在三个终端运行
+
+#### A — 打开 OrcaLab 并组成预设场景
 
 ```bash
-# A — OrcaLab GUI
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
+此时不要运行导航。在 OrcaLab 中：
+
+1. 打开默认地图 `orcalab_day`。
+2. 选择 **文件 → 打开布局**，选中
+   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json)。
+3. 等待 Go2、蓝色桶、黄色车辆及其他预设对象出现在场景中。
+
+仅打开地图不会得到预设任务；`default_set.json` 才是实例化这些对象的
+布局文件。完成后保持终端 A 和 OrcaLab 运行。
+
+#### B — 启动 NaVILA 服务
+
 ```bash
-# B — NaVILA 服务
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
+等待终端 B 显示正在监听 `127.0.0.1:54321`。
+
+#### C — 启动闭环导航
+
+只有 A 中已显示完整预设场景、B 中服务已开始监听后，才能运行 C：
+
 ```bash
-# C — 闭环导航
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
-
-在终端 A 的 OrcaLab 中打开默认地图 `orcalab_day`，然后依次选择
-**文件 → 打开布局 → [`default_set.json`](NaVILA-Orca/default_set.json)**。
-该布局会加载默认任务所需的参考对象。
 
 <a id="competition-baseline"></a>
 

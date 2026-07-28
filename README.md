@@ -104,26 +104,41 @@ Python 3.12 and NaVILA uses Python 3.10. The launchers resolve them from their
 own file paths; no `ORCA_VLN_ROOT`, `conda activate`, or manual `deactivate`
 step is required.
 
-### Run in three terminals
+### Run in order in three terminals
+
+#### A — Open OrcaLab and assemble the preset scene
 
 ```bash
-# A — OrcaLab GUI
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
+Do not start navigation yet. In OrcaLab:
+
+1. Open the default map `orcalab_day`.
+2. Choose **File → Open Layout** and select
+   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json).
+3. Wait until the Go2, blue barrel, yellow vehicle, and other preset objects
+   appear in the scene.
+
+The map alone does not contain the preset task. `default_set.json` is the
+layout that instantiates it, and terminal A must remain open.
+
+#### B — Start the NaVILA service
+
 ```bash
-# B — NaVILA service
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
+Wait until terminal B reports that it is listening on `127.0.0.1:54321`.
+
+#### C — Start closed-loop navigation
+
+Run C only after the preset scene is visible in A and the service is listening
+in B:
+
 ```bash
-# C — closed-loop navigation
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
-
-In terminal A, open the default `orcalab_day` map, then choose
-**File → Open Layout → [`default_set.json`](NaVILA-Orca/default_set.json)**.
-The layout instantiates the reference objects used by the default episode.
 
 <a id="competition-baseline"></a>
 
