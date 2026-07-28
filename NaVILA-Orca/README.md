@@ -12,7 +12,12 @@ For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The 
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-Import `default_set.json` into an open industrial-warehouse 3DGS scene before running navigation. NaVILA itself remains a separate course-provided service; configure its server file with `NAVILA_SERVER_SCRIPT` and its model directory with `NAVVLM_MODEL_PATH`.
+From a fresh clone, run `./scripts/setup_all.sh` once and require
+`./scripts/doctor.sh` to pass. The launchers use the two project-local
+environments directly, so no shell activation or repository-root environment
+variable is needed.
+
+Import `default_set.json` into an open industrial-warehouse 3DGS scene before running navigation. NaVILA remains in a separate runtime, while the TCP server adapter is owned by this project and the model is downloaded to the default project model directory.
 
 ```bash
 ./scripts/build_kit.sh

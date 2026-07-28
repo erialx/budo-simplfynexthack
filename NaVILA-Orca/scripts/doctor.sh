@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+set -u
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
+ORCALAB_PREFIX="${NAVILA_ORCALAB_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/orcalab}"
+NAVILA_PREFIX="${NAVILA_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/navila}"
+MODEL_DIR="${NAVVLM_MODEL_PATH:-${WORKSPACE_ROOT}/models/navila-llama3-8b-8f}"
+SKIP_MODEL=0
+REQUIRE_SERVICES=0
+FAILURES=0
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/doctor.sh [--skip-model] [--require-services]
+
+Checks the host, both project-local environments, bundled assets, downloaded
+model, GPU visibility, and optionally the two running local services.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-model) SKIP_MODEL=1 ;;
+    --require-services) REQUIRE_SERVICES=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+pass() {
+  printf '[PASS] %s\n' "$1"
+}
+
+fail() {
+  printf '[FAIL] %s\n' "$1" >&2
+  FAILURES=$((FAILURES + 1))
+}
+
+check_command() {
+  if command -v "$1" >/dev/null 2>&1; then
+    pass "$1: $(command -v "$1")"
+  else
+    fail "$1 is not available"
+  fi
+}
+
+check_file() {
+  if [[ -f "$1" ]]; then
+    pass "$2: $1"
+  else
+    fail "$2 is missing: $1"
+  fi
+}
+
+check_command git
+check_command conda
+check_command nvidia-smi
+
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+  pass "NVIDIA driver is visible"
+else
+  fail "NVIDIA driver is not usable; fix nvidia-smi before installing GPU packages"
+fi
+
+check_file "${PROJECT_ROOT}/default_set.json" "default global setting"
+check_file "${PROJECT_ROOT}/src/navila_orca/assets/checkpoints/go2_flat.pt" "Go2 checkpoint"
+check_file "${PROJECT_ROOT}/scripts/navila_vlm_server.py" "project-owned NaVILA server"
+
+if NAVILA_ORCALAB_ENV_PREFIX="${ORCALAB_PREFIX}" \
+  "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh" --verify >/dev/null 2>&1; then
+  pass "OrcaLab environment: ${ORCALAB_PREFIX}"
+else
+  fail "OrcaLab environment is missing or inconsistent; run scripts/setup_orcalab_env.sh"
+fi
+
+if NAVILA_ENV_PREFIX="${NAVILA_PREFIX}" \
+  "${PROJECT_ROOT}/scripts/setup_navila_env.sh" --verify >/dev/null 2>&1; then
+  pass "NaVILA environment: ${NAVILA_PREFIX}"
+else
+  fail "NaVILA environment is missing or inconsistent; run scripts/setup_navila_env.sh"
+fi
+
+if [[ -x "${ORCALAB_PREFIX}/bin/python" ]] && \
+  "${ORCALAB_PREFIX}/bin/python" -c 'import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)' \
+  >/dev/null 2>&1; then
+  pass "OrcaLab PyTorch can access CUDA"
+else
+  fail "OrcaLab PyTorch cannot access CUDA"
+fi
+
+if [[ -x "${NAVILA_PREFIX}/bin/python" ]] && \
+  "${NAVILA_PREFIX}/bin/python" -c 'import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)' \
+  >/dev/null 2>&1; then
+  pass "NaVILA PyTorch can access CUDA"
+else
+  fail "NaVILA PyTorch cannot access CUDA"
+fi
+
+if [[ "${SKIP_MODEL}" -eq 0 ]]; then
+  check_file "${MODEL_DIR}/config.json" "NaVILA model config"
+  if find "${MODEL_DIR}" -maxdepth 2 -type f \
+    \( -name '*.safetensors' -o -name '*.safetensors.index.json' \) \
+    -print -quit 2>/dev/null | grep -q .; then
+    pass "NaVILA model weights: ${MODEL_DIR}"
+  else
+    fail "NaVILA safetensors weights are missing: ${MODEL_DIR}"
+  fi
+fi
+
+if [[ "${REQUIRE_SERVICES}" -eq 1 ]]; then
+  if timeout 1 bash -c '</dev/tcp/127.0.0.1/50051' 2>/dev/null; then
+    pass "OrcaGym gRPC is listening on 127.0.0.1:50051"
+  else
+    fail "OrcaGym gRPC is not listening on 127.0.0.1:50051"
+  fi
+  if timeout 1 bash -c '</dev/tcp/127.0.0.1/54321' 2>/dev/null; then
+    pass "NaVILA TCP service is listening on 127.0.0.1:54321"
+  else
+    fail "NaVILA TCP service is not listening on 127.0.0.1:54321"
+  fi
+fi
+
+if [[ "${FAILURES}" -ne 0 ]]; then
+  printf '\nDoctor found %d problem(s).\n' "${FAILURES}" >&2
+  exit 2
+fi
+
+printf '\nOrca_VLN installation is ready.\n'

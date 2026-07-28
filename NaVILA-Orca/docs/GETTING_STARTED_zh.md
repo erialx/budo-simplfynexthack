@@ -36,22 +36,32 @@
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 
-# Python 3.12：OrcaLab 26.6.3、MJLab 1.2.0 与本项目。
-./NaVILA-Orca/scripts/setup_orcalab_env.sh
+# Python 3.12 OrcaLab、Python 3.10 NaVILA 和经过验证的模型。
+./NaVILA-Orca/scripts/setup_all.sh
 
-# Python 3.10：NaVILA、匹配的 PyTorch/FlashAttention 与 checkpoint。
-./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/download_navila_model.sh
+# 只要出现 FAIL 就先停止，不要继续启动。
+./NaVILA-Orca/scripts/doctor.sh
 ```
 
-两个脚本会在 `Orca_VLN/.conda/envs/` 下创建彼此隔离的 `orcalab` 与 `navila` 前缀环境，互不修改。OrcaLab 安装器固定 `orca-lab` / `orca-gym` `26.6.3`、MJLab `1.2.0`、MuJoCo-Warp `3.5.0` 和 RSL-RL `5.0.1`；NaVILA 安装器固定已验证的 Python 3.10 / PyTorch 2.3 依赖栈。
+安装器会在 `Orca_VLN/.conda/envs/` 下创建彼此隔离的 `orcalab` 与
+`navila` 前缀环境。它会锁定包版本、NaVILA 源码提交、Transformers
+提交和 FlashAttention wheel 哈希，并对 OrcaLab 执行 `pip check`、
+对两套环境执行导入验证。
 
-任意时候可验证环境：
+脚本根据自身位置解析环境。无需激活 Conda 环境，也无需导出仓库根目录
+变量；即使当前终端激活了另一套环境，也不会选错 Python。
+
+任意时候可单独验证或修复各层：
 
 ```bash
 ./NaVILA-Orca/scripts/setup_orcalab_env.sh --verify
 ./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+./NaVILA-Orca/scripts/doctor.sh
 ```
+
+`setup_all.sh` 默认下载体积较大的模型。离线准备环境时可暂用
+`--skip-model`，但启动服务前必须执行
+`./NaVILA-Orca/scripts/download_navila_model.sh`。
 
 ## 四、第一次运行：按顺序做
 
@@ -60,8 +70,7 @@ cd Orca_VLN
 终端 A：
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/orcalab
-./scripts/start_orcalab_gui.sh
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
 GUI 中执行：
@@ -80,19 +89,19 @@ GUI 中执行：
 终端 B：
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/navila
-./scripts/start_navvlm_server.sh
+./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-当日志出现服务正在 `127.0.0.1:54321` 监听时，保持此终端运行。若命令报“server file does not exist”，检查 `NAVILA_SERVER_SCRIPT`；若模型加载失败，检查 `NAVVLM_MODEL_PATH` 是否是模型根目录而不是单个权重文件。
+当日志出现服务正在 `127.0.0.1:54321` 监听时，保持此终端运行。服务适配器
+已包含在项目的 `scripts/navila_vlm_server.py` 中，用户不需要寻找或导出
+额外脚本。模型缺失或下载不完整时，启动器会在加载前失败并给出恢复命令。
 
 ### 步骤 C：运行导航
 
 终端 C：
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/orcalab
-./scripts/run_orcalab_scene_locomotion.sh
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
 脚本的关键默认项：
@@ -124,7 +133,7 @@ conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 ### 任务 2：语言消融
 
 ```bash
-./scripts/run_orcalab_scene_locomotion.sh \
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
   --instruction 'Move to the blue barrel and stop.'
 ```
 
@@ -135,7 +144,7 @@ conda activate /path/to/Orca_VLN/.conda/envs/orcalab
 将相机略微提高：
 
 ```bash
-./scripts/run_orcalab_scene_locomotion.sh \
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
   --camera-mount-position 0.35 0 0.58
 ```
 

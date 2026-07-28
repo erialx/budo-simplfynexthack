@@ -36,22 +36,34 @@ Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), G
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 
-# Python 3.12: OrcaLab 26.6.3, MJLab 1.2.0, and this project.
-./NaVILA-Orca/scripts/setup_orcalab_env.sh
+# Python 3.12 OrcaLab + Python 3.10 NaVILA + reviewed model checkpoint.
+./NaVILA-Orca/scripts/setup_all.sh
 
-# Python 3.10: NaVILA, matching PyTorch/FlashAttention, and checkpoint.
-./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/download_navila_model.sh
+# Stop here unless every check passes.
+./NaVILA-Orca/scripts/doctor.sh
 ```
 
-The scripts create two isolated prefixes under `Orca_VLN/.conda/envs/`: `orcalab` and `navila`. They never modify each other. The OrcaLab installer pins `orca-lab` / `orca-gym` `26.6.3`, MJLab `1.2.0`, MuJoCo-Warp `3.5.0`, and RSL-RL `5.0.1`; the NaVILA installer pins its reviewed Python 3.10 / PyTorch 2.3 stack.
+The installer creates two isolated prefixes under `Orca_VLN/.conda/envs/`:
+`orcalab` and `navila`. It pins the package versions, the NaVILA source commit,
+the Transformers commit, and the FlashAttention wheel hash. It also runs
+`pip check` on the OrcaLab environment and verifies imports in both
+environments.
 
-Verify either environment at any time:
+The scripts resolve these prefixes from their own location. Do not activate
+either environment and do not export a repository-root variable. This remains
+true if another Conda environment is active in the terminal.
+
+Verify or repair individual layers at any time:
 
 ```bash
 ./NaVILA-Orca/scripts/setup_orcalab_env.sh --verify
 ./NaVILA-Orca/scripts/setup_navila_env.sh --verify
+./NaVILA-Orca/scripts/doctor.sh
 ```
+
+`setup_all.sh` downloads a large model checkpoint. Use `--skip-model` only
+when preparing the environments offline, then run
+`./NaVILA-Orca/scripts/download_navila_model.sh` before starting the service.
 
 ## 4. First run
 
@@ -60,8 +72,7 @@ Verify either environment at any time:
 In terminal A:
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/orcalab
-./scripts/start_orcalab_gui.sh
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
 In the GUI:
@@ -80,19 +91,20 @@ The launcher includes a scene-profile watcher. Whenever a new scene produces MuJ
 In terminal B:
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/navila
-./scripts/start_navvlm_server.sh
+./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-Keep this terminal running after it reports listening on `127.0.0.1:54321`. For “server file does not exist”, check `NAVILA_SERVER_SCRIPT`. For model-load failures, ensure `NAVVLM_MODEL_PATH` points to the model root, not a single weight file.
+Keep this terminal running after it reports listening on `127.0.0.1:54321`.
+The server adapter is included at `scripts/navila_vlm_server.py`; users do not
+need to find or export a server script. A missing or partial model is rejected
+before model loading with the exact recovery command.
 
 ### Step C: run navigation
 
 In terminal C:
 
 ```bash
-conda activate /path/to/Orca_VLN/.conda/envs/orcalab
-./scripts/run_orcalab_scene_locomotion.sh
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
 Important defaults:
@@ -124,7 +136,7 @@ Keep all defaults and run the case twice. Compare action sequences and final tra
 ### Task 2: language ablation
 
 ```bash
-./scripts/run_orcalab_scene_locomotion.sh \
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
   --instruction 'Move to the blue barrel and stop.'
 ```
 
@@ -135,7 +147,7 @@ Then try “turn left first, then approach the blue barrel.” Record whether wo
 Raise the camera slightly:
 
 ```bash
-./scripts/run_orcalab_scene_locomotion.sh \
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
   --camera-mount-position 0.35 0 0.58
 ```
 

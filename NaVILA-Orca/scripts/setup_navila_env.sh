@@ -12,7 +12,9 @@ ENV_PREFIX="${NAVILA_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/navila}"
 NAVILA_SOURCE="${NAVILA_SOURCE:-${WORKSPACE_ROOT}/NaVILA}"
 NAVILA_REVISION="${NAVILA_REVISION:-76b98f233dd0fff05dfcd69435eec6740febff9d}"
 PYTHON="${ENV_PREFIX}/bin/python"
-FLASH_ATTN_WHEEL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.8/flash_attn-2.5.8+cu122torch2.3cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+CONSTRAINTS="${PROJECT_ROOT}/constraints/navila-rss2025.txt"
+FLASH_ATTN_WHEEL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.8/flash_attn-2.5.8+cu122torch2.3cxx11abiFALSE-cp310-cp310-linux_x86_64.whl#sha256=13454dd3d37cf173649bd389b84614b8072fb283f8f2fd23a65ab66caafc304b"
+TRANSFORMERS_REVISION="345b9b1a6a308a1fa6559251eb33ead2211240ac"
 
 usage() {
   cat <<'EOF'
@@ -40,10 +42,18 @@ verify() {
 
   "${PYTHON}" - "${NAVILA_SOURCE}" <<'PY'
 import sys
+from importlib import metadata
 from pathlib import Path
 
+def require_equal(name, actual, expected):
+    if actual != expected:
+        raise SystemExit(
+            f"{name} version mismatch: found {actual}, expected {expected}. "
+            "Run ./NaVILA-Orca/scripts/setup_navila_env.sh to repair it."
+        )
+
 source = Path(sys.argv[1]).resolve()
-assert sys.version_info[:2] == (3, 10), sys.version
+require_equal("Python", sys.version_info[:2], (3, 10))
 
 import flash_attn
 import llava
@@ -51,15 +61,24 @@ import torch
 import torchvision
 import transformers
 
-assert torch.__version__.split('+', 1)[0] == "2.3.0", torch.__version__
-assert torchvision.__version__.split('+', 1)[0] == "0.18.0", torchvision.__version__
-assert transformers.__version__ == "4.37.2", transformers.__version__
-assert flash_attn.__version__ == "2.5.8", flash_attn.__version__
-assert Path(llava.__file__).resolve().is_relative_to(source), llava.__file__
+require_equal("torch", torch.__version__.split('+', 1)[0], "2.3.0")
+require_equal("torchvision", torchvision.__version__.split('+', 1)[0], "0.18.0")
+require_equal("transformers", transformers.__version__, "4.37.2")
+require_equal("flash-attn", flash_attn.__version__, "2.5.8")
+require_equal("accelerate", metadata.version("accelerate"), "0.27.2")
+require_equal("numpy", metadata.version("numpy"), "1.26.0")
+require_equal("opencv-python", metadata.version("opencv-python"), "4.8.0.74")
+require_equal("setuptools", metadata.version("setuptools"), "81.0.0")
+if not Path(llava.__file__).resolve().is_relative_to(source):
+    raise SystemExit(f"llava resolves outside the reviewed checkout: {llava.__file__}")
 
 replacement = source / "llava/train/transformers_replace/modeling_utils.py"
 installed = Path(transformers.__file__).resolve().parent / "modeling_utils.py"
-assert replacement.read_bytes() == installed.read_bytes(), "NaVILA Transformers patch is missing"
+if replacement.read_bytes() != installed.read_bytes():
+    raise SystemExit(
+        "NaVILA Transformers patch is missing. "
+        "Run ./NaVILA-Orca/scripts/setup_navila_env.sh to repair it."
+    )
 print("NaVILA runtime verified")
 print(f"python={sys.executable}")
 print(f"torch={torch.__version__}; torchvision={torchvision.__version__}; transformers={transformers.__version__}")
@@ -101,13 +120,16 @@ if [[ ! -x "${PYTHON}" ]]; then
   conda create --yes --prefix "${ENV_PREFIX}" python=3.10 pip
 fi
 
-"${PYTHON}" -m pip install --upgrade pip
+"${PYTHON}" -m pip install --upgrade \
+  "pip==26.1.2" "setuptools==81.0.0" "wheel==0.47.0"
 "${PYTHON}" -m pip install --index-url https://download.pytorch.org/whl/cu121 \
   'torch==2.3.0' 'torchvision==0.18.0'
 "${PYTHON}" -m pip install "${FLASH_ATTN_WHEEL}"
-"${PYTHON}" -m pip install --editable "${NAVILA_SOURCE}"
-"${PYTHON}" -m pip install --force-reinstall \
-  'git+https://github.com/huggingface/transformers@v4.37.2'
+"${PYTHON}" -m pip install \
+  --requirement "${CONSTRAINTS}"
+"${PYTHON}" -m pip install --no-deps --editable "${NAVILA_SOURCE}"
+"${PYTHON}" -m pip install --force-reinstall --no-deps \
+  "git+https://github.com/huggingface/transformers@${TRANSFORMERS_REVISION}"
 
 SITE_PACKAGES="$("${PYTHON}" -c 'import site; print(site.getsitepackages()[0])')"
 cp -a "${NAVILA_SOURCE}/llava/train/transformers_replace/." "${SITE_PACKAGES}/transformers/"

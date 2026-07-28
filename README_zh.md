@@ -62,37 +62,33 @@
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
-export ORCA_VLN_ROOT="$PWD"
 
-# 创建经过验证的 Python 3.12 OrcaLab/MJLab 环境。
-./NaVILA-Orca/scripts/setup_orcalab_env.sh
+# 创建两套锁定环境，并下载经过验证的 NaVILA 模型。
+./NaVILA-Orca/scripts/setup_all.sh
 
-# 创建独立的 Python 3.10 NaVILA 推理环境。
-./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/download_navila_model.sh
+# 最后一行必须是：Orca_VLN installation is ready.
+./NaVILA-Orca/scripts/doctor.sh
 ```
+
+两套环境都位于当前 checkout 的 `.conda/envs/`。启动器根据自己的文件
+位置定位环境，因此不再需要设置 `ORCA_VLN_ROOT`，也不用手动执行
+`conda activate` 或 `deactivate`。
 
 ### 三个终端运行
 
 ```bash
 # A — OrcaLab GUI
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/start_orcalab_gui.sh
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
 ```bash
 # B — NaVILA 服务
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/start_navvlm_server.sh
+./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
 ```bash
 # C — 闭环导航
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/run_orcalab_scene_locomotion.sh
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
 在终端 A 的 OrcaLab 中打开 `IndustrialWarehouse1_3dgs`，再导入 [`default_set.json`](NaVILA-Orca/default_set.json)。该配置会加载默认任务所需的参考对象。

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=69,<82", "wheel==0.46.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,15 +8,15 @@ version = "0.1.0"
 description = "Self-contained NavVLM automatic-navigation example for OrcaLab"
 requires-python = ">=3.10"
 dependencies = [
-  "grpcio>=1.60",
-  "numpy>=1.26",
-  "Pillow>=10",
+  "grpcio==1.66.1",
+  "numpy==2.2.6",
+  "Pillow==12.0.0",
 ]
 
 [project.optional-dependencies]
 orca = [
-  "av>=12",
-  "opencv-python>=4.10",
+  "av==18.0.0",
+  "opencv-python==5.0.0.93",
   "orca-gym==26.6.3",
   "orca-lab==26.6.3",
   "mjlab==1.2.0",
@@ -24,9 +24,9 @@ orca = [
   "rsl-rl-lib==5.0.1",
   "torch==2.12.0",
   "torchvision==0.27.0",
-  "websockets>=12",
+  "websockets==16.1.1",
 ]
-test = ["pytest>=8"]
+test = ["pytest==9.1.1"]
 
 [project.scripts]
 navvlm-orcalab = "navila_orca.cli:main"

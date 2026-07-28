@@ -65,37 +65,33 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
-export ORCA_VLN_ROOT="$PWD"
 
-# Creates the tested Python 3.12 OrcaLab/MJLab environment.
-./NaVILA-Orca/scripts/setup_orcalab_env.sh
+# Creates both pinned environments and downloads the reviewed NaVILA model.
+./NaVILA-Orca/scripts/setup_all.sh
 
-# Creates the separate Python 3.10 NaVILA inference environment.
-./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/download_navila_model.sh
+# Must end with: Orca_VLN installation is ready.
+./NaVILA-Orca/scripts/doctor.sh
 ```
+
+The environments live under this checkout in `.conda/envs/`. The launchers
+resolve them from their own file paths; no `ORCA_VLN_ROOT`, `conda activate`,
+or manual `deactivate` step is required.
 
 ### Run in three terminals
 
 ```bash
 # A — OrcaLab GUI
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/start_orcalab_gui.sh
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
 ```bash
 # B — NaVILA service
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/navila"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/start_navvlm_server.sh
+./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
 ```bash
 # C — closed-loop navigation
-conda activate "${ORCA_VLN_ROOT}/.conda/envs/orcalab"
-cd "${ORCA_VLN_ROOT}/NaVILA-Orca"
-./scripts/run_orcalab_scene_locomotion.sh
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
 In terminal A, open `IndustrialWarehouse1_3dgs`, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.

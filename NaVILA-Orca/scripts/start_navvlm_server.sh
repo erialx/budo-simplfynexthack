@@ -17,8 +17,16 @@ if [[ ! -f "${NAVILA_SERVER_SCRIPT}" ]]; then
   exit 2
 fi
 
-if [[ ! -d "${MODEL_PATH}" ]]; then
-  echo "NavVLM model directory does not exist: ${MODEL_PATH}" >&2
+if [[ ! -f "${MODEL_PATH}/config.json" ]]; then
+  echo "NavVLM model is missing or incomplete: ${MODEL_PATH}" >&2
+  echo "Run ${PROJECT_ROOT}/scripts/download_navila_model.sh first." >&2
+  exit 2
+fi
+if ! find "${MODEL_PATH}" -maxdepth 2 -type f \
+  \( -name '*.safetensors' -o -name '*.safetensors.index.json' \) \
+  -print -quit | grep -q .; then
+  echo "NavVLM model has no safetensors weights: ${MODEL_PATH}" >&2
+  echo "Rerun ${PROJECT_ROOT}/scripts/download_navila_model.sh to resume and verify the download." >&2
   exit 2
 fi
 
