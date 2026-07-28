@@ -30,7 +30,7 @@
 
 ## 三、从零安装
 
-先安装 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)、Git 和 NVIDIA 驱动。必须先确认 `nvidia-smi` 成功，再克隆本仓库并按顺序执行：
+先安装 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)、Git，以及至少 RTX 4090 级别的 NVIDIA GPU 与驱动。必须先确认 `nvidia-smi` 成功，再克隆本仓库并按顺序执行：
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git

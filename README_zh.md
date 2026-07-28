@@ -55,8 +55,8 @@
 
 ## 🚀 快速开始
 
-**开始前：** 使用 Ubuntu 22.04/24.04、能通过 `nvidia-smi` 检查的 NVIDIA
-驱动和 Git。
+**开始前：** 使用 Ubuntu 22.04/24.04、Git，以及至少 RTX 4090 级别、能通过
+`nvidia-smi` 检查的 NVIDIA GPU 与驱动。
 
 ### 一次性安装
 

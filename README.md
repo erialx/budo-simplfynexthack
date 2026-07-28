@@ -58,8 +58,8 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 
 ## 🚀 Quickstart
 
-**Before starting:** use Ubuntu 22.04/24.04 with an NVIDIA GPU whose driver
-passes `nvidia-smi` and Git.
+**Before starting:** use Ubuntu 22.04/24.04, Git, and an NVIDIA GPU of at
+least RTX 4090 class whose driver passes `nvidia-smi`.
 
 ### Install once
 

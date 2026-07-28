@@ -30,7 +30,7 @@ For example, when NaVILA returns `turn left 15 degrees`, the navigation loop con
 
 ## 3. Install from zero
 
-Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), Git, and an NVIDIA driver first. Do not proceed until `nvidia-smi` succeeds. Then clone this repository and run exactly these commands:
+Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), Git, and an NVIDIA GPU of at least RTX 4090 class first. Do not proceed until `nvidia-smi` succeeds. Then clone this repository and run exactly these commands:
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
