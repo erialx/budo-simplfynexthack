@@ -8,9 +8,6 @@
 先执行一次 `./scripts/setup_all.sh`，并确认 `./scripts/doctor.sh` 全部通过。
 此后无需激活 Conda 环境或设置仓库根目录变量。以下三条命令覆盖正常开发流程：
 
-全新电脑或 Miniconda/Anaconda 冲突时，请先阅读
-[Conda 从零环境指南](docs/CONDA_SETUP_zh.md)。
-
 ```bash
 ./scripts/start_orcalab_gui.sh
 ./scripts/start_navvlm_server.sh

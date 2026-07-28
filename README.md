@@ -58,9 +58,23 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 
 ## 🚀 Quickstart
 
-**Before starting:** use Ubuntu 22.04/24.04 with an NVIDIA GPU whose driver passes `nvidia-smi`, Git, and [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/). OrcaLab and NaVILA intentionally use separate Conda prefixes.
+**Before starting:** use Ubuntu 22.04/24.04 with an NVIDIA GPU whose driver
+passes `nvidia-smi` and Git.
 
 ### Install once
+
+If `conda --version` does not work, install one clean Miniconda:
+
+```bash
+curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+  -o /tmp/miniconda.sh
+bash /tmp/miniconda.sh -b -p "$HOME/miniconda3"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda init bash
+conda --version
+```
+
+Clone the project:
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
@@ -80,14 +94,10 @@ Verify the completed installation. The final line must be
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-The environments live under this checkout in `.conda/envs/`. The launchers
-resolve them from their own file paths; no `ORCA_VLN_ROOT`, `conda activate`,
-or manual `deactivate` step is required.
-
-If Conda is not installed cleanly, multiple Miniconda/Anaconda installations
-appear in `PATH`, or you are preparing a new computer, follow the
-[fresh Conda environment guide](NaVILA-Orca/docs/CONDA_SETUP.md) before
-running the installer.
+The environments live under this checkout in `.conda/envs/`: OrcaLab uses
+Python 3.12 and NaVILA uses Python 3.10. The launchers resolve them from their
+own file paths; no `ORCA_VLN_ROOT`, `conda activate`, or manual `deactivate`
+step is required.
 
 ### Run in three terminals
 

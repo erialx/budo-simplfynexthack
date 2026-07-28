@@ -17,9 +17,6 @@ From a fresh clone, run `./scripts/setup_all.sh` once and require
 environments directly, so no shell activation or repository-root environment
 variable is needed.
 
-For a new machine or conflicting Miniconda/Anaconda installations, start with
-the [fresh Conda environment guide](docs/CONDA_SETUP.md).
-
 Open the default `orcalab_day` map and choose
 **File → Open Layout → `default_set.json`** before running navigation. NaVILA
 remains in a separate runtime, while the TCP server adapter is owned by this

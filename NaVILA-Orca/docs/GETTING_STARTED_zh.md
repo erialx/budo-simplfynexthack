@@ -32,9 +32,6 @@
 
 先安装 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)、Git 和 NVIDIA 驱动。必须先确认 `nvidia-smi` 成功，再克隆本仓库并按顺序执行：
 
-如果 Conda 尚未安装、存在两套发行版或没有初始化，请先完成
-[Conda 从零环境指南](CONDA_SETUP_zh.md)。
-
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN

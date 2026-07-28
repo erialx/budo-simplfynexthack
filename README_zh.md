@@ -55,9 +55,23 @@
 
 ## 🚀 快速开始
 
-**开始前：** 使用 Ubuntu 22.04/24.04、通过 `nvidia-smi` 检查的 NVIDIA 驱动、Git，以及 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)。OrcaLab 与 NaVILA 必须使用两个独立的 Conda 前缀环境。
+**开始前：** 使用 Ubuntu 22.04/24.04、能通过 `nvidia-smi` 检查的 NVIDIA
+驱动和 Git。
 
 ### 一次性安装
+
+如果 `conda --version` 无法运行，直接安装一套干净的 Miniconda：
+
+```bash
+curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+  -o /tmp/miniconda.sh
+bash /tmp/miniconda.sh -b -p "$HOME/miniconda3"
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda init bash
+conda --version
+```
+
+克隆项目：
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
@@ -77,14 +91,10 @@ cd Orca_VLN
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-两套环境都位于当前 checkout 的 `.conda/envs/`。启动器根据自己的文件
-位置定位环境，因此不再需要设置 `ORCA_VLN_ROOT`，也不用手动执行
-`conda activate` 或 `deactivate`。
-
-如果 Conda 尚未正确安装、`PATH` 中同时存在 Miniconda 与 Anaconda，
-或正在配置一台全新电脑，请先按
-[Conda 从零环境指南](NaVILA-Orca/docs/CONDA_SETUP_zh.md)完成宿主环境，
-再运行项目安装器。
+两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
+3.12，NaVILA 使用 Python 3.10。启动器根据自己的文件位置定位环境，
+因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
+`deactivate`。
 
 ### 三个终端运行
 
