@@ -113,6 +113,11 @@ before model loading with the exact recovery command.
 
 ### Step C: run navigation
 
+Before using terminal C, keep OrcaLab open and start its external simulation:
+**Run → Start Simulation → No Simulation Program → Start**. Wait until the
+simulation is running; terminal C connects to that live OrcaLab session and
+does not launch it itself.
+
 In terminal C:
 
 ```bash
