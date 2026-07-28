@@ -62,11 +62,18 @@
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
+```
 
-# 创建两套锁定环境，并下载经过验证的 NaVILA 模型。
+创建两套锁定环境，并下载经过验证的 NaVILA 模型：
+
+```bash
 ./NaVILA-Orca/scripts/setup_all.sh
+```
 
-# 最后一行必须是：Orca_VLN installation is ready.
+单独检查安装结果。最后一行必须是
+`Orca_VLN installation is ready.`：
+
+```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 

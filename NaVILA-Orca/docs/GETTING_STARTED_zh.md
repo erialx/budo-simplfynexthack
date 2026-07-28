@@ -35,11 +35,17 @@
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
+```
 
-# Python 3.12 OrcaLab、Python 3.10 NaVILA 和经过验证的模型。
+安装 Python 3.12 OrcaLab、Python 3.10 NaVILA 和经过验证的模型：
+
+```bash
 ./NaVILA-Orca/scripts/setup_all.sh
+```
 
-# 只要出现 FAIL 就先停止，不要继续启动。
+单独检查安装结果。只要出现 `FAIL` 就先停止，不要继续启动：
+
+```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 

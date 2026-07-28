@@ -35,11 +35,17 @@ Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), G
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
+```
 
-# Python 3.12 OrcaLab + Python 3.10 NaVILA + reviewed model checkpoint.
+Install Python 3.12 OrcaLab, Python 3.10 NaVILA, and the reviewed checkpoint:
+
+```bash
 ./NaVILA-Orca/scripts/setup_all.sh
+```
 
-# Stop here unless every check passes.
+Run the independent installation check. Stop unless every check passes:
+
+```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 

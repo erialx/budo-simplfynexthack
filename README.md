@@ -65,11 +65,18 @@ Left: the observation received by the VLN policy. Right: the corresponding scene
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
+```
 
-# Creates both pinned environments and downloads the reviewed NaVILA model.
+Create both pinned environments and download the reviewed NaVILA model:
+
+```bash
 ./NaVILA-Orca/scripts/setup_all.sh
+```
 
-# Must end with: Orca_VLN installation is ready.
+Verify the completed installation. The final line must be
+`Orca_VLN installation is ready.`:
+
+```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
