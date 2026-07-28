@@ -119,6 +119,10 @@ cd Orca_VLN
 仅打开地图不会得到预设任务；`default_set.json` 才是实例化这些对象的
 布局文件。完成后保持终端 A 和 OrcaLab 运行。
 
+**已经在使用 OrcaLab？** 可以跳过终端 A，直接使用自己已打开的兼容
+OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中打开
+`orcalab_day`，并载入同一个布局文件。
+
 #### B — 启动 NaVILA 服务
 
 ```bash
@@ -129,7 +133,10 @@ cd Orca_VLN
 
 #### C — 启动闭环导航
 
-只有 A 中已显示完整预设场景、B 中服务已开始监听后，才能运行 C：
+只有 OrcaLab 中已显示完整预设场景、B 中服务已开始监听后，才能运行 C。
+先在 OrcaLab GUI 中依次选择：**运行 → 开始模拟 → 无仿真程序 → 启动**，
+等待外部仿真开始运行。终端 C 只连接这个已启动的会话，不会自行打开
+OrcaLab 或启动仿真：
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh

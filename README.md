@@ -123,6 +123,11 @@ Do not start navigation yet. In OrcaLab:
 The map alone does not contain the preset task. `default_set.json` is the
 layout that instantiates it, and terminal A must remain open.
 
+**Already using OrcaLab?** You may skip terminal A and use your own open
+OrcaLab GUI, provided it is a compatible installation (the baseline is
+validated against OrcaLab 26.6.3). Open `orcalab_day` and the same layout in
+that GUI instead.
+
 #### B — Start the NaVILA service
 
 ```bash
@@ -133,8 +138,11 @@ Wait until terminal B reports that it is listening on `127.0.0.1:54321`.
 
 #### C — Start closed-loop navigation
 
-Run C only after the preset scene is visible in A and the service is listening
-in B:
+Run C only after the preset scene is visible in OrcaLab and the service is
+listening in B. In the OrcaLab GUI, first choose **Run → Start Simulation → No
+Simulation Program → Start** and wait for the external simulation to run.
+Terminal C connects to that existing session; it does not start OrcaLab or the
+simulation itself:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
