@@ -30,7 +30,7 @@
 instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  next ego RGB
 ```
 
-The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default warehouse episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
+The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default `orcalab_day` episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
 ## 🧭 Ego Camera ↔ Simulator Views
 
@@ -94,7 +94,7 @@ or manual `deactivate` step is required.
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-In terminal A, open `IndustrialWarehouse1_3dgs`, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
+In terminal A, open the default `orcalab_day` map, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
 
 <a id="competition-baseline"></a>
 

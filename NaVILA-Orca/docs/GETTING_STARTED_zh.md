@@ -12,7 +12,7 @@
 
 成功不只等于终端没有报错。完成一次有效实验时，应同时满足：
 
-- OrcaLab 中已有工业仓库、一个完整 Go2、蓝色桶和黄色车辆。
+- OrcaLab 中已打开默认地图 `orcalab_day`，并有一个完整 Go2、蓝色桶和黄色车辆。
 - `mujococamera1080` 的图像会随着 Go2 移动而改变。
 - NaVILA server 收到 8 帧图像和任务文本，并返回一条可解析动作。
 - Go2 动作平稳，结束后 `outputs/scene_locomotion_smoke/` 内有结果 JSON 与 RGB 帧。
@@ -75,12 +75,12 @@ cd Orca_VLN
 
 GUI 中执行：
 
-1. 订阅/下载并打开 `IndustrialWarehouse1_3dgs`。
+1. 打开 OrcaLab 内置默认地图 `orcalab_day`。
 2. 使用 global setting 的导入功能选择 `NaVILA-Orca/default_set.json`。
 3. 在场景树中确认只有一个完整 Go2 actor。
 4. 目视确认蓝桶和黄色车辆在前方可见区域。
 
-`default_set.json` 只保存 actor 布局；它不是 3DGS 仓库本体。没有先加载工业仓库，导入 setting 不会产生可用于导航的视觉场景。
+`default_set.json` 只保存 actor 布局，并不包含地图本体。请先打开 `orcalab_day`，再导入 setting，组成完整的默认导航任务。
 
 启动脚本会附带一个 scene-profile watcher。每次新场景生成 MuJoCo XML 时，watcher 都注入 `orca-train` profile（`timestep=0.005`、关闭空气阻力），不会修改 OrcaLab 安装目录。
 

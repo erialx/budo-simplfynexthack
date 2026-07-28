@@ -8,7 +8,7 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 主办方提供：
 
-- OrcaLab 工业仓库场景和 [`default_set.json`](../default_set.json)；
+- OrcaLab 默认地图 `orcalab_day` 和 [`default_set.json`](../default_set.json)；
 - Go2、常驻第一视角 RGB 相机和实时导航监视器；
 - NaVILA server 接入点和默认导航回合；
 - 随包 Go2 运动 checkpoint 与运行脚本；

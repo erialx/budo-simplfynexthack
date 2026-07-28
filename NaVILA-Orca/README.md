@@ -17,7 +17,7 @@ From a fresh clone, run `./scripts/setup_all.sh` once and require
 environments directly, so no shell activation or repository-root environment
 variable is needed.
 
-Import `default_set.json` into an open industrial-warehouse 3DGS scene before running navigation. NaVILA remains in a separate runtime, while the TCP server adapter is owned by this project and the model is downloaded to the default project model directory.
+Open the default `orcalab_day` map and import `default_set.json` before running navigation. NaVILA remains in a separate runtime, while the TCP server adapter is owned by this project and the model is downloaded to the default project model directory.
 
 ```bash
 ./scripts/build_kit.sh

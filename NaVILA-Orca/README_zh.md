@@ -14,7 +14,7 @@
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-运行导航前，请在已打开的工业仓库 3DGS 场景中导入 `default_set.json`。NaVILA 本身仍是课程单独提供的服务；通过 `NAVILA_SERVER_SCRIPT` 配置其服务文件，并通过 `NAVVLM_MODEL_PATH` 配置模型目录。
+运行导航前，请打开默认地图 `orcalab_day`，再导入 `default_set.json`。NaVILA 使用独立运行环境；TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
 
 ```bash
 ./scripts/build_kit.sh

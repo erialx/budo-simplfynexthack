@@ -12,7 +12,7 @@ The default instruction is: `Move forward toward the blue barrel, then stop befo
 
 A successful run is more than an error-free terminal. It should satisfy all of the following:
 
-- OrcaLab contains the industrial warehouse, one complete Go2, a blue barrel, and a yellow vehicle.
+- OrcaLab has the default `orcalab_day` map open, with one complete Go2, a blue barrel, and a yellow vehicle.
 - Images from `mujococamera1080` change as the Go2 moves.
 - The NaVILA server receives eight images plus the task text and returns a parseable action.
 - Go2 moves stably; `outputs/scene_locomotion_smoke/` contains result JSON and RGB frames after the run.
@@ -77,12 +77,12 @@ In terminal A:
 
 In the GUI:
 
-1. Subscribe to/download and open `IndustrialWarehouse1_3dgs`.
+1. Open the built-in default map `orcalab_day`.
 2. Import `NaVILA-Orca/default_set.json` through the global-setting importer.
 3. Confirm the scene tree contains exactly one complete Go2 actor.
 4. Confirm that the blue barrel and yellow vehicle are visible ahead.
 
-`default_set.json` stores only actor layout; it is not the industrial-warehouse 3DGS scene. Importing it without first loading the warehouse does not create a navigable visual environment.
+`default_set.json` stores only the actor layout; it is not the map itself. Open `orcalab_day` first, then import the setting to create the complete default navigation episode.
 
 The launcher includes a scene-profile watcher. Whenever a new scene produces MuJoCo XML, it injects the `orca-train` profile (`timestep=0.005`, air resistance disabled) without modifying the OrcaLab installation.
 

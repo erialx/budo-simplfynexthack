@@ -8,7 +8,7 @@ Orca_VLN is the organizer-provided simulation baseline. Teams begin with a worki
 
 The organizer provides:
 
-- an OrcaLab industrial-warehouse scene and [`default_set.json`](../default_set.json);
+- the default OrcaLab `orcalab_day` map and [`default_set.json`](../default_set.json);
 - a Go2, persistent ego RGB camera, and live navigation monitor;
 - a NaVILA server integration point and default navigation episode;
 - a packaged Go2 locomotion checkpoint and run scripts;
@@ -23,7 +23,7 @@ The supplied Go2 checkpoint is deliberately a general flat-ground policy. It is 
 
 | Checkpoint | Team outcome | Evidence |
 | --- | --- | --- |
-| 1. Environment | Open scene, import setting, verify Go2 camera | screenshot of warehouse and robot view |
+| 1. Environment | Open `orcalab_day`, import setting, verify Go2 camera | screenshot of the map and robot view |
 | 2. Autonomous loop | Run instruction → NaVILA → action → motion | `measurements.json` and terminal action trace |
 | 3. Inspection logic | Add patrol, hazard, or image-capture behavior | saved images plus structured inspection record |
 | 4. Integrated demo | Package one repeatable scenario | short video, source, setup notes, run directory |
