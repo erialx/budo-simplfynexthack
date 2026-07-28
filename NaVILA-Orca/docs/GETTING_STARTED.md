@@ -92,7 +92,10 @@ In the GUI:
 `orcalab_day` first, then load the JSON through **File → Open Layout** to create
 the complete default navigation episode.
 
-The launcher includes a scene-profile watcher. Whenever a new scene produces MuJoCo XML, it injects the `orca-train` profile (`timestep=0.005`, air resistance disabled) without modifying the OrcaLab installation.
+The launcher opens the normal OrcaLab editor and does not force a scene,
+layout, full-screen view, or external simulation. The navigation command in
+terminal C applies and verifies the `orca-train` profile after the selected
+scene is running.
 
 ### Step B: start NaVILA
 

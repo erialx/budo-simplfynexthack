@@ -89,7 +89,9 @@ GUI 中执行：
 `default_set.json` 只保存 actor 布局，并不包含地图本体。请先打开
 `orcalab_day`，再通过 **文件 → 打开布局** 载入该 JSON，组成完整的默认导航任务。
 
-启动脚本会附带一个 scene-profile watcher。每次新场景生成 MuJoCo XML 时，watcher 都注入 `orca-train` profile（`timestep=0.005`、关闭空气阻力），不会修改 OrcaLab 安装目录。
+启动脚本只打开 OrcaLab 的普通编辑器，不会强制选择地图、布局、全屏视图或
+外部仿真。终端 C 的导航命令会在当前场景运行后应用并校验
+`orca-train` profile。
 
 ### 步骤 B：启动 NaVILA
 

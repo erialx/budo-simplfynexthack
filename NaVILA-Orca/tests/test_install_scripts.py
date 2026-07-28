@@ -171,3 +171,13 @@ def test_navila_install_and_server_verify_the_real_builder_import() -> None:
     assert "deepspeed==0.9.5" in constraints
     assert "from llava.model.builder import load_pretrained_model" in setup
     assert "from llava.model.builder import load_pretrained_model" in server
+
+
+def test_orcalab_launcher_opens_editor_without_forcing_runtime_mode() -> None:
+    launcher = (SCRIPTS / "start_orcalab_gui.sh").read_text()
+
+    assert 'exec "${ORCALAB_BIN}" "${WORKSPACE}" --verbose "$@"' in launcher
+    assert "--full-screen" not in launcher
+    assert "--sim-config" not in launcher
+    assert "--scene orcalab_day" not in launcher
+    assert "PROFILE_WATCHER" not in launcher
