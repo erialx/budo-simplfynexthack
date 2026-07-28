@@ -84,6 +84,11 @@ The environments live under this checkout in `.conda/envs/`. The launchers
 resolve them from their own file paths; no `ORCA_VLN_ROOT`, `conda activate`,
 or manual `deactivate` step is required.
 
+If Conda is not installed cleanly, multiple Miniconda/Anaconda installations
+appear in `PATH`, or you are preparing a new computer, follow the
+[fresh Conda environment guide](NaVILA-Orca/docs/CONDA_SETUP.md) before
+running the installer.
+
 ### Run in three terminals
 
 ```bash

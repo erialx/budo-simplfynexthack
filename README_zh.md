@@ -81,6 +81,11 @@ cd Orca_VLN
 位置定位环境，因此不再需要设置 `ORCA_VLN_ROOT`，也不用手动执行
 `conda activate` 或 `deactivate`。
 
+如果 Conda 尚未正确安装、`PATH` 中同时存在 Miniconda 与 Anaconda，
+或正在配置一台全新电脑，请先按
+[Conda 从零环境指南](NaVILA-Orca/docs/CONDA_SETUP_zh.md)完成宿主环境，
+再运行项目安装器。
+
 ### 三个终端运行
 
 ```bash
