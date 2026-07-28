@@ -116,6 +116,13 @@ cd Orca_VLN
    [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json)。
 3. 等待 Go2、蓝色桶、黄色车辆及其他预设对象出现在场景中。
 
+> **资产订阅——默认案例的最低要求。** 在 OrcaLab 中先订阅
+> `SimpleMovement_Conveybelt`、`SimpleMovement_Slope`、`unitree_robots` 和
+> `OrcaPlaygroundAssets`，再加载 `default_set.json`。它们分别提供布局所需的
+> 纸箱、料箱/蓝桶、Go2 和车辆。`IndustrialWarehouse1_3dgs`、
+> `IndustrialWarehouse2_3dgs`、`kitchen_3dgs`、
+> `AutoProductionLine_Warehouse` 是扩展场景；用户按自己的训练或评测需要订阅。
+
 仅打开地图不会得到预设任务；`default_set.json` 才是实例化这些对象的
 布局文件。完成后保持终端 A 和 OrcaLab 运行。
 

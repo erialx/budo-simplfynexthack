@@ -120,6 +120,14 @@ Do not start navigation yet. In OrcaLab:
 3. Wait until the Go2, blue barrel, yellow vehicle, and other preset objects
    appear in the scene.
 
+> **Asset subscription — required for the default case.** In OrcaLab, subscribe
+> to `SimpleMovement_Conveybelt`, `SimpleMovement_Slope`, `unitree_robots`, and
+> `OrcaPlaygroundAssets` before loading `default_set.json`. These supply the
+> layout's boxes, bins/barrel, Go2, and vehicle. Subscribe to
+> `IndustrialWarehouse1_3dgs`, `IndustrialWarehouse2_3dgs`, `kitchen_3dgs`, or
+> `AutoProductionLine_Warehouse` only when you choose to build or evaluate in
+> those additional scenes.
+
 The map alone does not contain the preset task. `default_set.json` is the
 layout that instantiates it, and terminal A must remain open.
 
