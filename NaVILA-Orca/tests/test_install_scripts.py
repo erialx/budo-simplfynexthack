@@ -7,6 +7,7 @@ import subprocess
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = PROJECT_ROOT / "scripts"
+PYSIDE_SHA256 = "f8f110b078604c0e529285378b1e7bd8e15a0e773edde0a012c33c82012d7df6"
 
 
 def _make_executable(path: Path, body: str = "#!/usr/bin/env bash\nexit 0\n") -> None:
@@ -181,3 +182,17 @@ def test_orcalab_launcher_opens_editor_without_forcing_runtime_mode() -> None:
     assert "--sim-config" not in launcher
     assert "--scene orcalab_day" not in launcher
     assert "PROFILE_WATCHER" not in launcher
+
+
+def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
+    constraints = (PROJECT_ROOT / "constraints/orcalab-26.6.3.txt").read_text()
+    setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()
+    resolver = (SCRIPTS / "orcalab_env.sh").read_text()
+    preparer = (SCRIPTS / "prepare_orcalab_runtime.py").read_text()
+
+    assert "orcalab-pyside==26.6.3" in constraints
+    assert "patchelf==0.17.2.4" in constraints
+    assert "prepare_orcalab_runtime.py" in setup
+    assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
+    assert 'version("orcalab-pyside") == "26.6.3"' in resolver
+    assert PYSIDE_SHA256 in preparer

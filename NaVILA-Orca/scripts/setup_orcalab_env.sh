@@ -9,6 +9,8 @@ WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
 ENV_PREFIX="${NAVILA_ORCALAB_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/orcalab}"
 PYTHON="${ENV_PREFIX}/bin/python"
 CONSTRAINTS="${PROJECT_ROOT}/constraints/orcalab-26.6.3.txt"
+export PATH="${ENV_PREFIX}/bin:${PATH}"
+export SKIP_PATCHELF=1
 
 usage() {
   cat <<'EOF'
@@ -45,6 +47,8 @@ expected = {
     "setuptools": "81.0.0",
     "orca-lab": "26.6.3",
     "orca-gym": "26.6.3",
+    "orcalab-pyside": "26.6.3",
+    "patchelf": "0.17.2.4",
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",
     "rsl-rl-lib": "5.0.1",
@@ -62,7 +66,27 @@ if not Path(navila_orca.__file__).resolve().is_relative_to(project / "src"):
         "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
     )
 
+import shutil
+if shutil.which("patchelf") is None:
+    raise SystemExit(
+        "patchelf is installed in the OrcaLab environment but is not on PATH. "
+        "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+    )
 import PySide6
+import orcalab_pyside
+native_library = (
+    Path(orcalab_pyside.__file__).resolve().parent / "dist" / "OrcaPySide.so"
+)
+native_rpath = subprocess.check_output(
+    [shutil.which("patchelf"), "--print-rpath", str(native_library)], text=True
+).strip()
+expected_pyside = str(Path(PySide6.__file__).resolve().parent)
+if expected_pyside not in native_rpath.split(":"):
+    raise SystemExit(
+        "OrcaLab native viewport points at a different Python environment. "
+        "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+    )
+
 qt_root = Path(PySide6.__file__).resolve().parent
 xcb_plugin = next(qt_root.rglob("libqxcb.so"), None)
 if xcb_plugin is None:
@@ -104,4 +128,5 @@ fi
 "${PYTHON}" -m pip install \
   --constraint "${CONSTRAINTS}" \
   --editable "${PROJECT_ROOT}[orca,test]"
+"${PYTHON}" "${PROJECT_ROOT}/scripts/prepare_orcalab_runtime.py" "${CONSTRAINTS}"
 verify

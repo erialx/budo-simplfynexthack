@@ -86,6 +86,8 @@ cd Orca_VLN
 
 全新 Ubuntu 首次安装时，脚本可能请求一次 `sudo`，用于安装 OrcaLab GUI
 所需的 Qt/XCB 系统库。
+脚本也会在首次打开 GUI 前准备好 OrcaLab 官方原生 viewport 和场景 pak，
+避免 OrcaLab 在首启过程中临时安装组件并要求重启。
 
 单独检查安装结果。最后一行必须是
 `Orca_VLN installation is ready.`：

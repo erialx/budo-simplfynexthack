@@ -39,10 +39,10 @@ navila_orca_resolve_runtime() {
     return 2
   fi
   if ! "${resolved_python}" -c \
-    'from importlib.metadata import version; assert version("orca-lab") == "26.6.3"; assert version("orca-gym") == "26.6.3"' \
+    'from importlib.metadata import version; assert version("orca-lab") == "26.6.3"; assert version("orca-gym") == "26.6.3"; assert version("orcalab-pyside") == "26.6.3"; assert version("patchelf") == "0.17.2.4"' \
     >/dev/null 2>&1; then
-    echo "Selected Python is not the reviewed OrcaLab 26.6.3 runtime: ${resolved_python}" >&2
-    echo "Run ./scripts/setup_orcalab_env.sh --verify to repair or diagnose it." >&2
+    echo "Selected Python is missing part of the reviewed OrcaLab 26.6.3 runtime: ${resolved_python}" >&2
+    echo "Run ${NAVILA_ORCA_ENV_PROJECT_ROOT}/scripts/setup_orcalab_env.sh to repair it." >&2
     return 2
   fi
 
@@ -52,6 +52,8 @@ navila_orca_resolve_runtime() {
 
   export NAVILA_ORCA_PYTHON="${resolved_python}"
   export NAVILA_ORCA_ORCALAB_BIN="${resolved_orcalab}"
+  export PATH="$(dirname "${resolved_python}"):${PATH}"
+  export SKIP_PATCHELF=1
 }
 
 navila_orca_require_gui() {

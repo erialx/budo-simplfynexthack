@@ -53,7 +53,8 @@ The installer creates two isolated prefixes under `Orca_VLN/.conda/envs/`:
 `orcalab` and `navila`. It pins the package versions, the NaVILA source commit,
 the Transformers commit, and the FlashAttention wheel hash. It also runs
 `pip check` on the OrcaLab environment and verifies imports in both
-environments.
+environments. OrcaLab's verified native viewport and scene pak are prepared
+during setup instead of being installed inside the first GUI process.
 
 The scripts resolve these prefixes from their own location. Do not activate
 either environment and do not export a repository-root variable. This remains
@@ -177,6 +178,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
 | `Failed to initialize NVML: Driver/library version mismatch` | Host NVIDIA driver | Userspace driver was updated while an older kernel module remains loaded; keep `.conda/`, reboot once, then run `nvidia-smi` and `setup_all.sh` |
 | Qt cannot load the `xcb` platform plugin | Ubuntu system libraries | Rerun `setup_all.sh`, or run `setup_system_deps.sh` directly to install the required Qt/XCB packages |
+| OrcaLab installs `orcalab-pyside` and asks for a restart | incomplete old setup | Pull the latest repository and rerun `setup_orcalab_env.sh`; Doctor verifies the native viewport, `patchelf`, and its environment-specific RPATH |
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |

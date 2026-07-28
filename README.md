@@ -89,6 +89,8 @@ Create both pinned environments and download the reviewed NaVILA model:
 
 On a fresh Ubuntu installation, setup may request `sudo` once to install the
 Qt/XCB libraries required by the OrcaLab GUI.
+It also prepares OrcaLab's verified native viewport and scene pak before the
+first GUI launch, so OrcaLab does not install components and request a restart.
 
 Verify the completed installation. The final line must be
 `Orca_VLN installation is ready.`:
