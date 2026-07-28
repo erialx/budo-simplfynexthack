@@ -73,6 +73,12 @@ check_file "${PROJECT_ROOT}/default_set.json" "default global setting"
 check_file "${PROJECT_ROOT}/src/navila_orca/assets/checkpoints/go2_flat.pt" "Go2 checkpoint"
 check_file "${PROJECT_ROOT}/scripts/navila_vlm_server.py" "project-owned NaVILA server"
 
+if "${PROJECT_ROOT}/scripts/setup_system_deps.sh" --verify >/dev/null 2>&1; then
+  pass "OrcaLab GUI system libraries"
+else
+  fail "OrcaLab GUI system libraries are missing; run scripts/setup_system_deps.sh"
+fi
+
 if NAVILA_ORCALAB_ENV_PREFIX="${ORCALAB_PREFIX}" \
   "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh" --verify >/dev/null 2>&1; then
   pass "OrcaLab environment: ${ORCALAB_PREFIX}"

@@ -60,11 +60,13 @@ import llava
 import torch
 import torchvision
 import transformers
+from llava.model.builder import load_pretrained_model
 
 require_equal("torch", torch.__version__.split('+', 1)[0], "2.3.0")
 require_equal("torchvision", torchvision.__version__.split('+', 1)[0], "0.18.0")
 require_equal("transformers", transformers.__version__, "4.37.2")
 require_equal("flash-attn", flash_attn.__version__, "2.5.8")
+require_equal("deepspeed", metadata.version("deepspeed"), "0.9.5")
 require_equal("accelerate", metadata.version("accelerate"), "0.27.2")
 require_equal("numpy", metadata.version("numpy"), "1.26.0")
 require_equal("opencv-python", metadata.version("opencv-python"), "4.8.0.74")
@@ -82,7 +84,7 @@ if replacement.read_bytes() != installed.read_bytes():
 print("NaVILA runtime verified")
 print(f"python={sys.executable}")
 print(f"torch={torch.__version__}; torchvision={torchvision.__version__}; transformers={transformers.__version__}")
-print(f"flash-attn={flash_attn.__version__}; llava={Path(llava.__file__).resolve()}")
+print(f"flash-attn={flash_attn.__version__}; deepspeed={metadata.version('deepspeed')}; llava={Path(llava.__file__).resolve()}")
 PY
 }
 

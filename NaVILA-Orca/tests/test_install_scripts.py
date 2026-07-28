@@ -143,3 +143,31 @@ def test_nvidia_preflight_detects_library_path_pollution(tmp_path: Path) -> None
 
     assert result.returncode == 2
     assert "unset LD_LIBRARY_PATH" in result.stderr
+
+
+def test_system_dependency_check_reports_missing_qt_xcb_package(
+    tmp_path: Path,
+) -> None:
+    fake_dpkg = tmp_path / "dpkg-query"
+    _make_executable(fake_dpkg, "#!/usr/bin/env bash\nexit 1\n")
+    result = subprocess.run(
+        [str(SCRIPTS / "setup_system_deps.sh"), "--verify"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "DPKG_QUERY_BIN": str(fake_dpkg)},
+    )
+
+    assert result.returncode == 2
+    assert "libxcb-cursor0" in result.stderr
+    assert "setup_system_deps.sh" in result.stderr
+
+
+def test_navila_install_and_server_verify_the_real_builder_import() -> None:
+    constraints = (PROJECT_ROOT / "constraints/navila-rss2025.txt").read_text()
+    setup = (SCRIPTS / "setup_navila_env.sh").read_text()
+    server = (SCRIPTS / "start_navvlm_server.sh").read_text()
+
+    assert "deepspeed==0.9.5" in constraints
+    assert "from llava.model.builder import load_pretrained_model" in setup
+    assert "from llava.model.builder import load_pretrained_model" in server

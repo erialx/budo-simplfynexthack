@@ -27,6 +27,7 @@ verify() {
 
   "${PYTHON}" - "${PROJECT_ROOT}" <<'PY'
 import sys
+import subprocess
 from importlib import metadata
 from pathlib import Path
 
@@ -59,6 +60,22 @@ if not Path(navila_orca.__file__).resolve().is_relative_to(project / "src"):
     raise SystemExit(
         f"navila_orca resolves outside this checkout: {navila_orca.__file__}. "
         "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+    )
+
+import PySide6
+qt_root = Path(PySide6.__file__).resolve().parent
+xcb_plugin = next(qt_root.rglob("libqxcb.so"), None)
+if xcb_plugin is None:
+    raise SystemExit("PySide6 xcb platform plugin is missing")
+linked = subprocess.run(
+    ["ldd", str(xcb_plugin)], check=True, capture_output=True, text=True
+).stdout
+missing = [line.strip() for line in linked.splitlines() if "not found" in line]
+if missing:
+    raise SystemExit(
+        "OrcaLab GUI system libraries are missing:\n"
+        + "\n".join(missing)
+        + "\nRun ./NaVILA-Orca/scripts/setup_system_deps.sh to repair them."
     )
 print("OrcaLab runtime verified")
 print(f"python={sys.executable}")

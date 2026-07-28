@@ -87,6 +87,9 @@ Create both pinned environments and download the reviewed NaVILA model:
 ./NaVILA-Orca/scripts/setup_all.sh
 ```
 
+On a fresh Ubuntu installation, setup may request `sudo` once to install the
+Qt/XCB libraries required by the OrcaLab GUI.
+
 Verify the completed installation. The final line must be
 `Orca_VLN installation is ready.`:
 

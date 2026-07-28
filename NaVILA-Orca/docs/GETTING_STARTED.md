@@ -173,6 +173,8 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | --- | --- | --- |
 | `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
 | `Failed to initialize NVML: Driver/library version mismatch` | Host NVIDIA driver | Userspace driver was updated while an older kernel module remains loaded; keep `.conda/`, reboot once, then run `nvidia-smi` and `setup_all.sh` |
+| Qt cannot load the `xcb` platform plugin | Ubuntu system libraries | Rerun `setup_all.sh`, or run `setup_system_deps.sh` directly to install the required Qt/XCB packages |
+| `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
 | VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |

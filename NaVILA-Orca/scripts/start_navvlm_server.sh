@@ -30,9 +30,12 @@ if ! find "${MODEL_PATH}" -maxdepth 2 -type f \
   exit 2
 fi
 
-if ! "${NAVVLM_PYTHON}" -c 'import torch, transformers, llava' >/dev/null 2>&1; then
+if ! "${NAVVLM_PYTHON}" -c \
+  'import torch, transformers; from llava.model.builder import load_pretrained_model' \
+  >/dev/null 2>&1; then
   echo "NaVILA runtime is incomplete in: ${NAVVLM_PYTHON}" >&2
-  echo "Expected torch, transformers, and the editable NaVILA llava package." >&2
+  echo "Expected torch, transformers, deepspeed, and the editable NaVILA llava package." >&2
+  echo "Run ${PROJECT_ROOT}/scripts/setup_navila_env.sh to repair it." >&2
   exit 2
 fi
 

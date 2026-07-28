@@ -84,6 +84,9 @@ cd Orca_VLN
 ./NaVILA-Orca/scripts/setup_all.sh
 ```
 
+全新 Ubuntu 首次安装时，脚本可能请求一次 `sudo`，用于安装 OrcaLab GUI
+所需的 Qt/XCB 系统库。
+
 单独检查安装结果。最后一行必须是
 `Orca_VLN installation is ready.`：
 

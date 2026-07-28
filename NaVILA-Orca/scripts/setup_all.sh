@@ -36,6 +36,7 @@ for command in git conda; do
   fi
 done
 "${PROJECT_ROOT}/scripts/check_nvidia_driver.sh"
+"${PROJECT_ROOT}/scripts/setup_system_deps.sh"
 
 "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh"
 "${PROJECT_ROOT}/scripts/setup_navila_env.sh"
