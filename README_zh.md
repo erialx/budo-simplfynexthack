@@ -153,18 +153,9 @@ cd Orca_VLN
 
 - [快速上手](NaVILA-Orca/docs/GETTING_STARTED_zh.md) — 场景配置、进程、相机与首次运行。
 - [竞赛基线](NaVILA-Orca/docs/HACKATHON_BASELINE_zh.md) — 检查点、赛道、证据与提交范围。
-- [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 经审核轨迹数据的导出，以及 SFT/LoRA 的实践方向。
+- [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 已审核数据要求，以及 SFT/LoRA 的实践方向。
 - [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION_zh.md) — 可在 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定适配器对齐模型。
 - [架构](NaVILA-Orca/docs/ARCHITECTURE_zh.md) — 高层 VLN ↔ 低层运动控制的接口约定。
-
-```bash
-# 检查随附控制模型、XML 与版本是否对齐。
-./scripts/check_mjlab_alignment.sh
-
-# 导出基线轨迹数据，供高层训练数据审核。
-python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
-  --output data/vln_review_queue.jsonl
-```
 
 ## 📦 打包发布
 

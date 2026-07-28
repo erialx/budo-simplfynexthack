@@ -158,18 +158,9 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 
 - [Getting started](NaVILA-Orca/docs/GETTING_STARTED.md) — scene setup, processes, camera, and first run.
 - [Hackathon baseline](NaVILA-Orca/docs/HACKATHON_BASELINE.md) — checkpoints, tracks, evidence, and submission scope.
-- [High-level VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — reviewed rollout export plus SFT/LoRA direction.
+- [High-level VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — reviewed-data requirements and SFT/LoRA direction.
 - [Low-level integration](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md) — train in OrcaLocomotion, IsaacLab, or another platform; align the model through a stable adapter.
 - [Architecture](NaVILA-Orca/docs/ARCHITECTURE.md) — the high-level VLN ↔ low-level locomotion contract.
-
-```bash
-# Verify the packaged control model, XML, and version alignment.
-./scripts/check_mjlab_alignment.sh
-
-# Export a baseline rollout for high-level data review.
-python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
-  --output data/vln_review_queue.jsonl
-```
 
 ## 📦 Package
 

@@ -6,45 +6,30 @@ This track changes the decision model, not the walking controller. Keep the Go2 
 
 ## Start with a baseline, not training
 
-Run the default warehouse case first. Save the result directory, inspect the RGB frames, and review the action sequence. Baseline reproduction gives every team a known camera convention, scene layout, command vocabulary, and output format before any model changes are made.
-
-```bash
-./scripts/run_orcalab_scene_locomotion.sh \
-  --output outputs/warehouse_baseline
-```
+Reproduce the default case exactly as described in
+[Getting started](GETTING_STARTED.md), inspect the RGB frames, and review the
+action sequence. Do not add runtime flags or change the action interface during
+collection. This gives every team the same camera convention, scene layout,
+command vocabulary, and output format before any model changes are made.
 
 ## Collect reviewable examples
 
-The package includes a small exporter for high-level records:
+This repository does not publish a generic data-export or training command.
+NaVILA training releases can differ in image history, prompt, token, and label
+formats, so an unverified conversion must not be treated as training data.
 
-```bash
-python scripts/export_vln_sft_records.py \
-  outputs/warehouse_baseline \
-  --output data/vln_review_queue.jsonl
-```
+Teams should prepare data against the exact NaVILA training release they use
+and retain at least:
 
-This produces a model-agnostic record containing the instruction, saved image paths, baseline actions, scene metadata, and an `unreviewed` marker. It is a review queue, **not ground truth**. Inspect image/action alignment and attach a human label before using it for training:
+- the original instruction and consecutive ego-view images;
+- scene, episode, and timestep identifiers;
+- the baseline output and a human-reviewed target from the canonical action
+  vocabulary;
+- explicit `unreviewed` / `reviewed` status and reviewer provenance.
 
-```bash
-python scripts/export_vln_sft_records.py \
-  outputs/warehouse_baseline \
-  --output data/vln_reviewed.jsonl \
-  --label "turn left 15 degrees"
-```
-
-Each record has this shape:
-
-```json
-{
-  "instruction": "Move to the blue barrel and stop.",
-  "image_paths": ["/abs/path/000_step_000000.jpg"],
-  "baseline_actions": ["move forward 25 cm", "stop"],
-  "target_action": "turn left 15 degrees",
-  "review_status": "reviewed"
-}
-```
-
-Adapt this record to the exact dataset template required by the NaVILA training release. Do not assume the JSONL above is a drop-in replacement for any specific trainer.
+Baseline actions are review candidates, **not ground truth**. Check image,
+instruction, and target-action alignment record by record before converting
+the data into the selected training release's official template.
 
 ## SFT direction
 
@@ -64,7 +49,7 @@ Use LoRA when a full NaVILA fine-tune is unnecessary. In the NaVILA training env
 1. Start from the provided NaVILA checkpoint.
 2. Freeze the base model and train adapters on the reviewed navigation records.
 3. Keep the image-history length and prompt format aligned with deployment.
-4. Merge or load the adapter through the NaVILA server used by `NAVILA_SERVER_SCRIPT`.
+4. Merge or load the adapter according to the selected NaVILA release.
 5. Re-run the same fixed Orca_VLN episodes before changing scene assets.
 
 The exact target modules, image processor, and launch command are determined by the NaVILA release used by the organizer. The competition baseline intentionally does not hard-code them.

@@ -6,45 +6,25 @@
 
 ## 先建立基线，再考虑训练
 
-先运行默认仓库案例，保存结果目录、检查 RGB 帧并审核动作序列。基线复现让每个团队在改变模型之前拥有一致的相机约定、场景布局、命令词表和输出格式。
-
-```bash
-./scripts/run_orcalab_scene_locomotion.sh \
-  --output outputs/warehouse_baseline
-```
+先严格按照[快速上手](GETTING_STARTED_zh.md)复现默认案例，检查 RGB 帧并
+审核动作序列。不要在采集阶段自行增加运行参数或改变动作接口。基线复现让
+每个团队在改变模型之前拥有一致的相机约定、场景布局、命令词表和输出格式。
 
 ## 收集可审核样本
 
-开发包提供高层记录的小型导出器：
+本仓库不公开通用的数据导出或训练命令。不同 NaVILA 训练发行版对图像历史、
+prompt、token 和标签模板的要求并不相同，未经确认的转换结果不能直接作为
+训练数据。
 
-```bash
-python scripts/export_vln_sft_records.py \
-  outputs/warehouse_baseline \
-  --output data/vln_review_queue.jsonl
-```
+数据准备应由团队根据所采用的 NaVILA 训练发行版完成，并至少保留：
 
-它会生成与模型无关的记录，包含指令、保存的图像路径、基线动作、场景元数据和 `unreviewed` 标记。这是审核队列，**不是 ground truth**。训练前请检查图像/动作对齐，并附加人工标注：
+- 原始自然语言指令和对应的连续第一视角图像；
+- 场景、回合与时间步标识；
+- 基线输出和来自规范动作词表的人工审核目标；
+- 明确的 `unreviewed` / `reviewed` 状态及审核人记录。
 
-```bash
-python scripts/export_vln_sft_records.py \
-  outputs/warehouse_baseline \
-  --output data/vln_reviewed.jsonl \
-  --label "turn left 15 degrees"
-```
-
-每条记录形如：
-
-```json
-{
-  "instruction": "Move to the blue barrel and stop.",
-  "image_paths": ["/abs/path/000_step_000000.jpg"],
-  "baseline_actions": ["move forward 25 cm", "stop"],
-  "target_action": "turn left 15 degrees",
-  "review_status": "reviewed"
-}
-```
-
-请将其适配到 NaVILA 训练发行版要求的确切数据集模板；不要假定上述 JSONL 可以直接交给任意 trainer。
+基线动作只是待审核结果，**不是 ground truth**。训练前必须逐条检查图像、
+指令和目标动作是否对齐，再转换为所选训练发行版的正式数据模板。
 
 ## SFT 方向
 
@@ -64,7 +44,7 @@ python scripts/export_vln_sft_records.py \
 1. 从主办方提供的 NaVILA checkpoint 开始；
 2. 冻结基础模型，在已审核导航记录上训练 adapter；
 3. 保持图像历史长度与 prompt 格式与部署一致；
-4. 通过 `NAVILA_SERVER_SCRIPT` 使用的 NaVILA server 合并或加载 adapter；
+4. 按所采用的 NaVILA 发行版合并或加载 adapter；
 5. 在改变场景资源前，重新运行相同的固定 Orca_VLN 回合。
 
 具体 target module、图像处理器和启动命令由主办方采用的 NaVILA 发行版决定；竞赛基线有意不将它们写死。
