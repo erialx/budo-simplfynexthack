@@ -166,6 +166,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | Symptom | Check first | Common cause |
 | --- | --- | --- |
 | `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
+| `Failed to initialize NVML: Driver/library version mismatch` | Host NVIDIA driver | Userspace driver was updated while an older kernel module remains loaded; keep `.conda/`, reboot once, then run `nvidia-smi` and `setup_all.sh` |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
 | VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |

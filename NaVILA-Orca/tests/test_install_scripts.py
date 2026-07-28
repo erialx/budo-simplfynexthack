@@ -96,3 +96,50 @@ def test_transformers_reinstall_cannot_reresolve_locked_dependencies() -> None:
     script = (SCRIPTS / "setup_navila_env.sh").read_text()
 
     assert 'pip install --force-reinstall --no-deps \\' in script
+
+
+def test_nvidia_preflight_explains_driver_library_mismatch(tmp_path: Path) -> None:
+    fake_smi = tmp_path / "nvidia-smi"
+    _make_executable(
+        fake_smi,
+        "#!/usr/bin/env bash\n"
+        "echo 'Failed to initialize NVML: Driver/library version mismatch' >&2\n"
+        "echo 'NVML library version: 580.173' >&2\n"
+        "exit 1\n",
+    )
+    result = subprocess.run(
+        [str(SCRIPTS / "check_nvidia_driver.sh")],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "NVIDIA_SMI_BIN": str(fake_smi), "LD_LIBRARY_PATH": ""},
+    )
+
+    assert result.returncode == 2
+    assert "Driver/library version mismatch" in result.stderr
+    assert "Reboot the computer once" in result.stderr
+    assert "Do not delete or reinstall" in result.stderr
+
+
+def test_nvidia_preflight_detects_library_path_pollution(tmp_path: Path) -> None:
+    fake_smi = tmp_path / "nvidia-smi"
+    _make_executable(
+        fake_smi,
+        "#!/usr/bin/env bash\n"
+        'if [[ -n "${LD_LIBRARY_PATH:-}" ]]; then exit 1; fi\n'
+        "echo 'GPU 0: test'\n",
+    )
+    result = subprocess.run(
+        [str(SCRIPTS / "check_nvidia_driver.sh")],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "NVIDIA_SMI_BIN": str(fake_smi),
+            "LD_LIBRARY_PATH": "/fake/cuda/stubs",
+        },
+    )
+
+    assert result.returncode == 2
+    assert "unset LD_LIBRARY_PATH" in result.stderr

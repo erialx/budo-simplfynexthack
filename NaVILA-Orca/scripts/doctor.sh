@@ -58,10 +58,15 @@ check_command git
 check_command conda
 check_command nvidia-smi
 
-if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+NVIDIA_DIAGNOSTIC=""
+if NVIDIA_DIAGNOSTIC="$("${PROJECT_ROOT}/scripts/check_nvidia_driver.sh" 2>&1)"; then
   pass "NVIDIA driver is visible"
+  if [[ -n "${NVIDIA_DIAGNOSTIC}" ]]; then
+    printf '%s\n' "${NVIDIA_DIAGNOSTIC}" >&2
+  fi
 else
-  fail "NVIDIA driver is not usable; fix nvidia-smi before installing GPU packages"
+  fail "NVIDIA driver is not usable"
+  printf '%s\n' "${NVIDIA_DIAGNOSTIC}" >&2
 fi
 
 check_file "${PROJECT_ROOT}/default_set.json" "default global setting"

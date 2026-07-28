@@ -29,16 +29,13 @@ if [[ "${VERIFY_ONLY}" -eq 1 ]]; then
   exec "${PROJECT_ROOT}/scripts/doctor.sh"
 fi
 
-for command in git conda nvidia-smi; do
+for command in git conda; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     echo "Missing prerequisite: ${command}" >&2
     exit 2
   fi
 done
-if ! nvidia-smi -L >/dev/null 2>&1; then
-  echo "The NVIDIA driver is not usable. Fix nvidia-smi before installing GPU environments." >&2
-  exit 2
-fi
+"${PROJECT_ROOT}/scripts/check_nvidia_driver.sh"
 
 "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh"
 "${PROJECT_ROOT}/scripts/setup_navila_env.sh"

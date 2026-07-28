@@ -162,6 +162,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | 现象 | 优先检查 | 常见原因 |
 | --- | --- | --- |
 | `Actor does not exist` | OrcaLab 场景树 | 未通过“文件 → 打开布局”载入 JSON、Go2 被删除或 actor 名不匹配 |
+| `Failed to initialize NVML: Driver/library version mismatch` | 宿主 NVIDIA 驱动 | 系统更新了用户态驱动，但内核仍加载旧模块；保留 `.conda/`，重启电脑后依次运行 `nvidia-smi` 和 `setup_all.sh` |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
 | 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
 | VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
