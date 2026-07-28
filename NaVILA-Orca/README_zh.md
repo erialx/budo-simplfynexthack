@@ -14,7 +14,9 @@
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-运行导航前，请打开默认地图 `orcalab_day`，再导入 `default_set.json`。NaVILA 使用独立运行环境；TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
+运行导航前，请打开默认地图 `orcalab_day`，然后选择
+**文件 → 打开布局 → `default_set.json`**。NaVILA 使用独立运行环境；
+TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
 
 ```bash
 ./scripts/build_kit.sh

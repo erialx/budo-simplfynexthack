@@ -76,11 +76,12 @@ cd Orca_VLN
 GUI 中执行：
 
 1. 打开 OrcaLab 内置默认地图 `orcalab_day`。
-2. 使用 global setting 的导入功能选择 `NaVILA-Orca/default_set.json`。
+2. 依次选择 **文件 → 打开布局 → `NaVILA-Orca/default_set.json`**。
 3. 在场景树中确认只有一个完整 Go2 actor。
 4. 目视确认蓝桶和黄色车辆在前方可见区域。
 
-`default_set.json` 只保存 actor 布局，并不包含地图本体。请先打开 `orcalab_day`，再导入 setting，组成完整的默认导航任务。
+`default_set.json` 只保存 actor 布局，并不包含地图本体。请先打开
+`orcalab_day`，再通过 **文件 → 打开布局** 载入该 JSON，组成完整的默认导航任务。
 
 启动脚本会附带一个 scene-profile watcher。每次新场景生成 MuJoCo XML 时，watcher 都注入 `orca-train` profile（`timestep=0.005`、关闭空气阻力），不会修改 OrcaLab 安装目录。
 
@@ -160,7 +161,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 
 | 现象 | 优先检查 | 常见原因 |
 | --- | --- | --- |
-| `Actor does not exist` | OrcaLab 场景树 | 未导入 setting、Go2 被删除或 actor 名不匹配 |
+| `Actor does not exist` | OrcaLab 场景树 | 未通过“文件 → 打开布局”载入 JSON、Go2 被删除或 actor 名不匹配 |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
 | 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
 | VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |

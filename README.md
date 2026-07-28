@@ -94,7 +94,9 @@ or manual `deactivate` step is required.
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-In terminal A, open the default `orcalab_day` map, then import [`default_set.json`](NaVILA-Orca/default_set.json). It instantiates the reference objects used by the default episode.
+In terminal A, open the default `orcalab_day` map, then choose
+**File → Open Layout → [`default_set.json`](NaVILA-Orca/default_set.json)**.
+The layout instantiates the reference objects used by the default episode.
 
 <a id="competition-baseline"></a>
 
@@ -129,7 +131,7 @@ python scripts/export_vln_sft_records.py outputs/warehouse_baseline \
 
 ## 📦 Package
 
-`NaVILA-Orca/` contains the runtime, default global setting, warehouse episode, robot assets, and baseline checkpoint. Build a clean archive with:
+`NaVILA-Orca/` contains the runtime, default global setting, `orcalab_day` episode, robot assets, and baseline checkpoint. Build a clean archive with:
 
 ```bash
 ./scripts/build_kit.sh

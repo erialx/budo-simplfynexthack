@@ -17,10 +17,13 @@ From a fresh clone, run `./scripts/setup_all.sh` once and require
 environments directly, so no shell activation or repository-root environment
 variable is needed.
 
-Open the default `orcalab_day` map and import `default_set.json` before running navigation. NaVILA remains in a separate runtime, while the TCP server adapter is owned by this project and the model is downloaded to the default project model directory.
+Open the default `orcalab_day` map and choose
+**File → Open Layout → `default_set.json`** before running navigation. NaVILA
+remains in a separate runtime, while the TCP server adapter is owned by this
+project and the model is downloaded to the default project model directory.
 
 ```bash
 ./scripts/build_kit.sh
 ```
 
-The kit contains the OrcaLab adapter, local Go2 task/MJCF/mesh assets, a default Go2 locomotion checkpoint, the global setting, and one reproducible warehouse episode. It does not include NaVILA/LLaVA source, model weights, 3DGS assets, or IsaacLab.
+The kit contains the OrcaLab adapter, local Go2 task/MJCF/mesh assets, a default Go2 locomotion checkpoint, the global setting, and one reproducible `orcalab_day` episode. It does not include NaVILA/LLaVA source, model weights, 3DGS assets, or IsaacLab.

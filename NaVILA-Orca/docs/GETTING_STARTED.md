@@ -78,11 +78,13 @@ In terminal A:
 In the GUI:
 
 1. Open the built-in default map `orcalab_day`.
-2. Import `NaVILA-Orca/default_set.json` through the global-setting importer.
+2. Choose **File → Open Layout → `NaVILA-Orca/default_set.json`**.
 3. Confirm the scene tree contains exactly one complete Go2 actor.
 4. Confirm that the blue barrel and yellow vehicle are visible ahead.
 
-`default_set.json` stores only the actor layout; it is not the map itself. Open `orcalab_day` first, then import the setting to create the complete default navigation episode.
+`default_set.json` stores only the actor layout; it is not the map itself. Open
+`orcalab_day` first, then load the JSON through **File → Open Layout** to create
+the complete default navigation episode.
 
 The launcher includes a scene-profile watcher. Whenever a new scene produces MuJoCo XML, it injects the `orca-train` profile (`timestep=0.005`, air resistance disabled) without modifying the OrcaLab installation.
 

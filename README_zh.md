@@ -91,7 +91,9 @@ cd Orca_VLN
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-在终端 A 的 OrcaLab 中打开默认地图 `orcalab_day`，再导入 [`default_set.json`](NaVILA-Orca/default_set.json)。该配置会加载默认任务所需的参考对象。
+在终端 A 的 OrcaLab 中打开默认地图 `orcalab_day`，然后依次选择
+**文件 → 打开布局 → [`default_set.json`](NaVILA-Orca/default_set.json)**。
+该布局会加载默认任务所需的参考对象。
 
 <a id="competition-baseline"></a>
 
