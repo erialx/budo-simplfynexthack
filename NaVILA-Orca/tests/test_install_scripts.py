@@ -184,6 +184,13 @@ def test_orcalab_launcher_opens_editor_without_forcing_runtime_mode() -> None:
     assert "PROFILE_WATCHER" not in launcher
 
 
+def test_scene_launcher_preserves_original_navila_camera_defaults() -> None:
+    launcher = (SCRIPTS / "run_orcalab_scene_locomotion.sh").read_text()
+
+    assert "--camera-mount-position" not in launcher
+    assert "--stabilize-camera-horizon" not in launcher
+
+
 def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     constraints = (PROJECT_ROOT / "constraints/orcalab-26.6.3.txt").read_text()
     setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()

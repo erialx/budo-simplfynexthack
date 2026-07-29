@@ -124,7 +124,7 @@ OrcaLab 会话，不会自行打开或启动仿真。
 | --- | --- | --- |
 | `--robot-actor-name auto` | 要求场景中恰有一台完整 Go2 | 避免控制到错误 actor |
 | `--camera-asset-path prefabs/mujococamera1080` | 创建一次、持续采集 PNG | 看见的是机器人视角，不是 viewport |
-| `--camera-mount-position 0.35 0 0.48` | 相机位于基座前上方 | 接近头部视角，降低身体遮挡 |
+| 默认相机安装位置 `0.1 0 0.5` | 与原始 NaVILA ego camera 位置一致 | 保持 baseline 所使用的视觉分布 |
 | `--warmup-steps 100` | 起步前零速度执行 100 个策略步 | 让策略状态稳定后再接收 VLM 命令 |
 | `--scene-profile orca-train` | 200 Hz 物理、50 Hz 控制 | 动作距离可以按 tick 精确复现 |
 

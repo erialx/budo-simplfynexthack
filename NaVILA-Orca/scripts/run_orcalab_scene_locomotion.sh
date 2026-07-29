@@ -32,8 +32,6 @@ exec "${ORCA_PYTHON}" -m navila_orca.cli run \
   --camera-asset-path prefabs/mujococamera1080 \
   --orcalab-camera-mode mujoco-png \
   --camera-transport grpc-png \
-  --camera-mount-position 0.35 0.0 0.48 \
-  --stabilize-camera-horizon \
   --no-publish \
   --robot-actor-name auto \
   --anchor-existing-scene \
