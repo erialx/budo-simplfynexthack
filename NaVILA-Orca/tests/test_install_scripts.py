@@ -170,8 +170,50 @@ def test_navila_install_and_server_verify_the_real_builder_import() -> None:
     server = (SCRIPTS / "start_navvlm_server.sh").read_text()
 
     assert "deepspeed==0.9.5" in constraints
+    assert "torch==" not in constraints
+    assert 'TORCH_VERSION="2.7.0"' in setup
+    assert 'TORCHVISION_VERSION="0.22.0"' in setup
+    assert "/whl/cu128" in setup
+    assert 'FLASH_ATTN_VERSION="2.8.3"' in setup
+    assert "torch2.7cxx11abiTRUE-cp310" in setup
+    assert 'pip install --force-reinstall --no-deps "${FLASH_ATTN_WHEEL}"' in setup
     assert "from llava.model.builder import load_pretrained_model" in setup
     assert "from llava.model.builder import load_pretrained_model" in server
+    assert "check_navila_cuda.py" in server
+
+
+def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
+    import importlib.util
+    import sys
+    from types import SimpleNamespace
+
+    module_path = SCRIPTS / "check_navila_cuda.py"
+    spec = importlib.util.spec_from_file_location("check_navila_cuda", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    fake_cuda = SimpleNamespace(
+        is_available=lambda: True,
+        current_device=lambda: 0,
+        get_device_capability=lambda _index: (12, 0),
+        get_device_name=lambda _index: "NVIDIA GeForce RTX 5090 Laptop GPU",
+        get_arch_list=lambda: ["sm_50", "sm_60", "sm_70", "sm_80", "sm_90"],
+    )
+    fake_torch = SimpleNamespace(
+        __version__="2.3.0+cu121",
+        version=SimpleNamespace(cuda="12.1"),
+        cuda=fake_cuda,
+    )
+
+    try:
+        module.inspect_and_test_cuda(fake_torch)
+    except RuntimeError as exc:
+        assert "Blackwell requires" in str(exc)
+        assert "CUDA 12.1" in str(exc)
+    else:
+        raise AssertionError("Blackwell must reject a pre-CUDA 12.8 PyTorch build")
 
 
 def test_orcalab_launcher_opens_editor_without_forcing_runtime_mode() -> None:

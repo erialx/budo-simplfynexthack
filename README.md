@@ -102,7 +102,8 @@ Verify the completed installation. The final line must be
 The environments live under this checkout in `.conda/envs/`: OrcaLab uses
 Python 3.12 and NaVILA uses Python 3.10. The launchers resolve them from their
 own file paths; no `ORCA_VLN_ROOT`, `conda activate`, or manual `deactivate`
-step is required.
+step is required. The NaVILA prefix is pinned to PyTorch 2.7 with CUDA 12.8,
+which supports both RTX 40-series and Blackwell RTX 50-series GPUs.
 
 ### Run in order in three terminals
 
@@ -143,6 +144,9 @@ that GUI instead.
 ```
 
 Wait until terminal B reports that it is listening on `127.0.0.1:54321`.
+Before loading the checkpoint, the launcher executes a real CUDA kernel and
+stops with a repair command if the installed PyTorch build cannot run on the
+current GPU.
 
 #### C — Start closed-loop navigation
 
@@ -177,6 +181,7 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 - [High-level VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — reviewed-data requirements and SFT/LoRA direction.
 - [Low-level integration](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md) — train in OrcaLocomotion, IsaacLab, or another platform; align the model through a stable adapter.
 - [Architecture](NaVILA-Orca/docs/ARCHITECTURE.md) — the high-level VLN ↔ low-level locomotion contract.
+- [Model and runtime I/O specification](NaVILA-Orca/docs/MODEL_IO_SPEC.md) — NaVILA sampling rates, eight-frame input, action output, and low-level interface.
 
 ## 📦 Package
 

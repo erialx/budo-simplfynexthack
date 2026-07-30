@@ -101,12 +101,17 @@ else
   fail "OrcaLab PyTorch cannot access CUDA"
 fi
 
+NAVILA_CUDA_DIAGNOSTIC=""
 if [[ -x "${NAVILA_PREFIX}/bin/python" ]] && \
-  "${NAVILA_PREFIX}/bin/python" -c 'import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)' \
-  >/dev/null 2>&1; then
-  pass "NaVILA PyTorch can access CUDA"
+  NAVILA_CUDA_DIAGNOSTIC="$("${NAVILA_PREFIX}/bin/python" \
+    "${PROJECT_ROOT}/scripts/check_navila_cuda.py" 2>&1)"; then
+  pass "NaVILA PyTorch can execute on this GPU"
+  printf '%s\n' "${NAVILA_CUDA_DIAGNOSTIC}"
 else
-  fail "NaVILA PyTorch cannot access CUDA"
+  fail "NaVILA PyTorch cannot execute on this GPU"
+  if [[ -n "${NAVILA_CUDA_DIAGNOSTIC}" ]]; then
+    printf '%s\n' "${NAVILA_CUDA_DIAGNOSTIC}" >&2
+  fi
 fi
 
 if [[ "${SKIP_MODEL}" -eq 0 ]]; then

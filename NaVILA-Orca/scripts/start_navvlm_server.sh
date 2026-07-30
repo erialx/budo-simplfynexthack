@@ -39,6 +39,10 @@ if ! "${NAVVLM_PYTHON}" -c \
   exit 2
 fi
 
+if ! "${NAVVLM_PYTHON}" "${PROJECT_ROOT}/scripts/check_navila_cuda.py"; then
+  exit 2
+fi
+
 # NaVILA remains an explicit, separately installed dependency.  This OrcaLab
 # teaching project owns the simulator/navigation adapter, not NaVILA's model.
 exec "${NAVVLM_PYTHON}" "${NAVILA_SERVER_SCRIPT}" \

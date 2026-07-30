@@ -55,6 +55,11 @@ the Transformers commit, and the FlashAttention wheel hash. It also runs
 `pip check` on the OrcaLab environment and verifies imports in both
 environments. OrcaLab's verified native viewport and scene pak are prepared
 during setup instead of being installed inside the first GUI process.
+The NaVILA environment uses the reviewed PyTorch 2.7 / CUDA 12.8 wheels so the
+same setup can execute on RTX 40-series and Blackwell RTX 50-series GPUs.
+It is normal for `nvidia-smi` to show a newer driver capability such as CUDA
+13.2: the 12.8 runtime is bundled with PyTorch and runs on a compatible newer
+NVIDIA driver.
 
 The scripts resolve these prefixes from their own location. Do not activate
 either environment and do not export a repository-root variable. This remains
@@ -185,6 +190,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | Qt cannot load the `xcb` platform plugin | Ubuntu system libraries | Rerun `setup_all.sh`, or run `setup_system_deps.sh` directly to install the required Qt/XCB packages |
 | OrcaLab installs `orcalab-pyside` and asks for a restart | incomplete old setup | Pull the latest repository and rerun `setup_orcalab_env.sh`; Doctor verifies the native viewport, `patchelf`, and its environment-specific RPATH |
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
+| `sm_120 is not compatible` or `no kernel image is available` | NaVILA PyTorch build | The RTX 50-series GPU is using an old CUDA wheel; pull the latest repository and rerun `setup_navila_env.sh` to install the reviewed CUDA 12.8 stack |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
 | VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |

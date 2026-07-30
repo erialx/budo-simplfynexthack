@@ -1,5 +1,5 @@
 # Reviewed NaVILA inference requirements for Linux x86_64, Python 3.10 and
-# CUDA 12. The source checkout, PyTorch index, Transformers commit and
+# CUDA 12.8. The source checkout, PyTorch index, Transformers commit and
 # FlashAttention wheel are pinned separately by scripts/setup_navila_env.sh.
 
 accelerate==0.27.2
@@ -41,8 +41,6 @@ sentencepiece==0.1.99
 shortuuid==1.0.13
 timm==0.9.12
 tokenizers==0.15.2
-torch==2.3.0
-torchvision==0.18.0
 tqdm==4.70.0
 transformers==4.37.2
 tyro==1.0.15

@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Create the inference environment used by the local NaVILA TCP service.
 # This is deliberately separate from OrcaLab: NaVILA requires CPython 3.10
-# and PyTorch 2.3, while the current OrcaLab distribution uses newer core
-# packages that must not be replaced.
+# and its own CUDA-enabled PyTorch stack. PyTorch 2.7 + CUDA 12.8 is the
+# reviewed wheel pair used for Ada and Blackwell GPUs.
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
@@ -13,7 +13,11 @@ NAVILA_SOURCE="${NAVILA_SOURCE:-${WORKSPACE_ROOT}/NaVILA}"
 NAVILA_REVISION="${NAVILA_REVISION:-76b98f233dd0fff05dfcd69435eec6740febff9d}"
 PYTHON="${ENV_PREFIX}/bin/python"
 CONSTRAINTS="${PROJECT_ROOT}/constraints/navila-rss2025.txt"
-FLASH_ATTN_WHEEL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.8/flash_attn-2.5.8+cu122torch2.3cxx11abiFALSE-cp310-cp310-linux_x86_64.whl#sha256=13454dd3d37cf173649bd389b84614b8072fb283f8f2fd23a65ab66caafc304b"
+TORCH_VERSION="2.7.0"
+TORCHVISION_VERSION="0.22.0"
+PYTORCH_INDEX="https://download.pytorch.org/whl/cu128"
+FLASH_ATTN_VERSION="2.8.3"
+FLASH_ATTN_WHEEL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu12torch2.7cxx11abiTRUE-cp310-cp310-linux_x86_64.whl#sha256=ce91e246f21d61ad66b1a7555340dbaa28e4aa86edcf00c18f0837422939b529"
 TRANSFORMERS_REVISION="345b9b1a6a308a1fa6559251eb33ead2211240ac"
 
 usage() {
@@ -40,7 +44,11 @@ verify() {
     return 2
   fi
 
-  "${PYTHON}" - "${NAVILA_SOURCE}" <<'PY'
+  "${PYTHON}" - \
+    "${NAVILA_SOURCE}" \
+    "${TORCH_VERSION}" \
+    "${TORCHVISION_VERSION}" \
+    "${FLASH_ATTN_VERSION}" <<'PY'
 import sys
 from importlib import metadata
 from pathlib import Path
@@ -53,6 +61,9 @@ def require_equal(name, actual, expected):
         )
 
 source = Path(sys.argv[1]).resolve()
+expected_torch = sys.argv[2]
+expected_torchvision = sys.argv[3]
+expected_flash_attn = sys.argv[4]
 require_equal("Python", sys.version_info[:2], (3, 10))
 
 import flash_attn
@@ -62,10 +73,16 @@ import torchvision
 import transformers
 from llava.model.builder import load_pretrained_model
 
-require_equal("torch", torch.__version__.split('+', 1)[0], "2.3.0")
-require_equal("torchvision", torchvision.__version__.split('+', 1)[0], "0.18.0")
+require_equal("torch", torch.__version__.split('+', 1)[0], expected_torch)
+require_equal("torchvision", torchvision.__version__.split('+', 1)[0], expected_torchvision)
+if torch.version.cuda is None:
+    raise SystemExit("PyTorch is a CPU build; the CUDA 12.8 wheel is required")
+if tuple(int(part) for part in torch.version.cuda.split(".")[:2]) < (12, 8):
+    raise SystemExit(
+        f"CUDA runtime mismatch: found {torch.version.cuda}, expected CUDA 12.8 or newer"
+    )
 require_equal("transformers", transformers.__version__, "4.37.2")
-require_equal("flash-attn", flash_attn.__version__, "2.5.8")
+require_equal("flash-attn", flash_attn.__version__, expected_flash_attn)
 require_equal("deepspeed", metadata.version("deepspeed"), "0.9.5")
 require_equal("accelerate", metadata.version("accelerate"), "0.27.2")
 require_equal("numpy", metadata.version("numpy"), "1.26.0")
@@ -83,7 +100,7 @@ if replacement.read_bytes() != installed.read_bytes():
     )
 print("NaVILA runtime verified")
 print(f"python={sys.executable}")
-print(f"torch={torch.__version__}; torchvision={torchvision.__version__}; transformers={transformers.__version__}")
+print(f"torch={torch.__version__}; torch CUDA={torch.version.cuda}; torchvision={torchvision.__version__}; transformers={transformers.__version__}")
 print(f"flash-attn={flash_attn.__version__}; deepspeed={metadata.version('deepspeed')}; llava={Path(llava.__file__).resolve()}")
 PY
 }
@@ -124,9 +141,13 @@ fi
 
 "${PYTHON}" -m pip install --upgrade \
   "pip==26.1.2" "setuptools==81.0.0" "wheel==0.47.0"
-"${PYTHON}" -m pip install --index-url https://download.pytorch.org/whl/cu121 \
-  'torch==2.3.0' 'torchvision==0.18.0'
-"${PYTHON}" -m pip install "${FLASH_ATTN_WHEEL}"
+# An older editable NaVILA install declares exact torch 2.3 metadata. Remove
+# that metadata before upgrading the runtime; the reviewed checkout is
+# reinstalled with --no-deps below.
+"${PYTHON}" -m pip uninstall --yes vila >/dev/null 2>&1 || true
+"${PYTHON}" -m pip install --index-url "${PYTORCH_INDEX}" \
+  "torch==${TORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}"
+"${PYTHON}" -m pip install --force-reinstall --no-deps "${FLASH_ATTN_WHEEL}"
 "${PYTHON}" -m pip install \
   --requirement "${CONSTRAINTS}"
 "${PYTHON}" -m pip install --no-deps --editable "${NAVILA_SOURCE}"
