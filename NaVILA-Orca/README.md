@@ -4,7 +4,10 @@
 
 This directory is the distributable OrcaLab runtime. Its GitHub project homepage is one level up: [Orca_VLN](../README.md).
 
-For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The three commands below cover the normal development loop:
+For a first run, open [the getting-started guide](docs/GETTING_STARTED.md).
+Sampling rates and exact model interfaces are defined in the
+[model and runtime I/O specification](docs/MODEL_IO_SPEC.md). The three
+commands below cover the normal development loop:
 
 ```bash
 ./scripts/start_orcalab_gui.sh
