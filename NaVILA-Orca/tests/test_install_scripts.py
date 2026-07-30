@@ -233,6 +233,50 @@ def test_scene_launcher_preserves_original_navila_camera_defaults() -> None:
     assert "--stabilize-camera-horizon" not in launcher
 
 
+def test_scene_launcher_uses_editable_prompt_file_unless_overridden(
+    tmp_path: Path,
+) -> None:
+    fake_python = tmp_path / "python"
+    _make_executable(
+        fake_python,
+        "#!/usr/bin/env bash\n"
+        "if [[ \"${1:-}\" == '-c' ]]; then\n"
+        "  if [[ \"${2:-}\" == *'print(version'* ]]; then echo '26.6.3'; fi\n"
+        "  exit 0\n"
+        "fi\n"
+        "printf '%s\\n' \"$@\"\n",
+    )
+    env = {
+        **os.environ,
+        "NAVILA_ORCA_PYTHON": str(fake_python),
+    }
+    launcher = str(SCRIPTS / "run_orcalab_scene_locomotion.sh")
+
+    default_run = subprocess.run(
+        [launcher],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    default_args = default_run.stdout.splitlines()
+    instruction_index = default_args.index("--instruction-file")
+    assert default_args[instruction_index + 1] == str(
+        PROJECT_ROOT / "prompts/orcalab_scene_locomotion.txt"
+    )
+
+    override_run = subprocess.run(
+        [launcher, "--instruction", "Turn left."],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    override_args = override_run.stdout.splitlines()
+    assert "--instruction-file" not in override_args
+    assert override_args[-2:] == ["--instruction", "Turn left."]
+
+
 def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     constraints = (PROJECT_ROOT / "constraints/orcalab-26.6.3.txt").read_text()
     setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()

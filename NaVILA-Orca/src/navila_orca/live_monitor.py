@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import os
+from pathlib import Path
+import sys
 import textwrap
 import time
 from typing import Any, Callable, TypeVar
@@ -13,6 +16,46 @@ from .contracts import RenderFrame
 
 
 _T = TypeVar("_T")
+_FONT_SUFFIXES = frozenset({".otf", ".ttc", ".ttf"})
+_SYSTEM_QT_FONT_DIRS = (
+    Path("/usr/share/fonts/truetype/dejavu"),
+    Path("/usr/share/fonts/truetype/ubuntu"),
+    Path("/usr/share/fonts/truetype/liberation2"),
+    Path("/usr/share/fonts/truetype/freefont"),
+)
+
+
+def _contains_font_file(directory: Path) -> bool:
+    try:
+        return directory.is_dir() and any(
+            entry.is_file() and entry.suffix.lower() in _FONT_SUFFIXES
+            for entry in directory.iterdir()
+        )
+    except OSError:
+        return False
+
+
+def _configure_qt_font_dir() -> Path | None:
+    """Replace OpenCV's missing wheel-font path before Qt initializes."""
+
+    configured = os.environ.get("QT_QPA_FONTDIR")
+    if configured and _contains_font_file(Path(configured).expanduser()):
+        return Path(configured).expanduser()
+
+    override = os.environ.get("NAVILA_ORCA_QT_FONTDIR")
+    candidates = (
+        *((Path(override).expanduser(),) if override else ()),
+        *_SYSTEM_QT_FONT_DIRS,
+    )
+    for candidate in candidates:
+        if _contains_font_file(candidate):
+            os.environ["QT_QPA_FONTDIR"] = str(candidate)
+            return candidate
+
+    # Without a valid explicit path, Qt can fall back to the host fontconfig
+    # database instead of repeatedly probing cv2/qt/fonts.
+    os.environ.pop("QT_QPA_FONTDIR", None)
+    return None
 
 
 class LiveMonitorError(RuntimeError):
@@ -38,6 +81,8 @@ class LiveNavigationMonitor:
                 raise LiveMonitorError(
                     "OpenCV is required for --live-monitor"
                 ) from exc
+        if sys.platform.startswith("linux"):
+            _configure_qt_font_dir()
         self.cv2 = cv2_module
         self.window_name = str(window_name)
         self.panel_width = int(panel_width)

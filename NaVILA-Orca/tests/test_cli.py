@@ -3,6 +3,7 @@ import numpy as np
 from navila_orca.cli import (
     ScriptedVLMClient,
     _build_parser,
+    _make_instruction_provider,
     _procedural_rgb,
     _resolve_instruction,
     _resolve_waypoint_instructions,
@@ -64,6 +65,18 @@ def test_instruction_file_overrides_dataset_prompt(tmp_path):
     assert _resolve_instruction(args, "dataset prompt") == (
         "Walk to the cabinet and stop."
     )
+
+
+def test_instruction_file_provider_reloads_edits(tmp_path):
+    prompt_path = tmp_path / "prompt.txt"
+    prompt_path.write_text("Walk to the cabinet.\n", encoding="utf-8")
+    args = _build_parser().parse_args(["run", "--instruction-file", str(prompt_path)])
+    provider = _make_instruction_provider(args)
+
+    assert provider is not None
+    assert provider() == "Walk to the cabinet."
+    prompt_path.write_text("Turn right at the cabinet.\n", encoding="utf-8")
+    assert provider() == "Turn right at the cabinet."
 
 
 def test_waypoint_file_loads_one_stage_per_nonempty_line(tmp_path):

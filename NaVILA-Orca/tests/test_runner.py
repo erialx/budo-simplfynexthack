@@ -154,6 +154,32 @@ def test_empty_waypoint_sequence_disables_staged_mode():
     assert vlm.requests[0][1] == "move to the target"
 
 
+def test_runner_refreshes_file_backed_instruction_between_decisions():
+    current = {"instruction": "Move toward the orange bin."}
+
+    class UpdatingVLM(ScriptedVLM):
+        def infer(self, images, instruction):
+            output = super().infer(images, instruction)
+            if len(self.requests) == 1:
+                current["instruction"] = "Turn right toward the blue barrel."
+            return output
+
+    vlm = UpdatingVLM(["move forward 25 cm", "stop"])
+    result = NavigationRunner(
+        FakePhysics(),
+        FakeRenderer(),
+        vlm,
+        scene_fidelity=False,
+        instruction_provider=lambda: current["instruction"],
+    ).run(_episode())
+
+    assert result.termination_reason == "stop"
+    assert [request[1] for request in vlm.requests] == [
+        "Move toward the orange bin.",
+        "Turn right toward the blue barrel.",
+    ]
+
+
 def test_runner_treats_intermediate_waypoint_stops_as_stage_completion():
     physics = FakePhysics()
     vlm = ScriptedVLM(

@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import socket
 import sys
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import numpy as np
 from PIL import Image
@@ -299,6 +299,7 @@ def _run(args: argparse.Namespace) -> int:
         )
     episode = load_episode(args.scenario)
     waypoint_instructions = _resolve_waypoint_instructions(args)
+    instruction_provider = _make_instruction_provider(args)
     episode = replace(
         episode,
         instruction=_resolve_instruction(
@@ -349,6 +350,7 @@ def _run(args: argparse.Namespace) -> int:
             monitor=live_monitor,
             monitor_interval_s=args.monitor_interval,
             waypoint_instructions=waypoint_instructions,
+            instruction_provider=instruction_provider,
         )
         result = runner.run(episode)
         artifact_id = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
@@ -517,6 +519,30 @@ def _resolve_waypoint_instructions(args: argparse.Namespace) -> tuple[str, ...]:
     return instructions
 
 
+def _read_instruction_file(prompt_path: Path) -> str:
+    try:
+        instruction = prompt_path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ValueError(
+            f"cannot read instruction file {prompt_path}: {exc}"
+        ) from exc
+    if not instruction:
+        raise ValueError(f"navigation instruction from {prompt_path} is empty")
+    return instruction
+
+
+def _make_instruction_provider(
+    args: argparse.Namespace,
+) -> Callable[[], str] | None:
+    """Reload a file-backed instruction before every VLM decision."""
+
+    value = getattr(args, "instruction_file", None)
+    if value is None:
+        return None
+    prompt_path = Path(value).expanduser().resolve()
+    return partial(_read_instruction_file, prompt_path)
+
+
 def _resolve_instruction(
     args: argparse.Namespace,
     scenario_instruction: str,
@@ -533,12 +559,7 @@ def _resolve_instruction(
         source = "--waypoint-instruction-file"
     elif args.instruction_file is not None:
         prompt_path = Path(args.instruction_file).expanduser().resolve()
-        try:
-            instruction = prompt_path.read_text(encoding="utf-8").strip()
-        except OSError as exc:
-            raise ValueError(
-                f"cannot read instruction file {prompt_path}: {exc}"
-            ) from exc
+        instruction = _read_instruction_file(prompt_path)
         source = str(prompt_path)
     elif args.instruction is not None:
         instruction = str(args.instruction).strip()

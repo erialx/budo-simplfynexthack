@@ -1,5 +1,6 @@
 import numpy as np
 
+import navila_orca.live_monitor as live_monitor_module
 from navila_orca.contracts import RenderFrame
 from navila_orca.live_monitor import LiveNavigationMonitor
 
@@ -52,3 +53,18 @@ def test_live_monitor_composes_ego_and_text_panel():
 
     assert cv2.canvas.shape == (512, 1072, 3)
     monitor.close()
+
+
+def test_live_monitor_replaces_opencv_missing_qt_font_path(
+    tmp_path, monkeypatch
+):
+    fonts = tmp_path / "fonts"
+    fonts.mkdir()
+    (fonts / "TestSans.ttf").write_bytes(b"test font placeholder")
+    monkeypatch.setenv("QT_QPA_FONTDIR", str(tmp_path / "cv2/qt/fonts"))
+    monkeypatch.delenv("NAVILA_ORCA_QT_FONTDIR", raising=False)
+    monkeypatch.setattr(live_monitor_module, "_SYSTEM_QT_FONT_DIRS", (fonts,))
+
+    LiveNavigationMonitor(cv2_module=FakeCv2())
+
+    assert live_monitor_module.os.environ["QT_QPA_FONTDIR"] == str(fonts)

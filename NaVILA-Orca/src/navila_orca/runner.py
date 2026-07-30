@@ -103,6 +103,7 @@ class NavigationRunner:
         monitor_interval_s: float = 0.1,
         action_parser: Callable[[str], VelocityCommand] = parse_velocity_command,
         waypoint_instructions: Sequence[str] | None = None,
+        instruction_provider: Callable[[], str] | None = None,
     ) -> None:
         self.physics = physics
         self.renderer = renderer
@@ -120,6 +121,9 @@ class NavigationRunner:
         self.monitor = monitor
         self.monitor_interval_s = float(monitor_interval_s)
         self.action_parser = action_parser
+        if instruction_provider is not None and not callable(instruction_provider):
+            raise TypeError("instruction_provider must be callable")
+        self.instruction_provider = instruction_provider
         if not waypoint_instructions:
             self.waypoint_instructions: tuple[str, ...] = ()
         else:
@@ -130,6 +134,10 @@ class NavigationRunner:
                 not instruction for instruction in self.waypoint_instructions
             ):
                 raise ValueError("waypoint instructions must be non-empty strings")
+        if self.waypoint_instructions and self.instruction_provider is not None:
+            raise ValueError(
+                "instruction_provider and waypoint_instructions are mutually exclusive"
+            )
         if requested_control_steps < 0 or requested_decisions < 0:
             raise ValueError("runner limits must be non-negative; zero means unlimited")
         self._velocity_facade = callable(
@@ -215,7 +223,15 @@ class NavigationRunner:
 
         def active_instruction() -> str:
             if not self.waypoint_instructions:
-                return episode.instruction
+                instruction = (
+                    self.instruction_provider()
+                    if self.instruction_provider is not None
+                    else episode.instruction
+                )
+                instruction = str(instruction).strip()
+                if not instruction:
+                    raise ValueError("active navigation instruction is empty")
+                return instruction
             instruction = (
                 f"Waypoint {waypoint_index + 1} of {waypoint_count}. "
                 f"{self.waypoint_instructions[waypoint_index]}"
@@ -228,10 +244,11 @@ class NavigationRunner:
                 )
             return instruction
 
+        current_instruction = active_instruction()
         if self.monitor is not None:
             self.monitor.update(
                 initial_frame,
-                instruction=active_instruction(),
+                instruction=current_instruction,
                 vlm_output=monitor_output,
                 command=monitor_command,
                 status="ready",
@@ -240,11 +257,13 @@ class NavigationRunner:
             )
 
         while self.max_decisions is None or decisions < self.max_decisions:
+            if decisions:
+                current_instruction = active_instruction()
             sampled_images = sample_history(frame_history)
             if self.monitor is not None:
                 self.monitor.update(
                     last_frame,
-                    instruction=active_instruction(),
+                    instruction=current_instruction,
                     vlm_output=monitor_output,
                     command=monitor_command,
                     status="waiting for VLM response",
@@ -253,7 +272,7 @@ class NavigationRunner:
                 )
 
             def infer():
-                return self.vlm_client.infer(sampled_images, active_instruction())
+                return self.vlm_client.infer(sampled_images, current_instruction)
 
             responsive_infer = (
                 getattr(self.monitor, "run_while_responsive", None)
@@ -279,6 +298,7 @@ class NavigationRunner:
                         "has been executed for this waypoint"
                     )
                     monitor_command = "stop rejected; request a motion action"
+                    current_instruction = active_instruction()
                     print(
                         "WAYPOINT_STOP_REJECTED "
                         f"waypoint={waypoint_index + 1}/{waypoint_count} "
@@ -288,7 +308,7 @@ class NavigationRunner:
                     if self.monitor is not None:
                         self.monitor.update(
                             last_frame,
-                            instruction=active_instruction(),
+                            instruction=current_instruction,
                             vlm_output=monitor_output,
                             command=monitor_command,
                             status="premature waypoint stop rejected",
@@ -312,10 +332,11 @@ class NavigationRunner:
                         f"Waypoint {waypoints_completed}/{waypoint_count} completed"
                     )
                     monitor_command = "advance to next waypoint"
+                    current_instruction = active_instruction()
                     if self.monitor is not None:
                         self.monitor.update(
                             last_frame,
-                            instruction=active_instruction(),
+                            instruction=current_instruction,
                             vlm_output=monitor_output,
                             command=monitor_command,
                             status="intermediate waypoint confirmed",
@@ -330,7 +351,7 @@ class NavigationRunner:
                 if self.monitor is not None:
                     self.monitor.update(
                         last_frame,
-                        instruction=active_instruction(),
+                        instruction=current_instruction,
                         vlm_output=monitor_output,
                         command=monitor_command,
                         status="VLM requested stop",
@@ -342,7 +363,7 @@ class NavigationRunner:
             if self.monitor is not None:
                 self.monitor.update(
                     last_frame,
-                    instruction=active_instruction(),
+                    instruction=current_instruction,
                     vlm_output=monitor_output,
                     command=monitor_command,
                     status="executing motion chunk",
@@ -421,7 +442,7 @@ class NavigationRunner:
                         if self.monitor is not None:
                             self.monitor.update(
                                 last_frame,
-                                instruction=active_instruction(),
+                                instruction=current_instruction,
                                 vlm_output=monitor_output,
                                 command=monitor_command,
                                 status="executing motion chunk",
@@ -470,7 +491,7 @@ class NavigationRunner:
                 if self.monitor is not None:
                     self.monitor.update(
                         last_frame,
-                        instruction=active_instruction(),
+                        instruction=current_instruction,
                         vlm_output=monitor_output,
                         command=monitor_command,
                         status="motion chunk completed",
