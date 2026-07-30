@@ -99,8 +99,7 @@ cd Orca_VLN
 两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
 3.12，NaVILA 使用 Python 3.10。启动器根据自己的文件位置定位环境，
 因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
-`deactivate`。NaVILA 环境固定使用 PyTorch 2.7 / CUDA 12.8，可同时支持
-RTX 40 系列和 Blackwell RTX 50 系列 GPU。
+`deactivate`。
 
 ### 按顺序在三个终端运行
 
@@ -138,8 +137,6 @@ OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中�
 ```
 
 等待终端 B 显示正在监听 `127.0.0.1:54321`。
-加载 checkpoint 前，启动脚本会先实际执行一个 CUDA kernel；如果当前
-PyTorch 不能在该 GPU 上运行，会立即停止并显示修复命令。
 
 #### C — 启动闭环导航
 
@@ -173,7 +170,6 @@ OrcaLab 或启动仿真：
 - [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 已审核数据要求，以及 SFT/LoRA 的实践方向。
 - [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION_zh.md) — 可在 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定适配器对齐模型。
 - [架构](NaVILA-Orca/docs/ARCHITECTURE_zh.md) — 高层 VLN ↔ 低层运动控制的接口约定。
-- [模型与运行时 I/O 规格](NaVILA-Orca/docs/MODEL_IO_SPEC_zh.md) — NaVILA 的采样频率、八帧输入、动作输出和低层接口。
 
 ## 📦 打包发布
 

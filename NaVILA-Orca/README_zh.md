@@ -4,8 +4,7 @@
 
 此目录是可分发的 OrcaLab 运行时。GitHub 项目主页位于上一级：[Orca_VLN](../README_zh.md)。
 
-首次运行请阅读[快速上手指南](docs/GETTING_STARTED_zh.md)；模型边界、采样频率
-和输入输出格式见[模型与运行时 I/O 规格](docs/MODEL_IO_SPEC_zh.md)。全新 checkout
+首次运行请阅读[快速上手指南](docs/GETTING_STARTED_zh.md)。全新 checkout
 先执行一次 `./scripts/setup_all.sh`，并确认 `./scripts/doctor.sh` 全部通过。
 此后无需激活 Conda 环境或设置仓库根目录变量。以下三条命令覆盖正常开发流程：
 

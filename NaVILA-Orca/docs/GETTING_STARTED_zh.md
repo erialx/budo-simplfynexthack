@@ -54,10 +54,6 @@ cd Orca_VLN
 提交和 FlashAttention wheel 哈希，并对 OrcaLab 执行 `pip check`、
 对两套环境执行导入验证。OrcaLab 官方原生 viewport 和场景 pak 也会在
 安装阶段完成准备，不再推迟到第一次 GUI 进程中安装。
-NaVILA 环境使用项目验证过的 PyTorch 2.7 / CUDA 12.8 wheel，同一套安装
-可用于 RTX 40 系列与 Blackwell RTX 50 系列 GPU。
-`nvidia-smi` 显示更高的驱动能力（例如 CUDA 13.2）是正常的：PyTorch
-自带 CUDA 12.8 runtime，可由兼容的新版本 NVIDIA 驱动向下运行。
 
 脚本根据自身位置解析环境。无需激活 Conda 环境，也无需导出仓库根目录
 变量；即使当前终端激活了另一套环境，也不会选错 Python。
@@ -183,7 +179,6 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | Qt 无法加载 `xcb` platform plugin | Ubuntu 系统库 | 重新运行 `setup_all.sh`，或单独执行 `setup_system_deps.sh` 安装 Qt/XCB 系统包 |
 | OrcaLab 首启安装 `orcalab-pyside` 并要求重启 | 使用了旧安装流程 | 拉取最新代码后重新运行 `setup_orcalab_env.sh`；Doctor 会检查原生 viewport、`patchelf` 及其环境专用 RPATH |
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
-| `sm_120 is not compatible` 或 `no kernel image is available` | NaVILA 的 PyTorch 构建 | RTX 50 系列正在使用旧 CUDA wheel；拉取最新代码并重新运行 `setup_navila_env.sh`，安装项目验证过的 CUDA 12.8 运行栈 |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
 | 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
 | VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
