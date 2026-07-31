@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -105,7 +106,37 @@ def extract_runtime(archive: Path, destination: Path) -> Path:
     return root
 
 
-def patch_native_rpath(root: Path) -> None:
+def system_opengl() -> Path:
+    """Resolve the host GLVND OpenGL library instead of OrcaLab's partial copy."""
+    ldconfig = shutil.which("ldconfig")
+    if ldconfig is None:
+        for candidate in (Path("/sbin/ldconfig"), Path("/usr/sbin/ldconfig")):
+            if candidate.is_file():
+                ldconfig = str(candidate)
+                break
+    if ldconfig is not None:
+        cache = subprocess.check_output([ldconfig, "-p"], text=True)
+        for line in cache.splitlines():
+            match = re.match(r"\s*libOpenGL\.so\.0\s+.*=>\s+(\S+)\s*$", line)
+            if match:
+                library = Path(match.group(1))
+                if library.is_file():
+                    return library
+
+    for pattern in (
+        "/lib/*-linux-gnu/libOpenGL.so.0",
+        "/usr/lib/*-linux-gnu/libOpenGL.so.0",
+    ):
+        candidates = sorted(Path("/").glob(pattern.removeprefix("/")))
+        if candidates:
+            return candidates[0]
+    raise RuntimeError(
+        "system libOpenGL.so.0 is missing; run "
+        "./NaVILA-Orca/scripts/setup_system_deps.sh"
+    )
+
+
+def patch_native_runtime(root: Path) -> None:
     native_library = (
         root / "src" / "orcalab_pyside" / "dist" / "OrcaPySide.so"
     )
@@ -120,6 +151,41 @@ def patch_native_rpath(root: Path) -> None:
     pyside6 = Path(PySide6.__file__).resolve().parent
     python_lib = Path(sysconfig.get_config_var("LIBDIR")).resolve()
     dist = native_library.parent.resolve()
+    host_opengl = system_opengl()
+
+    # OrcaLab 26.6.3 ships libOpenGL.so.0 without its matching
+    # libGLdispatch.so.0. On some driver/Ubuntu combinations this mixes two
+    # GLVND builds and fails with an undefined _glapi_tls_Current symbol.
+    # Patch only the two viewport consumers; keep all other packaged runtime
+    # libraries unchanged.
+    opengl_consumers = [native_library, dist / "libPySideGameLauncher.so"]
+    for consumer in opengl_consumers:
+        if not consumer.is_file():
+            raise RuntimeError(f"OrcaLab OpenGL consumer is missing: {consumer}")
+        needed = subprocess.check_output(
+            [str(patchelf), "--print-needed", str(consumer)], text=True
+        ).splitlines()
+        current = next(
+            (
+                item
+                for item in needed
+                if Path(item).name.startswith("libOpenGL.so.0")
+            ),
+            None,
+        )
+        if current is None:
+            raise RuntimeError(f"{consumer.name} does not declare libOpenGL.so.0")
+        if current != str(host_opengl):
+            subprocess.check_call(
+                [
+                    str(patchelf),
+                    "--replace-needed",
+                    current,
+                    str(host_opengl),
+                    str(consumer),
+                ]
+            )
+
     rpath = f"$ORIGIN:{pyside6}:{python_lib}:{dist}"
     subprocess.check_call(
         [str(patchelf), "--set-rpath", rpath, str(native_library)]
@@ -131,7 +197,20 @@ def patch_native_rpath(root: Path) -> None:
         raise RuntimeError(
             f"OrcaLab native viewport RPATH mismatch: {actual!r} != {rpath!r}"
         )
-    print("[orcalab-runtime] native viewport RPATH verified")
+    clean_environment = os.environ.copy()
+    clean_environment.pop("LD_LIBRARY_PATH", None)
+    linked = subprocess.check_output(
+        ["ldd", str(native_library)], text=True, env=clean_environment
+    )
+    if str(host_opengl) not in linked:
+        raise RuntimeError(
+            "OrcaLab native viewport does not resolve against the complete "
+            f"host OpenGL stack:\n{linked}"
+        )
+    print(
+        "[orcalab-runtime] native viewport RPATH and host OpenGL verified: "
+        f"{host_opengl}"
+    )
 
 
 def main() -> int:
@@ -172,7 +251,7 @@ def main() -> int:
             str(root),
         ]
     )
-    patch_native_rpath(root)
+    patch_native_runtime(root)
     download_verified(PAK_URL, pak, PAK_SHA256)
 
     state_file.parent.mkdir(parents=True, exist_ok=True)

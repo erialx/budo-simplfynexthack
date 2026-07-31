@@ -161,6 +161,7 @@ def test_system_dependency_check_reports_missing_qt_xcb_package(
 
     assert result.returncode == 2
     assert "libxcb-cursor0" in result.stderr
+    assert "libopengl0" in result.stderr
     assert "setup_system_deps.sh" in result.stderr
 
 
@@ -304,6 +305,11 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert "orcalab-pyside==26.6.3" in constraints
     assert "patchelf==0.17.2.4" in constraints
     assert "prepare_orcalab_runtime.py" in setup
+    assert "env -u LD_LIBRARY_PATH" in setup
     assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
+    assert "unset LD_LIBRARY_PATH" in resolver
     assert 'version("orcalab-pyside") == "26.6.3"' in resolver
     assert PYSIDE_SHA256 in preparer
+    assert '"--replace-needed"' in preparer
+    assert "libPySideGameLauncher.so" in preparer
+    assert "_glapi_tls_Current" in preparer

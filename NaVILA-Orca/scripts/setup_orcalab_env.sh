@@ -31,7 +31,7 @@ verify() {
     return 2
   fi
 
-  "${PYTHON}" - "${PROJECT_ROOT}" <<'PY'
+  env -u LD_LIBRARY_PATH "${PYTHON}" - "${PROJECT_ROOT}" <<'PY'
 import sys
 import subprocess
 from importlib import metadata
@@ -149,5 +149,6 @@ fi
 "${PYTHON}" -m pip install \
   --constraint "${CONSTRAINTS}" \
   --editable "${PROJECT_ROOT}[orca,test]"
-"${PYTHON}" "${PROJECT_ROOT}/scripts/prepare_orcalab_runtime.py" "${CONSTRAINTS}"
+env -u LD_LIBRARY_PATH \
+  "${PYTHON}" "${PROJECT_ROOT}/scripts/prepare_orcalab_runtime.py" "${CONSTRAINTS}"
 verify
