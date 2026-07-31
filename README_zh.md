@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab 仓库导航场景" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab 工厂导航场景" width="48%" />
   <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN 实时监视器" width="48%" />
 </p>
 
