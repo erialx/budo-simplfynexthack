@@ -182,6 +182,24 @@ def test_navila_install_and_server_verify_the_real_builder_import() -> None:
     assert "check_navila_cuda.py" in server
 
 
+def test_orcalab_runtime_pins_the_cuda_12_8_wheel_pair() -> None:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text()
+    constraints = (
+        PROJECT_ROOT / "constraints/orcalab-26.6.3.txt"
+    ).read_text()
+    setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()
+
+    assert '"torch==2.11.0"' in pyproject
+    assert '"torchvision==0.26.0"' in pyproject
+    assert "torch==2.11.0+cu128" in constraints
+    assert "torchvision==0.26.0+cu128" in constraints
+    assert 'TORCH_VERSION="2.11.0"' in setup
+    assert 'TORCHVISION_VERSION="0.26.0"' in setup
+    assert "/whl/cu128" in setup
+    assert '"torch==${TORCH_VERSION}+cu128"' in setup
+    assert 'require_equal("torch CUDA build", torch.version.cuda, "12.8")' in setup
+
+
 def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
     import importlib.util
     import sys

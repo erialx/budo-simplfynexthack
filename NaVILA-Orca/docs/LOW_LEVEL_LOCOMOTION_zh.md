@@ -6,6 +6,17 @@
 
 Orca_VLN 仅使用 MJLab 运行提供的基线，并为 Go2 模型输出具体的对齐报告；不要求团队在 MJLab 中重新训练。
 
+## 环境边界
+
+OrcaLocomotion 或其他训练栈必须使用独立环境。Orca_VLN/OrcaLab 运行环境
+固定到经过验证的 CUDA 12.8 PyTorch；训练仓库的 requirements 可能覆盖该
+版本，使运行环境重新要求更高版本的主机驱动。
+
+两个环境之间只传递兼容的 actor `state_dict` 或推理 checkpoint，不复制
+训练环境。如果完整训练 checkpoint 还包含 optimizer 或 scheduler 状态，
+请先单独导出 actor 权重再接入；断点续训和 optimizer 状态验证仍在原训练
+环境完成。
+
 ## 稳定运行时接口
 
 VLN 层只发送机体坐标系速度目标：
@@ -57,7 +68,7 @@ qpos_batch                     -> OrcaLab 渲染所需的当前 Go2 广义位置
 ## 建议工作流
 
 1. 原样复现提供的仓库基线；
-2. 在 OrcaLocomotion、IsaacLab 或选定平台训练并验证策略；
+2. 创建独立环境，在 OrcaLocomotion、IsaacLab 或选定平台训练并验证策略；
 3. 仅当 checkpoint ABI 兼容时直接替换，否则构建 adapter；
 4. 在进入 VLN 闭环前运行固定速度测试；
 5. 重复未改动的仓库回合，比较漂移、动作片段和最终轨迹。

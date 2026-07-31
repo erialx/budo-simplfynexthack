@@ -14,6 +14,9 @@
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
+OrcaLocomotion 等低层训练工具应使用独立环境；两边只传递兼容的策略
+checkpoint，不要把训练仓库的 requirements 安装进 OrcaLab 运行环境。
+
 运行导航前，请打开默认地图 `orcalab_day`，然后选择
 **文件 → 打开布局 → `default_set.json`**。NaVILA 使用独立运行环境；
 TCP 服务适配器由本项目提供，模型位于项目默认模型目录。

@@ -15,7 +15,9 @@ For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The 
 From a fresh clone, run `./scripts/setup_all.sh` once and require
 `./scripts/doctor.sh` to pass. The launchers use the two project-local
 environments directly, so no shell activation or repository-root environment
-variable is needed.
+variable is needed. Keep low-level training tools such as OrcaLocomotion in
+their own environment; exchange a compatible policy checkpoint rather than
+installing their training requirements into the OrcaLab runtime.
 
 Open the default `orcalab_day` map and choose
 **File → Open Layout → `default_set.json`** before running navigation. NaVILA
