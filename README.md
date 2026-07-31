@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab factory navigation scene" width="48%" />
-  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN live monitor" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-overview.png" alt="OrcaLab factory navigation scene" width="54.4%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN factory live monitor" width="43.6%" />
 </p>
 
 > **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
