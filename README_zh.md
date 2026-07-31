@@ -19,13 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/factory-overview.png" alt="OrcaLab 工厂导航场景" width="72%" /><br />
-  <sub><strong>工厂导航场景</strong></sub>
-</p>
-
-<p align="center">
-  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN 工厂场景实时监视器" width="57.8%" /><br />
-  <sub><strong>实时导航监视器</strong></sub>
+  <img src="NaVILA-Orca/assets/presentation/factory-overview-two-column.png" alt="带 Go2 机器人的 OrcaLab 工厂导航场景" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN 工厂场景实时监视器" width="48%" />
 </p>
 
 > **Orca_VLN 是一套可直接运行的 VLN 基线，可在此基础上针对具体任务继续微调。**
