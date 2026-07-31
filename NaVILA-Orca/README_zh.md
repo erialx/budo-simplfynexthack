@@ -14,12 +14,14 @@
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-运行导航前，请打开默认地图 `orcalab_day`，然后选择
-**文件 → 打开布局 → `default_set.json`**。NaVILA 使用独立运行环境；
-TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
+运行导航前，请先在 OrcaLab 中订阅 `VLN_Presentation`
+（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，然后选择
+`VLN_Presentation` 场景，并执行 **文件 → 打开布局 → `factory.json`**。
+启动器默认 prompt 会依次经过红色垃圾桶、右转至蓝色油桶，并在白色机械臂前停止。
+NaVILA 使用独立运行环境；TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
 
 ```bash
 ./scripts/build_kit.sh
 ```
 
-该开发包包含 OrcaLab adapter、本地 Go2 task/MJCF/mesh 资源、默认 Go2 运动 checkpoint、全局设置和一个可复现的仓库回合。它不包含 NaVILA/LLaVA 源码、模型权重、3DGS 资源或 IsaacLab。
+该开发包包含 OrcaLab adapter、本地 Go2 task/MJCF/mesh 资源、默认 Go2 运动 checkpoint、`factory.json` 布局和一个可复现的 `VLN_Presentation` 回合。它不包含 NaVILA/LLaVA 源码、模型权重、已订阅的 OrcaLab 资源或 IsaacLab。

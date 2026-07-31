@@ -8,7 +8,7 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 主办方提供：
 
-- OrcaLab 默认地图 `orcalab_day` 和 [`default_set.json`](../default_set.json)；
+- 已订阅的 OrcaLab `VLN_Presentation` 场景和 [`factory.json`](../factory.json) 布局；
 - Go2、常驻第一视角 RGB 相机和实时导航监视器；
 - NaVILA server 接入点和默认导航回合；
 - 随包 Go2 运动 checkpoint 与运行脚本；
@@ -23,7 +23,7 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 | 检查点 | 团队产出 | 证据 |
 | --- | --- | --- |
-| 1. 环境 | 打开 `orcalab_day`，选择“文件 → 打开布局”，验证 Go2 相机 | 地图与机器人视图截图 |
+| 1. 环境 | 订阅并打开 `VLN_Presentation`，选择“文件 → 打开布局”，验证 Go2 相机 | 工厂地图与机器人视图截图 |
 | 2. 自动闭环 | 执行 指令 → NaVILA → 动作 → 运动 | `measurements.json` 与终端动作轨迹 |
 | 3. 巡检逻辑 | 增加巡逻、风险或图像采集行为 | 保存的图片和结构化巡检记录 |
 | 4. 集成 Demo | 打包一个可重复场景 | 短视频、源码、配置说明和运行目录 |
@@ -32,7 +32,7 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 ### 基线复现
 
-每个团队都必须完成。使用提供的场景、Go2 checkpoint 和 NaVILA server 跑完默认仓库回合，验证仿真器、相机、网络和动作接口正确。
+每个团队都必须完成。订阅 `VLN_Presentation`、载入提供的 `factory.json` 布局，并使用 Go2 checkpoint 和 NaVILA server 跑完默认路线，验证仿真器、相机、网络和动作接口正确。
 
 ### 任务智能
 

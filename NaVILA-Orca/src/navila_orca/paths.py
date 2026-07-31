@@ -17,9 +17,9 @@ CHECKPOINT_ROOT = ASSETS_ROOT / "checkpoints"
 DEFAULT_GO2_CHECKPOINT = CHECKPOINT_ROOT / "go2_flat.pt"
 BUNDLED_GO2_XML = PACKAGE_ROOT / "go2_task/assets/robots/unitree_go2/xmls/go2.xml"
 SCENES_ROOT = PROJECT_ROOT / "scenes"
-DEFAULT_ORCALAB_DAY_SCENE = SCENES_ROOT / "orcalab_day"
-DEFAULT_GLOBAL_SETTINGS = PROJECT_ROOT / "default_set.json"
-DEFAULT_DEMO_EPISODE = DEFAULT_ORCALAB_DAY_SCENE / "demo_episode.json"
+DEFAULT_VLN_PRESENTATION_SCENE = SCENES_ROOT / "vln_presentation"
+DEFAULT_GLOBAL_SETTINGS = PROJECT_ROOT / "factory.json"
+DEFAULT_DEMO_EPISODE = DEFAULT_VLN_PRESENTATION_SCENE / "demo_episode.json"
 
 # This is project source, not an editable dependency or an external checkout.
 GO2_TASK_PACKAGE = "navila_orca.go2_task.tasks"
