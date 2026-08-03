@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
 import sys
-import textwrap
 import time
 from typing import Any, Callable, TypeVar
 
@@ -65,6 +64,12 @@ class LiveMonitorError(RuntimeError):
 class LiveNavigationMonitor:
     """Display fresh ego RGB beside instruction and action diagnostics."""
 
+    _PANEL_MARGIN_X = 20
+    _TITLE_SCALE = 0.86
+    _META_SCALE = 0.64
+    _SECTION_SCALE = 0.72
+    _BODY_SCALE = 0.68
+
     def __init__(
         self,
         *,
@@ -107,30 +112,36 @@ class LiveNavigationMonitor:
             rgb = np.clip(rgb, 0, 255).astype(np.uint8)
         ego_bgr = np.ascontiguousarray(rgb[..., ::-1])
         height = int(ego_bgr.shape[0])
-        panel = np.full((height, self.panel_width, 3), 24, dtype=np.uint8)
+        sections = (
+            ("STATUS", status, (130, 230, 130)),
+            ("INSTRUCTION", instruction, (235, 235, 235)),
+            ("VLM OUTPUT", vlm_output, (120, 210, 255)),
+            ("EXECUTED CHUNK", command, (255, 190, 100)),
+            ("LAST CHUNK: IDEAL VS ACTUAL", chunk_result, (180, 230, 140)),
+        )
+        panel_height = max(
+            height,
+            self._required_panel_height(sections),
+        )
+        panel = np.full((panel_height, self.panel_width, 3), 24, dtype=np.uint8)
+        ego_panel = np.full((panel_height, ego_bgr.shape[1], 3), 24, dtype=np.uint8)
+        ego_panel[:height] = ego_bgr
 
-        y = 32
-        y = self._draw_line(panel, "live monitor", y, (80, 220, 255), 0.72)
+        y = 38
+        y = self._draw_line(
+            panel, "live monitor", y, (80, 220, 255), self._TITLE_SCALE
+        )
         y = self._draw_line(
             panel,
             f"decision={decision}  step={frame.step_id}  sim={frame.sim_time_s:.2f}s",
-            y + 8,
+            y + 7,
             (190, 190, 190),
-            0.5,
+            self._META_SCALE,
         )
-        y = self._draw_section(panel, "STATUS", status, y + 14, (130, 230, 130))
-        y = self._draw_section(panel, "INSTRUCTION", instruction, y + 12, (235, 235, 235))
-        y = self._draw_section(panel, "VLM OUTPUT", vlm_output, y + 12, (120, 210, 255))
-        y = self._draw_section(panel, "EXECUTED CHUNK", command, y + 12, (255, 190, 100))
-        self._draw_section(
-            panel,
-            "LAST CHUNK: IDEAL VS ACTUAL",
-            chunk_result,
-            y + 12,
-            (180, 230, 140),
-        )
+        for title, value, color in sections:
+            y = self._draw_section(panel, title, value, y + 12, color)
 
-        canvas = np.concatenate((ego_bgr, panel), axis=1)
+        canvas = np.concatenate((ego_panel, panel), axis=1)
         self._last_canvas = canvas
         self._show(canvas)
 
@@ -142,18 +153,17 @@ class LiveNavigationMonitor:
         color: tuple[int, int, int],
         scale: float,
     ) -> int:
-        if y < panel.shape[0] - 4:
-            self.cv2.putText(
-                panel,
-                text,
-                (18, y),
-                self.cv2.FONT_HERSHEY_SIMPLEX,
-                scale,
-                color,
-                1,
-                self.cv2.LINE_AA,
-            )
-        return y + int(28 * max(scale, 0.5))
+        self.cv2.putText(
+            panel,
+            text,
+            (self._PANEL_MARGIN_X, y),
+            self.cv2.FONT_HERSHEY_SIMPLEX,
+            scale,
+            color,
+            1,
+            self.cv2.LINE_AA,
+        )
+        return y + self._line_height(scale)
 
     def _draw_section(
         self,
@@ -163,12 +173,102 @@ class LiveNavigationMonitor:
         y: int,
         color: tuple[int, int, int],
     ) -> int:
-        y = self._draw_line(panel, title, y, color, 0.55)
-        width = max(24, int((self.panel_width - 36) / 9.0))
-        lines = textwrap.wrap(str(value), width=width) or [""]
-        for line in lines[:7]:
-            y = self._draw_line(panel, line, y + 2, (225, 225, 225), 0.48)
+        y = self._draw_line(panel, title, y, color, self._SECTION_SCALE)
+        for line in self._wrap_text(str(value), self._BODY_SCALE):
+            y = self._draw_line(panel, line, y + 3, (225, 225, 225), self._BODY_SCALE)
         return y
+
+    def _required_panel_height(
+        self,
+        sections: tuple[tuple[str, str, tuple[int, int, int]], ...],
+    ) -> int:
+        """Reserve enough vertical space for every wrapped diagnostic line."""
+
+        y = 38
+        y += self._line_height(self._TITLE_SCALE)
+        y += 7 + self._line_height(self._META_SCALE)
+        for _title, value, _color in sections:
+            y += 12 + self._line_height(self._SECTION_SCALE)
+            y += sum(
+                3 + self._line_height(self._BODY_SCALE)
+                for _line in self._wrap_text(str(value), self._BODY_SCALE)
+            )
+        return y + 18
+
+    def _line_height(self, scale: float) -> int:
+        """Return a readable, non-overlapping baseline-to-baseline distance."""
+
+        get_text_size = getattr(self.cv2, "getTextSize", None)
+        if callable(get_text_size):
+            try:
+                (_width, text_height), baseline = get_text_size(
+                    "Ag",
+                    self.cv2.FONT_HERSHEY_SIMPLEX,
+                    scale,
+                    1,
+                )
+                return max(18, int(text_height) + int(baseline) + 4)
+            except Exception:
+                pass
+        return max(18, int(round(28 * max(scale, 0.6))) + 4)
+
+    def _wrap_text(self, value: str, scale: float) -> list[str]:
+        """Wrap text to the visible panel width without dropping any lines."""
+
+        available_width = self.panel_width - (2 * self._PANEL_MARGIN_X)
+        lines: list[str] = []
+        for paragraph in value.splitlines() or [""]:
+            words = paragraph.split()
+            if not words:
+                lines.append("")
+                continue
+
+            line = ""
+            for word in words:
+                candidate = word if not line else f"{line} {word}"
+                if not line or self._text_width(candidate, scale) <= available_width:
+                    line = candidate
+                    continue
+
+                lines.append(line)
+                line = word
+                if self._text_width(line, scale) > available_width:
+                    split_lines = self._split_long_word(line, available_width, scale)
+                    lines.extend(split_lines[:-1])
+                    line = split_lines[-1]
+            lines.append(line)
+        return lines or [""]
+
+    def _split_long_word(
+        self, word: str, available_width: int, scale: float
+    ) -> list[str]:
+        pieces: list[str] = []
+        piece = ""
+        for character in word:
+            candidate = f"{piece}{character}"
+            if piece and self._text_width(candidate, scale) > available_width:
+                pieces.append(piece)
+                piece = character
+            else:
+                piece = candidate
+        if piece or not pieces:
+            pieces.append(piece)
+        return pieces
+
+    def _text_width(self, text: str, scale: float) -> int:
+        get_text_size = getattr(self.cv2, "getTextSize", None)
+        if callable(get_text_size):
+            try:
+                (width, _height), _baseline = get_text_size(
+                    text,
+                    self.cv2.FONT_HERSHEY_SIMPLEX,
+                    scale,
+                    1,
+                )
+                return int(width)
+            except Exception:
+                pass
+        return int(round(len(text) * 12 * scale))
 
     def _show(self, canvas: np.ndarray) -> None:
         try:
