@@ -127,7 +127,7 @@ Keep terminal A and OrcaLab running after the layout is visible.
 
 **Already using OrcaLab?** You may skip terminal A and use your own open
 OrcaLab GUI, provided it is a compatible installation (the baseline is
-validated against OrcaLab 26.6.3). Select `VLN_Presentation` and load the same
+validated against OrcaLab 26.7.1). Select `VLN_Presentation` and load the same
 `factory.json` layout in that GUI instead.
 
 #### B — Start the NaVILA service

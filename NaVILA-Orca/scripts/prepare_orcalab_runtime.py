@@ -18,17 +18,17 @@ import tomllib
 from urllib.request import urlopen
 
 
-ORCALAB_VERSION = "26.6.3"
+ORCALAB_VERSION = "26.7.1"
 PYSIDE_URL = (
     "https://orcalab-open.oss-cn-shanghai.aliyuncs.com/"
-    "python-project_linux.26.6.3.tar.xz"
+    "python-project_linux.26.7.1.tar.xz"
 )
-PYSIDE_SHA256 = "f8f110b078604c0e529285378b1e7bd8e15a0e773edde0a012c33c82012d7df6"
+PYSIDE_SHA256 = "30c50babaa8825be4519c9613166e595d97d2a1ce799f186667bb4c767ecffef"
 PAK_URL = (
     "https://orcalab-open.oss-cn-shanghai.aliyuncs.com/"
-    "orcalab_linux.26.6.3.pak"
+    "orcalab_linux.26.7.1.pak"
 )
-PAK_SHA256 = "938ed92bb5f94476090dd4f1a9c820ba6c5c6ca410d6af285918d23cd73f06d0"
+PAK_SHA256 = "11f292569ed54f2be5991b3a3f6e60fac2d34a52a384c3cbf97ef9b2f9a6af88"
 
 
 def sha256(path: Path) -> str:
@@ -92,7 +92,7 @@ def extract_runtime(archive: Path, destination: Path) -> Path:
         with tarfile.open(archive, mode="r:xz") as package:
             package.extractall(staging, filter="data")
         if editable_root(staging) is None:
-            raise RuntimeError("official OrcaLab archive contains no 26.6.3 Python project")
+            raise RuntimeError("official OrcaLab archive contains no 26.7.1 Python project")
         if destination.exists():
             shutil.rmtree(destination)
         staging.rename(destination)
@@ -153,7 +153,7 @@ def patch_native_runtime(root: Path) -> None:
     dist = native_library.parent.resolve()
     host_opengl = system_opengl()
 
-    # OrcaLab 26.6.3 ships libOpenGL.so.0 without its matching
+    # OrcaLab 26.7.1 ships libOpenGL.so.0 without its matching
     # libGLdispatch.so.0. On some driver/Ubuntu combinations this mixes two
     # GLVND builds and fails with an undefined _glapi_tls_Current symbol.
     # Patch only the two viewport consumers; keep all other packaged runtime
@@ -228,7 +228,7 @@ def main() -> int:
     user_root = (
         Path.home() / "Orca" / "OrcaStudio" / project_id / "user"
     )
-    # OrcaLab 26.6.3's own URL parser names this release "unknown". Keep the
+    # OrcaLab 26.7.1's own URL parser names this release "unknown". Keep the
     # same paths and state value so its first GUI process recognizes the
     # preinstalled official runtime instead of installing it again.
     url_version = "unknown"

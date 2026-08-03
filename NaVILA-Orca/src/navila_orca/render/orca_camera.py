@@ -648,7 +648,7 @@ class OrcaMujocoPngCamera(OrcaGrpcPngCamera):
 
 
 class OrcaMujocoCameraFollower(OrcaEgoCameraFollower):
-    """Persistent 26.6+ MuJoCo camera without agentcamera stream properties."""
+    """Persistent OrcaLab MuJoCo camera without agentcamera stream properties."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -658,7 +658,7 @@ class OrcaMujocoCameraFollower(OrcaEgoCameraFollower):
         assert self._runtime is not None
         assert self._service is not None
         assert self._actor_path is not None
-        # OrcaLab 26.6.3's wrapper can report ``aloha() == False`` even while
+        # OrcaLab 26.7.1's wrapper can report ``aloha() == False`` even while
         # its public AddActor/GetCameraPNG RPCs are available.  The add call
         # below is the authoritative reachability check.
         try:

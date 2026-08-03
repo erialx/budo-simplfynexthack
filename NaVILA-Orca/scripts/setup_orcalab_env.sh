@@ -8,7 +8,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
 ENV_PREFIX="${NAVILA_ORCALAB_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/orcalab}"
 PYTHON="${ENV_PREFIX}/bin/python"
-CONSTRAINTS="${PROJECT_ROOT}/constraints/orcalab-26.6.3.txt"
+CONSTRAINTS="${PROJECT_ROOT}/constraints/orcalab-26.7.1.txt"
 TORCH_VERSION="2.11.0"
 TORCHVISION_VERSION="0.26.0"
 PYTORCH_INDEX="https://download.pytorch.org/whl/cu128"
@@ -19,7 +19,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/setup_orcalab_env.sh [--verify]
 
-Creates the tested OrcaLab 26.6.3 / MJLab 1.2.0 / PyTorch CUDA 12.8
+Creates the tested OrcaLab 26.7.1 / MJLab 1.2.0 / PyTorch CUDA 12.8
 environment. Override the environment location with
 NAVILA_ORCALAB_ENV_PREFIX if required.
 EOF
@@ -49,9 +49,9 @@ require_equal("Python", sys.version_info[:2], (3, 12))
 
 expected = {
     "setuptools": "81.0.0",
-    "orca-lab": "26.6.3",
-    "orca-gym": "26.6.3",
-    "orcalab-pyside": "26.6.3",
+    "orca-lab": "26.7.1",
+    "orca-gym": "26.7.1",
+    "orcalab-pyside": "26.7.1",
     "patchelf": "0.17.2.4",
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",

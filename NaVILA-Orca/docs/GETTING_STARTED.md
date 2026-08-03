@@ -202,7 +202,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | OrcaLab installs `orcalab-pyside` and asks for a restart | incomplete old setup | Pull the latest repository and rerun `setup_orcalab_env.sh`; Doctor verifies the native viewport, `patchelf`, and its environment-specific RPATH |
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
-| missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
+| missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.7.1 or using old `agentcamera` |
 | VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |
 | model cannot load | `NAVVLM_MODEL_PATH` | wrong directory or incomplete NaVILA environment |
 | Go2 shakes or falls | checkpoint, warmup, scene start pose | incompatible checkpoint, penetration at start, or unstable policy state |

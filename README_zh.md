@@ -120,7 +120,7 @@ cd Orca_VLN
 OrcaLab 运行。
 
 **已经在使用 OrcaLab？** 可以跳过终端 A，直接使用自己已打开的兼容
-OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中选择
+OrcaLab GUI（本基线验证版本为 OrcaLab 26.7.1）。只需在该 GUI 中选择
 `VLN_Presentation`，并载入同一个 `factory.json` 布局文件。
 
 #### B — 启动 NaVILA 服务

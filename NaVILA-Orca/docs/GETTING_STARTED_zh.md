@@ -194,7 +194,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | OrcaLab 首启安装 `orcalab-pyside` 并要求重启 | 使用了旧安装流程 | 拉取最新代码后重新运行 `setup_orcalab_env.sh`；Doctor 会检查原生 viewport、`patchelf` 及其环境专用 RPATH |
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
-| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
+| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.7.1 或错误使用旧 `agentcamera` |
 | VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
 | 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
 | Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |
