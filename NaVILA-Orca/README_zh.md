@@ -6,7 +6,8 @@
 
 首次运行请阅读[快速上手指南](docs/GETTING_STARTED_zh.md)。全新 checkout
 先执行一次 `./scripts/setup_all.sh`，并确认 `./scripts/doctor.sh` 全部通过。
-此后无需激活 Conda 环境或设置仓库根目录变量。以下三条命令覆盖正常开发流程：
+启动器会直接使用项目内两套环境，无需激活 Conda 环境或设置仓库根目录变量。
+以下三条命令覆盖正常开发流程：
 
 ```bash
 ./scripts/start_orcalab_gui.sh
@@ -14,11 +15,12 @@
 ./scripts/run_orcalab_scene_locomotion.sh
 ```
 
-运行导航前，请先在 OrcaLab 中订阅 `VLN_Presentation`
-（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，然后选择
-`VLN_Presentation` 场景，并执行 **文件 → 打开布局 → `factory.json`**。
-启动器默认 prompt 会依次经过红色垃圾桶、右转至蓝色油桶，并在白色机械臂前停止。
-NaVILA 使用独立运行环境；TCP 服务适配器由本项目提供，模型位于项目默认模型目录。
+OrcaLocomotion 等低层训练工具请放在独立环境中，只传递兼容的策略 checkpoint。
+
+运行导航前，请在 OrcaLab 中订阅 `VLN_Presentation`
+（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，选择
+`VLN_Presentation` 场景，再执行 **文件 → 打开布局 → `factory.json`**。订阅完成前
+不要加载布局。默认路线为：红色垃圾桶 → 右转 → 蓝色油桶 → 白色机械臂。
 
 ```bash
 ./scripts/build_kit.sh

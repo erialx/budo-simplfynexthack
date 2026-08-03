@@ -114,26 +114,17 @@ Blackwell RTX 5090 Laptop GPU is supported.
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
-Do not start navigation yet. In OrcaLab:
+Before navigation, in OrcaLab:
 
-1. In the OrcaLab asset browser, subscribe to `VLN_Presentation`
-   (`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`. Wait until
-   both subscriptions are current.
-2. In the scene selector, choose `VLN_Presentation`.
-3. Choose **File → Open Layout** and select
-   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json).
-4. Wait until the Go2, tall red bin, blue barrel, and white robotic arm are
-   visible in the factory scene.
+1. Subscribe to `VLN_Presentation`
+   (`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`.
+2. Select `VLN_Presentation`, wait for both subscriptions to finish, then open
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json) with
+   **File → Open Layout**.
+3. Confirm that the Go2, red bin, blue barrel, and white robotic arm are visible.
 
-> **Asset subscription — required for the default case.** `factory.json`
-> references the `vln_presentation` asset family and the Go2 prefab. The
-> `VLN_Presentation` subscription above supplies the factory, bins, barrel,
-> workbenches, partitions, and boxes; `unitree_robots` supplies the Go2. Do not
-> load the layout before both subscriptions have finished.
-
-`VLN_Presentation` supplies the scene itself; `factory.json` adds the authored
-layout on top of it. Keep terminal A and OrcaLab running after the layout is
-visible.
+`VLN_Presentation` provides the factory; `factory.json` adds the authored route.
+Keep terminal A and OrcaLab running after the layout is visible.
 
 **Already using OrcaLab?** You may skip terminal A and use your own open
 OrcaLab GUI, provided it is a compatible installation (the baseline is
@@ -161,14 +152,9 @@ simulation itself:
 ```
 
 That command reads its default prompt from
-[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt).
-The following explicit form is equivalent and is useful when verifying the
-active instruction:
-
-```bash
-./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
-```
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt):
+red bin → right turn → blue barrel → white arm. Pass `--instruction "..."` only
+when overriding that default route.
 
 <a id="competition-baseline"></a>
 

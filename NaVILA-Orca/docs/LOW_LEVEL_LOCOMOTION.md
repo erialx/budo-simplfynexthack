@@ -6,6 +6,19 @@ The packaged Go2 checkpoint is the runnable baseline and low-level execution is 
 
 Orca_VLN uses MJLab only to run the supplied baseline and to expose a concrete alignment report for the Go2 model. It does not ask teams to retrain in MJLab.
 
+## Environment boundary
+
+Keep OrcaLocomotion or another training stack in a dedicated environment. The
+Orca_VLN/OrcaLab runtime is pinned to the reviewed CUDA 12.8 PyTorch build; a
+training repository's requirements may replace that build and make the runtime
+depend on a newer host driver.
+
+Move only the compatible actor `state_dict` or inference checkpoint across this
+boundary. Do not copy the training environment. If a full training checkpoint
+also contains optimizer or scheduler state, export its actor weights separately
+before integration. Resume training and validate optimizer state in the original
+training environment.
+
 ## Stable runtime contract
 
 The VLN layer sends only a body-frame velocity target:
@@ -57,7 +70,7 @@ The baseline runner writes an alignment report into `measurements.json`. Use it 
 ## Suggested workflow
 
 1. Reproduce the supplied warehouse baseline unchanged.
-2. Train and validate a policy in OrcaLocomotion, IsaacLab, or your selected platform.
+2. Create a separate environment and train and validate a policy in OrcaLocomotion, IsaacLab, or your selected platform.
 3. Choose direct replacement only if the checkpoint ABI is compatible; otherwise build an adapter.
 4. Run fixed velocity tests before the VLN loop.
 5. Repeat the unchanged `VLN_Presentation` factory episode and compare drift, motion chunks, and final trace.

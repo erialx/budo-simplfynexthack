@@ -161,6 +161,7 @@ def test_system_dependency_check_reports_missing_qt_xcb_package(
 
     assert result.returncode == 2
     assert "libxcb-cursor0" in result.stderr
+    assert "libopengl0" in result.stderr
     assert "setup_system_deps.sh" in result.stderr
 
 
@@ -180,6 +181,24 @@ def test_navila_install_and_server_verify_the_real_builder_import() -> None:
     assert "from llava.model.builder import load_pretrained_model" in setup
     assert "from llava.model.builder import load_pretrained_model" in server
     assert "check_navila_cuda.py" in server
+
+
+def test_orcalab_runtime_pins_the_cuda_12_8_wheel_pair() -> None:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text()
+    constraints = (
+        PROJECT_ROOT / "constraints/orcalab-26.6.3.txt"
+    ).read_text()
+    setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()
+
+    assert '"torch==2.11.0"' in pyproject
+    assert '"torchvision==0.26.0"' in pyproject
+    assert "torch==2.11.0+cu128" in constraints
+    assert "torchvision==0.26.0+cu128" in constraints
+    assert 'TORCH_VERSION="2.11.0"' in setup
+    assert 'TORCHVISION_VERSION="0.26.0"' in setup
+    assert "/whl/cu128" in setup
+    assert '"torch==${TORCH_VERSION}+cu128"' in setup
+    assert 'require_equal("torch CUDA build", torch.version.cuda, "12.8")' in setup
 
 
 def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
@@ -286,6 +305,11 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert "orcalab-pyside==26.6.3" in constraints
     assert "patchelf==0.17.2.4" in constraints
     assert "prepare_orcalab_runtime.py" in setup
+    assert "env -u LD_LIBRARY_PATH" in setup
     assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
+    assert "unset LD_LIBRARY_PATH" in resolver
     assert 'version("orcalab-pyside") == "26.6.3"' in resolver
     assert PYSIDE_SHA256 in preparer
+    assert '"--replace-needed"' in preparer
+    assert "libPySideGameLauncher.so" in preparer
+    assert "_glapi_tls_Current" in preparer

@@ -54,6 +54,9 @@ navila_orca_resolve_runtime() {
   export NAVILA_ORCA_ORCALAB_BIN="${resolved_orcalab}"
   export PATH="$(dirname "${resolved_python}"):${PATH}"
   export SKIP_PATCHELF=1
+  # Conda/CUDA library paths from the calling shell can inject a different
+  # libGLdispatch or NVML into OrcaLab's native viewport process.
+  unset LD_LIBRARY_PATH
 }
 
 navila_orca_require_gui() {

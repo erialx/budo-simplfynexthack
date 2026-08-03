@@ -191,6 +191,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | `Actor does not exist` | OrcaLab 场景树 | 未通过“文件 → 打开布局”载入 JSON、Go2 被删除或 actor 名不匹配 |
 | `Failed to initialize NVML: Driver/library version mismatch` | 宿主 NVIDIA 驱动 | 系统更新了用户态驱动，但内核仍加载旧模块；保留 `.conda/`，重启电脑后依次运行 `nvidia-smi` 和 `setup_all.sh` |
 | Qt 无法加载 `xcb` platform plugin | Ubuntu 系统库 | 重新运行 `setup_all.sh`，或单独执行 `setup_system_deps.sh` 安装 Qt/XCB 系统包 |
+| `libOpenGL.so.0: undefined symbol: _glapi_tls_Current` | OrcaLab 的不完整 OpenGL 副本与另一套 GLVND 混用 | 拉取最新分支并重新运行 `setup_orcalab_env.sh`；项目会让 viewport 使用主机完整的 OpenGL 库 |
 | OrcaLab 首启安装 `orcalab-pyside` 并要求重启 | 使用了旧安装流程 | 拉取最新代码后重新运行 `setup_orcalab_env.sh`；Doctor 会检查原生 viewport、`patchelf` 及其环境专用 RPATH |
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |

@@ -14,16 +14,15 @@ For a first run, open [the getting-started guide](docs/GETTING_STARTED.md). The 
 
 From a fresh clone, run `./scripts/setup_all.sh` once and require
 `./scripts/doctor.sh` to pass. The launchers use the two project-local
-environments directly, so no shell activation or repository-root environment
-variable is needed.
+environments directly, so no shell activation or repository-root variable is
+needed. Keep low-level training tools such as OrcaLocomotion in a separate
+environment and exchange only a compatible policy checkpoint.
 
-Before running navigation, subscribe to `VLN_Presentation`
-(`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots` in OrcaLab.
-Then select the `VLN_Presentation` scene and choose
-**File → Open Layout → `factory.json`**. The default launcher prompt passes the
-red bin, turns right to the blue barrel, and stops at the white robotic arm.
-NaVILA remains in a separate runtime, while the TCP server adapter is owned by
-this project and the model is downloaded to the default project model directory.
+Before navigation, subscribe to `VLN_Presentation`
+(`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`, select
+`VLN_Presentation`, then choose **File → Open Layout → `factory.json`**. Wait
+for both subscriptions to finish before loading the layout. The default route
+is red bin → right turn → blue barrel → white robotic arm.
 
 ```bash
 ./scripts/build_kit.sh

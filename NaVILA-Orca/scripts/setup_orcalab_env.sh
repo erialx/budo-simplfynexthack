@@ -9,6 +9,9 @@ WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
 ENV_PREFIX="${NAVILA_ORCALAB_ENV_PREFIX:-${WORKSPACE_ROOT}/.conda/envs/orcalab}"
 PYTHON="${ENV_PREFIX}/bin/python"
 CONSTRAINTS="${PROJECT_ROOT}/constraints/orcalab-26.6.3.txt"
+TORCH_VERSION="2.11.0"
+TORCHVISION_VERSION="0.26.0"
+PYTORCH_INDEX="https://download.pytorch.org/whl/cu128"
 export PATH="${ENV_PREFIX}/bin:${PATH}"
 export SKIP_PATCHELF=1
 
@@ -16,8 +19,9 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/setup_orcalab_env.sh [--verify]
 
-Creates the tested OrcaLab 26.6.3 / MJLab 1.2.0 environment. Override the
-environment location with NAVILA_ORCALAB_ENV_PREFIX if required.
+Creates the tested OrcaLab 26.6.3 / MJLab 1.2.0 / PyTorch CUDA 12.8
+environment. Override the environment location with
+NAVILA_ORCALAB_ENV_PREFIX if required.
 EOF
 }
 
@@ -27,7 +31,7 @@ verify() {
     return 2
   fi
 
-  "${PYTHON}" - "${PROJECT_ROOT}" <<'PY'
+  env -u LD_LIBRARY_PATH "${PYTHON}" - "${PROJECT_ROOT}" <<'PY'
 import sys
 import subprocess
 from importlib import metadata
@@ -52,12 +56,26 @@ expected = {
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",
     "rsl-rl-lib": "5.0.1",
-    "torch": "2.12.0",
-    "torchvision": "0.27.0",
+    "torch": "2.11.0",
+    "torchvision": "0.26.0",
 }
 installed = {name: metadata.version(name) for name in expected}
 for name, version in expected.items():
     require_equal(name, installed[name].split("+", 1)[0], version)
+
+import torch
+import torchvision
+require_equal("torch CUDA build", torch.version.cuda, "12.8")
+if not torch.__version__.endswith("+cu128"):
+    raise SystemExit(
+        f"PyTorch build mismatch: found {torch.__version__}, expected the cu128 wheel. "
+        "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+    )
+if not torchvision.__version__.endswith("+cu128"):
+    raise SystemExit(
+        f"torchvision build mismatch: found {torchvision.__version__}, expected the cu128 wheel. "
+        "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+    )
 
 import navila_orca
 if not Path(navila_orca.__file__).resolve().is_relative_to(project / "src"):
@@ -125,8 +143,12 @@ fi
 
 "${PYTHON}" -m pip install --upgrade \
   "pip==26.0.1" "setuptools==81.0.0" "wheel==0.46.3"
+"${PYTHON}" -m pip install --index-url "${PYTORCH_INDEX}" \
+  "torch==${TORCH_VERSION}+cu128" \
+  "torchvision==${TORCHVISION_VERSION}+cu128"
 "${PYTHON}" -m pip install \
   --constraint "${CONSTRAINTS}" \
   --editable "${PROJECT_ROOT}[orca,test]"
-"${PYTHON}" "${PROJECT_ROOT}/scripts/prepare_orcalab_runtime.py" "${CONSTRAINTS}"
+env -u LD_LIBRARY_PATH \
+  "${PYTHON}" "${PROJECT_ROOT}/scripts/prepare_orcalab_runtime.py" "${CONSTRAINTS}"
 verify

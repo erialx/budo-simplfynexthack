@@ -111,21 +111,14 @@ cd Orca_VLN
 
 此时不要运行导航。在 OrcaLab 中：
 
-1. 在 OrcaLab 资产浏览器中订阅 `VLN_Presentation`
-   （`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，等待两个
-   订阅均显示为最新。
-2. 在场景选择器中选择 `VLN_Presentation`。
-3. 选择 **文件 → 打开布局**，选中
+1. 订阅 `VLN_Presentation`（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和
+   `unitree_robots`。
+2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
-4. 等待 Go2、红色高圆柱垃圾桶、蓝色油桶和白色机械臂都出现在工厂场景中。
+3. 确认 Go2、红色垃圾桶、蓝色油桶和白色机械臂均已出现。
 
-> **资产订阅——默认案例的最低要求。** `factory.json` 引用了
-> `vln_presentation` 资产族和 Go2 prefab。`VLN_Presentation` 提供工厂、垃圾桶、
-> 油桶、工作台、隔断和纸箱，`unitree_robots` 提供 Go2。两个订阅完成前不要加载
-> 布局。
-
-`VLN_Presentation` 提供场景本体，`factory.json` 在其上加入已编排的布局。完成后
-保持终端 A 和 OrcaLab 运行。
+`VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 A 和
+OrcaLab 运行。
 
 **已经在使用 OrcaLab？** 可以跳过终端 A，直接使用自己已打开的兼容
 OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中选择
@@ -152,12 +145,8 @@ OrcaLab 或启动仿真：
 
 该命令会读取
 [`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)
-中的默认 prompt。下面的显式写法与默认值等价，适合核对当前指令：
-
-```bash
-./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
-```
+中的默认路线：红色垃圾桶 → 右转 → 蓝色油桶 → 白色机械臂。只有需要覆盖默认路线时，
+才传入 `--instruction "..."`。
 
 <a id="competition-baseline"></a>
 

@@ -26,7 +26,7 @@ PySide6-Addons==6.9.2
 PySide6-Essentials==6.9.2
 rsl-rl-lib==5.0.1
 shiboken6==6.9.2
-torch==2.12.0
-torchvision==0.27.0
+torch==2.11.0+cu128
+torchvision==0.26.0+cu128
 warp-lang==1.12.0
 websockets==16.1.1
