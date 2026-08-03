@@ -18,8 +18,7 @@ environments directly, so no shell activation or repository-root variable is
 needed. Keep low-level training tools such as OrcaLocomotion in a separate
 environment and exchange only a compatible policy checkpoint.
 
-Before navigation, subscribe to `VLN_Presentation`
-(`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`, select
+Before navigation, subscribe to `VLN_Presentation` and `unitree_robots`, select
 `VLN_Presentation`, then choose **File → Open Layout → `factory.json`**. Wait
 for both subscriptions to finish before loading the layout. The default route
 is red bin → right turn → blue barrel → white robotic arm.

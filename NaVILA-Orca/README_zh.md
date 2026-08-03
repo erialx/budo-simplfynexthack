@@ -17,8 +17,7 @@
 
 OrcaLocomotion 等低层训练工具请放在独立环境中，只传递兼容的策略 checkpoint。
 
-运行导航前，请在 OrcaLab 中订阅 `VLN_Presentation`
-（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，选择
+运行导航前，请在 OrcaLab 中订阅 `VLN_Presentation` 和 `unitree_robots`，选择
 `VLN_Presentation` 场景，再执行 **文件 → 打开布局 → `factory.json`**。订阅完成前
 不要加载布局。默认路线为：红色垃圾桶 → 右转 → 蓝色油桶 → 白色机械臂。
 

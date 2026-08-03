@@ -116,8 +116,7 @@ Blackwell RTX 5090 Laptop GPU is supported.
 
 Before navigation, in OrcaLab:
 
-1. Subscribe to `VLN_Presentation`
-   (`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`.
+1. Subscribe to `VLN_Presentation` and `unitree_robots`.
 2. Select `VLN_Presentation`, wait for both subscriptions to finish, then open
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json) with
    **File → Open Layout**.

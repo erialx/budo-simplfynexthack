@@ -87,9 +87,8 @@ In terminal A:
 
 In the GUI:
 
-1. In the OrcaLab asset browser, subscribe to `VLN_Presentation`
-   (`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`; wait until
-   both subscriptions are current.
+1. In the OrcaLab asset browser, subscribe to `VLN_Presentation` and
+   `unitree_robots`; wait until both subscriptions are current.
 2. Select the `VLN_Presentation` scene.
 3. Choose **File → Open Layout → `NaVILA-Orca/factory.json`**.
 4. Confirm the scene tree contains exactly one complete Go2 actor.

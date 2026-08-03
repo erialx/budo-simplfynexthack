@@ -85,8 +85,7 @@ cd Orca_VLN
 
 GUI 中执行：
 
-1. 在 OrcaLab 资产浏览器中订阅 `VLN_Presentation`
-   （`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，等待两个
+1. 在 OrcaLab 资产浏览器中订阅 `VLN_Presentation` 和 `unitree_robots`，等待两个
    订阅均显示为最新。
 2. 选择 `VLN_Presentation` 场景。
 3. 依次选择 **文件 → 打开布局 → `NaVILA-Orca/factory.json`**。

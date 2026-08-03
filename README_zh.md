@@ -111,8 +111,7 @@ cd Orca_VLN
 
 此时不要运行导航。在 OrcaLab 中：
 
-1. 订阅 `VLN_Presentation`（`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和
-   `unitree_robots`。
+1. 订阅 `VLN_Presentation` 和 `unitree_robots`。
 2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
 3. 确认 Go2、红色垃圾桶、蓝色油桶和白色机械臂均已出现。
