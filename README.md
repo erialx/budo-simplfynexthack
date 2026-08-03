@@ -150,10 +150,14 @@ simulation itself:
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-That command reads its default prompt from
-[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt):
-red bin → right turn → blue barrel → white arm. Pass `--instruction "..."` only
-when overriding that default route.
+Write your navigation input in
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt),
+or send it directly with `--instruction`, for example:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
 
 <a id="competition-baseline"></a>
 

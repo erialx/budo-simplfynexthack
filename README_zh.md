@@ -142,10 +142,14 @@ OrcaLab 或启动仿真：
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-该命令会读取
-[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)
-中的默认路线：红色垃圾桶 → 右转 → 蓝色油桶 → 白色机械臂。只有需要覆盖默认路线时，
-才传入 `--instruction "..."`。
+将你的导航 input 文本写入
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)，
+或直接使用 `--instruction` 传入，例如：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
 
 <a id="competition-baseline"></a>
 
