@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab 仓库导航场景" width="48%" />
-  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN 实时监视器" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-overview-two-column.png" alt="带 Go2 机器人的 OrcaLab 工厂导航场景" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN 工厂场景实时监视器" width="48%" />
 </p>
 
 > **Orca_VLN 是一套可直接运行的 VLN 基线，可在此基础上针对具体任务继续微调。**
@@ -111,24 +111,25 @@ cd Orca_VLN
 
 此时不要运行导航。在 OrcaLab 中：
 
-1. 打开默认地图 `orcalab_day`。
-2. 选择 **文件 → 打开布局**，选中
-   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json)。
-3. 等待 Go2、蓝色桶、黄色车辆及其他预设对象出现在场景中。
+1. 在 OrcaLab 资产浏览器中订阅 `VLN_Presentation`
+   （`333f1b37-518d-44ed-ba1c-89b80071074f.pak`）和 `unitree_robots`，等待两个
+   订阅均显示为最新。
+2. 在场景选择器中选择 `VLN_Presentation`。
+3. 选择 **文件 → 打开布局**，选中
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
+4. 等待 Go2、红色高圆柱垃圾桶、蓝色油桶和白色机械臂都出现在工厂场景中。
 
-> **资产订阅——默认案例的最低要求。** 在 OrcaLab 中先订阅
-> `SimpleMovement_Conveybelt`、`SimpleMovement_Slope`、`unitree_robots` 和
-> `OrcaPlaygroundAssets`，再加载 `default_set.json`。它们分别提供布局所需的
-> 纸箱、料箱/蓝桶、Go2 和车辆。`IndustrialWarehouse1_3dgs`、
-> `IndustrialWarehouse2_3dgs`、`kitchen_3dgs`、
-> `AutoProductionLine_Warehouse` 是扩展场景；用户按自己的训练或评测需要订阅。
+> **资产订阅——默认案例的最低要求。** `factory.json` 引用了
+> `vln_presentation` 资产族和 Go2 prefab。`VLN_Presentation` 提供工厂、垃圾桶、
+> 油桶、工作台、隔断和纸箱，`unitree_robots` 提供 Go2。两个订阅完成前不要加载
+> 布局。
 
-仅打开地图不会得到预设任务；`default_set.json` 才是实例化这些对象的
-布局文件。完成后保持终端 A 和 OrcaLab 运行。
+`VLN_Presentation` 提供场景本体，`factory.json` 在其上加入已编排的布局。完成后
+保持终端 A 和 OrcaLab 运行。
 
 **已经在使用 OrcaLab？** 可以跳过终端 A，直接使用自己已打开的兼容
-OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中打开
-`orcalab_day`，并载入同一个布局文件。
+OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中选择
+`VLN_Presentation`，并载入同一个 `factory.json` 布局文件。
 
 #### B — 启动 NaVILA 服务
 
@@ -149,11 +150,20 @@ OrcaLab 或启动仿真：
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
+该命令会读取
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)
+中的默认 prompt。下面的显式写法与默认值等价，适合核对当前指令：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
+
 <a id="competition-baseline"></a>
 
 ## 🏁 竞赛基线
 
-默认任务要求机器人接近蓝色桶，并在黄色车辆前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
+默认任务要求机器人经过红色垃圾桶、右转、经过蓝色油桶，最后在白色机械臂前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
 
 | 评测维度 | 可优化方向 | 基线状态 |
 | --- | --- | --- |
@@ -173,7 +183,7 @@ OrcaLab 或启动仿真：
 
 ## 📦 打包发布
 
-`NaVILA-Orca/` 包含运行时、默认全局设置、仓库任务、机器人资源和基线 checkpoint。使用以下命令构建干净的分发包：
+`NaVILA-Orca/` 包含运行时、`factory.json` 布局、`VLN_Presentation` 任务、机器人资源和基线 checkpoint。使用以下命令构建干净的分发包：
 
 ```bash
 ./scripts/build_kit.sh

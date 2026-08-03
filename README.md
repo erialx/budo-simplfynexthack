@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab warehouse navigation scene" width="48%" />
-  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN live monitor" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-overview-two-column.png" alt="OrcaLab factory navigation scene with the Go2 robot" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN factory live monitor" width="48%" />
 </p>
 
 > **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
@@ -30,7 +30,7 @@
 instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  next ego RGB
 ```
 
-The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default `orcalab_day` episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
+The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default `VLN_Presentation` factory episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
 ## 🧭 Ego Camera ↔ Simulator Views
 
@@ -116,27 +116,29 @@ Blackwell RTX 5090 Laptop GPU is supported.
 
 Do not start navigation yet. In OrcaLab:
 
-1. Open the default map `orcalab_day`.
-2. Choose **File → Open Layout** and select
-   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json).
-3. Wait until the Go2, blue barrel, yellow vehicle, and other preset objects
-   appear in the scene.
+1. In the OrcaLab asset browser, subscribe to `VLN_Presentation`
+   (`333f1b37-518d-44ed-ba1c-89b80071074f.pak`) and `unitree_robots`. Wait until
+   both subscriptions are current.
+2. In the scene selector, choose `VLN_Presentation`.
+3. Choose **File → Open Layout** and select
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json).
+4. Wait until the Go2, tall red bin, blue barrel, and white robotic arm are
+   visible in the factory scene.
 
-> **Asset subscription — required for the default case.** In OrcaLab, subscribe
-> to `SimpleMovement_Conveybelt`, `SimpleMovement_Slope`, `unitree_robots`, and
-> `OrcaPlaygroundAssets` before loading `default_set.json`. These supply the
-> layout's boxes, bins/barrel, Go2, and vehicle. Subscribe to
-> `IndustrialWarehouse1_3dgs`, `IndustrialWarehouse2_3dgs`, `kitchen_3dgs`, or
-> `AutoProductionLine_Warehouse` only when you choose to build or evaluate in
-> those additional scenes.
+> **Asset subscription — required for the default case.** `factory.json`
+> references the `vln_presentation` asset family and the Go2 prefab. The
+> `VLN_Presentation` subscription above supplies the factory, bins, barrel,
+> workbenches, partitions, and boxes; `unitree_robots` supplies the Go2. Do not
+> load the layout before both subscriptions have finished.
 
-The map alone does not contain the preset task. `default_set.json` is the
-layout that instantiates it, and terminal A must remain open.
+`VLN_Presentation` supplies the scene itself; `factory.json` adds the authored
+layout on top of it. Keep terminal A and OrcaLab running after the layout is
+visible.
 
 **Already using OrcaLab?** You may skip terminal A and use your own open
 OrcaLab GUI, provided it is a compatible installation (the baseline is
-validated against OrcaLab 26.6.3). Open `orcalab_day` and the same layout in
-that GUI instead.
+validated against OrcaLab 26.6.3). Select `VLN_Presentation` and load the same
+`factory.json` layout in that GUI instead.
 
 #### B — Start the NaVILA service
 
@@ -158,11 +160,21 @@ simulation itself:
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
+That command reads its default prompt from
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt).
+The following explicit form is equivalent and is useful when verifying the
+active instruction:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
+
 <a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
 
-The default episode approaches the blue barrel and stops before the yellow vehicle. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
+The default episode passes the red bin, turns right, passes the blue barrel, and stops in front of the white robotic arm. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
 
 | Evaluation dimension | What teams improve | Baseline status |
 | --- | --- | --- |
@@ -182,7 +194,7 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 
 ## 📦 Package
 
-`NaVILA-Orca/` contains the runtime, default global setting, `orcalab_day` episode, robot assets, and baseline checkpoint. Build a clean archive with:
+`NaVILA-Orca/` contains the runtime, `factory.json` layout, `VLN_Presentation` episode, robot assets, and baseline checkpoint. Build a clean archive with:
 
 ```bash
 ./scripts/build_kit.sh

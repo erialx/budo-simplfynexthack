@@ -60,6 +60,6 @@ The baseline runner writes an alignment report into `measurements.json`. Use it 
 2. Train and validate a policy in OrcaLocomotion, IsaacLab, or your selected platform.
 3. Choose direct replacement only if the checkpoint ABI is compatible; otherwise build an adapter.
 4. Run fixed velocity tests before the VLN loop.
-5. Repeat the unchanged `orcalab_day` episode and compare drift, motion chunks, and final trace.
+5. Repeat the unchanged `VLN_Presentation` factory episode and compare drift, motion chunks, and final trace.
 
 For this advanced track, submit training provenance, an alignment note, and a baseline-versus-custom run directory. This keeps low-level research comparable to high-level VLN changes.

@@ -8,7 +8,7 @@ Orca_VLN is the organizer-provided simulation baseline. Teams begin with a worki
 
 The organizer provides:
 
-- the default OrcaLab `orcalab_day` map and [`default_set.json`](../default_set.json);
+- the subscribed OrcaLab `VLN_Presentation` scene and [`factory.json`](../factory.json) layout;
 - a Go2, persistent ego RGB camera, and live navigation monitor;
 - a NaVILA server integration point and default navigation episode;
 - a packaged Go2 locomotion checkpoint and run scripts;
@@ -23,7 +23,7 @@ The supplied Go2 checkpoint is deliberately a general flat-ground policy. It is 
 
 | Checkpoint | Team outcome | Evidence |
 | --- | --- | --- |
-| 1. Environment | Open `orcalab_day`, choose File → Open Layout, verify Go2 camera | screenshot of the map and robot view |
+| 1. Environment | Subscribe to and open `VLN_Presentation`, choose File → Open Layout, verify Go2 camera | screenshot of the factory map and robot view |
 | 2. Autonomous loop | Run instruction → NaVILA → action → motion | `measurements.json` and terminal action trace |
 | 3. Inspection logic | Add patrol, hazard, or image-capture behavior | saved images plus structured inspection record |
 | 4. Integrated demo | Package one repeatable scenario | short video, source, setup notes, run directory |
@@ -32,7 +32,7 @@ The supplied Go2 checkpoint is deliberately a general flat-ground policy. It is 
 
 ### Baseline reproduction
 
-Required for every team. Run the default `orcalab_day` episode with the supplied layout, Go2 checkpoint, and NaVILA server. This verifies that the simulator, camera, networking, and action interface are correct.
+Required for every team. Subscribe to `VLN_Presentation`, load the supplied `factory.json` layout, and run the default route with the Go2 checkpoint and NaVILA server. This verifies that the simulator, camera, networking, and action interface are correct.
 
 ### Mission intelligence
 
