@@ -21,6 +21,20 @@ RGB history + instruction
           └─────────────────────────────── feedback RGB
 ```
 
+## Deployment options
+
+The deployment choice changes where the NaVILA server runs, but it does not
+change the VLM or locomotion contracts described below:
+
+| Deployment option | Process placement | Contract impact |
+| --- | --- | --- |
+| **Option A (default) — single-host deployment** | OrcaLab, the navigation process, and NaVILA run on one machine | The TCP client reaches NaVILA through the local loopback endpoint |
+| **Option B — remote inference** | OrcaLab and navigation run on the client; NaVILA runs on a separate GPU server | The client still uses a loopback endpoint, forwarded securely to the inference server; the `VLMClient` contract is unchanged |
+
+Choose one option for a deployment. For Option B installation, service
+startup, tunneling, and end-to-end validation, follow the
+[remote inference guide](REMOTE_INFERENCE.md).
+
 ## The only control contract
 
 The boundary is [`VelocityCommand`](../src/navila_orca/contracts.py). It contains body-frame `vx`, `vy`, `wz`, and an exact simulated duration. The default parser accepts one canonical high-level action at a time:

@@ -4,7 +4,22 @@
 
 本实验不是“把模型跑起来”就结束。你要观察一条完整的机器人决策链：**看见什么、语言模型说了什么、四足机器人怎样执行、场景中发生了什么**。
 
-建议把 OrcaLab、NaVILA server 和导航进程分到三个终端，便于定位每一层的问题。
+方案 A 将 OrcaLab、NaVILA server 和导航进程分别放在终端 1、2、3。方案 B
+把 OrcaLab 与导航终端留在客户端，将 NaVILA 服务移到远程推理服务器。各层
+保持独立，便于定位问题。
+
+## 部署方式：二选一
+
+安装前只选择一种部署方式：
+
+| 部署方式 | 结构 | 操作指南 |
+| --- | --- | --- |
+| **方案 A（默认）— 单机部署** | OrcaLab、NaVILA 与导航进程位于同一台机器 | 继续阅读下文的[方案 A 安装](#option-a-single-host) |
+| **方案 B — 远程推理** | OrcaLab 与导航进程位于客户端，NaVILA 位于独立 GPU 服务器 | 按照[远程推理指南](REMOTE_INFERENCE_zh.md)操作 |
+
+下文的安装与首次运行流程描述方案 A。方案 B 使用相同的场景与导航行为，
+但两台机器的安装、服务启动、SSH 隧道和 NaVILA 协议端到端检查只在独立
+远程指南中说明。该检查不执行模型推理。
 
 ## 一、实验目标与成功标准
 
@@ -31,7 +46,9 @@
 
 例如，NaVILA 说 `turn left 15 degrees` 后，导航循环把它解析为固定角速度和 0.5 秒持续时间；Go2 策略在 50 Hz 下连续执行，OrcaLab 相机再采集新画面。这就是高层 VLM 与低层控制的分工。
 
-## 三、从零安装
+<a id="option-a-single-host"></a>
+
+## 三、方案 A：单机安装
 
 先安装 [Miniconda 或 Anaconda](https://docs.anaconda.com/miniconda/install/)、Git，以及至少 RTX 4090 级别的 NVIDIA GPU 与驱动。必须先确认 `nvidia-smi` 成功，再克隆本仓库并按顺序执行：
 
@@ -73,11 +90,13 @@ cd Orca_VLN
 `--skip-model`，但启动服务前必须执行
 `./NaVILA-Orca/scripts/download_navila_model.sh`。
 
-## 四、第一次运行：按顺序做
+## 四、方案 A：第一次运行
 
-### 步骤 A：打开默认场景
+<a id="scene-setup"></a>
 
-终端 A：
+### 步骤 1：打开默认场景
+
+终端 1：
 
 ```bash
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
@@ -97,12 +116,12 @@ GUI 中执行：
 订阅未完成时导入会出现缺失 actor。
 
 启动脚本只打开 OrcaLab 的普通编辑器，不会强制选择地图、布局、全屏视图或
-外部仿真。终端 C 的导航命令会在当前场景运行后应用并校验
+外部仿真。终端 3 的导航命令会在当前场景运行后应用并校验
 `orca-train` profile。
 
-### 步骤 B：启动 NaVILA
+### 步骤 2：启动 NaVILA
 
-终端 B：
+终端 2：
 
 ```bash
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
@@ -112,13 +131,15 @@ GUI 中执行：
 已包含在项目的 `scripts/navila_vlm_server.py` 中，用户不需要寻找或导出
 额外脚本。模型缺失或下载不完整时，启动器会在加载前失败并给出恢复命令。
 
-### 步骤 C：运行导航
+<a id="run-navigation"></a>
 
-运行终端 C 前，保持 OrcaLab GUI 打开，并依次选择：**运行 → 开始模拟 →
-无仿真程序 → 启动**。等待仿真进入运行状态；终端 C 只连接这个已启动的
+### 步骤 3：运行导航
+
+运行终端 3 前，保持 OrcaLab GUI 打开，并依次选择：**运行 → 开始模拟 →
+无仿真程序 → 启动**。等待仿真进入运行状态；终端 3 只连接这个已启动的
 OrcaLab 会话，不会自行打开或启动仿真。
 
-终端 C：
+终端 3：
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
@@ -195,7 +216,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
 | 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.7.1 或错误使用旧 `agentcamera` |
-| VLM 无法连接 | 终端 B、端口 54321 | NaVILA server 未启动、端口不一致 |
+| VLM 无法连接 | 终端 2、端口 54321 | NaVILA server 未启动或端口不一致；方案 B 应按远程指南执行端到端检查 |
 | 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
 | Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |
 

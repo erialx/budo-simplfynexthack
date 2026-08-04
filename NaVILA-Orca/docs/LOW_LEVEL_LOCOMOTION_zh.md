@@ -2,7 +2,7 @@
 
 # 低层运动控制：训练平台自由，接入必须严谨
 
-随包 Go2 checkpoint 是可运行的基线，低层执行也是竞赛指标。该模型有意保持为通用平地策略：它不针对仓库导航、离散 NaVILA 动作片段或任务物体附近的精确停止做专门优化。参与者可在 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion)（默认参考）、IsaacLab 或其他仿真/训练栈中训练低层策略。
+随包 Go2 checkpoint 是可运行的基线，低层执行也是竞赛指标。该模型有意保持为通用平地策略：它不针对工厂导航、离散 NaVILA 动作片段或任务物体附近的精确停止做专门优化。参与者可在 [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion)（默认参考）、IsaacLab 或其他仿真/训练栈中训练低层策略。
 
 Orca_VLN 仅使用 MJLab 运行提供的基线，并为 Go2 模型输出具体的对齐报告；不要求团队在 MJLab 中重新训练。
 
@@ -67,7 +67,7 @@ qpos_batch                     -> OrcaLab 渲染所需的当前 Go2 广义位置
 
 ## 建议工作流
 
-1. 原样复现提供的仓库基线；
+1. 原样复现提供的工厂基线；
 2. 创建独立环境，在 OrcaLocomotion、IsaacLab 或选定平台训练并验证策略；
 3. 仅当 checkpoint ABI 兼容时直接替换，否则构建 adapter；
 4. 在进入 VLN 闭环前运行固定速度测试；

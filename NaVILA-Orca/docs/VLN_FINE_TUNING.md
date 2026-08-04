@@ -35,7 +35,7 @@ the data into the selected training release's official template.
 
 Use SFT when the desired improvement is mostly semantic or task-specific:
 
-- warehouse terminology: pallets, cones, exit signs, inspection points;
+- factory terminology: red bins, blue oil barrels, robotic arms, inspection points;
 - a clearer stop policy near a target or hazard;
 - staged routes such as “reach shelf A, then inspect the aisle”;
 - action wording that remains inside the supported command vocabulary.
@@ -62,6 +62,6 @@ Report more than whether the robot eventually moves:
 - instruction adherence: correct turn/forward/stop decision for a reviewed state;
 - visual grounding: behavior changes when the target object or camera view changes;
 - closed-loop outcome: final distance to goal, path trace, and saved RGB evidence;
-- regression: baseline warehouse runs still work with the adapted model.
+- regression: baseline factory runs still work with the adapted model.
 
 If the model proposes an invalid action, fix the high-level data, prompt, or model output—not the Go2 policy.

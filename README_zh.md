@@ -14,6 +14,7 @@
   一个运行于 OrcaLab 的视觉语言导航示例。
   <br />
   <a href="#quickstart">🚀 快速开始</a> ·
+  <a href="#remote-inference">🖥️ 远程推理</a> ·
   <a href="#competition-baseline">🏁 竞赛基线</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED_zh.md">📚 文档</a>
 </p>
@@ -30,7 +31,7 @@
 指令 + 第一视角 RGB  →  NaVILA  →  导航动作  →  OrcaLab  →  下一帧第一视角 RGB
 ```
 
-本仓库包含示例在 OrcaLab 中运行所需的部分：持续输出第一视角观测、管理场景生命周期、提供预置仓库任务与可运行的控制基线，并保存可追溯的运行记录。NaVILA 保持在独立环境中，通过 TCP 连接。
+本仓库包含示例在 OrcaLab 中运行所需的部分：持续输出第一视角观测、管理场景生命周期、提供预置工厂任务与可运行的控制基线，并保存可追溯的运行记录。NaVILA 保持在独立环境中，通过 TCP 连接。
 
 ## 👁️ 第一视角与仿真视图
 
@@ -60,7 +61,11 @@
 
 ### 一次性安装
 
-如果 `conda --version` 无法运行，直接安装一套干净的 Miniconda：
+单机部署只需准备一台机器；分离部署则要在 OrcaLab 客户端和远端推理服务器
+上分别准备 Git、Conda、NVIDIA 驱动和一份相同版本的仓库 checkout。
+
+如果 `conda --version` 无法运行，直接安装一套干净的 Miniconda。分离部署时
+在两台机器分别执行：
 
 ```bash
 curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -71,12 +76,22 @@ conda init bash
 conda --version
 ```
 
-克隆项目：
+克隆项目。分离部署时，在客户端和推理服务器分别执行，并保持相同版本：
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
+
+> **安装方式二选一：** 只执行下面的 **方案 A** 或 **方案 B**，不要把两套
+> 安装命令混在同一台机器上执行。
+
+| 安装方案 | 部署结构 | 适用情况 |
+| --- | --- | --- |
+| **方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
+| **方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
+
+#### 方案 A（默认）— 单机部署
 
 创建两套锁定环境，并下载经过验证的 NaVILA 模型：
 
@@ -89,21 +104,33 @@ cd Orca_VLN
 脚本也会在首次打开 GUI 前准备好 OrcaLab 官方原生 viewport 和场景 pak，
 避免 OrcaLab 在首启过程中临时安装组件并要求重启。
 
-单独检查安装结果。最后一行必须是
+单机部署时，单独检查安装结果。最后一行必须是
 `Orca_VLN installation is ready.`：
 
 ```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
+单机部署的两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
 3.12，NaVILA 使用 Python 3.10。启动器根据自己的文件位置定位环境，
 因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
 `deactivate`。
 
-### 按顺序在三个终端运行
+#### 方案 B — 远程推理部署（分离部署）
 
-#### A — 打开 OrcaLab 并组成预设场景
+客户端只安装 OrcaLab 环境，推理服务器只安装 NaVILA 环境。不要在两台机器
+都运行 `setup_all.sh`；请直接按照独立的[远程推理部署章节](#remote-inference)
+完成两端安装、SSH 隧道和端到端验证。
+
+支持 Blackwell RTX 5090 Laptop GPU。
+
+### 方案 A：按步骤 1 → 2 → 3 运行
+
+单机部署使用三个本机终端，并按下面的顺序执行。
+
+<a id="scene-setup"></a>
+
+#### 步骤 1 — 打开 OrcaLab 并组成预设场景
 
 ```bash
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
@@ -116,33 +143,36 @@ cd Orca_VLN
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
 3. 确认 Go2、红色垃圾桶、蓝色油桶和白色机械臂均已出现。
 
-`VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 A 和
+`VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 1 和
 OrcaLab 运行。
 
-**已经在使用 OrcaLab？** 可以跳过终端 A，直接使用自己已打开的兼容
+**已经在使用 OrcaLab？** 可以跳过终端 1，直接使用自己已打开的兼容
 OrcaLab GUI（本基线验证版本为 OrcaLab 26.7.1）。只需在该 GUI 中选择
 `VLN_Presentation`，并载入同一个 `factory.json` 布局文件。
 
-#### B — 启动 NaVILA 服务
+#### 步骤 2 — 在本机启动 NaVILA 服务
 
 ```bash
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-等待终端 B 显示正在监听 `127.0.0.1:54321`。
+等待终端 2 显示正在监听 `127.0.0.1:54321`。
 
-#### C — 启动闭环导航
+<a id="run-navigation"></a>
 
-只有 OrcaLab 中已显示完整预设场景、B 中服务已开始监听后，才能运行 C。
+#### 步骤 3 — 启动闭环导航
+
+只有 OrcaLab 中已显示完整预设场景、步骤 2 中服务已开始监听后，才能运行
+步骤 3。
 先在 OrcaLab GUI 中依次选择：**运行 → 开始模拟 → 无仿真程序 → 启动**，
-等待外部仿真开始运行。终端 C 只连接这个已启动的会话，不会自行打开
+等待外部仿真开始运行。终端 3 只连接这个已启动的会话，不会自行打开
 OrcaLab 或启动仿真：
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
-将你的导航 input 文本写入
+将你的导航指令写入
 [`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)，
 或直接使用 `--instruction` 传入，例如：
 
@@ -150,6 +180,156 @@ OrcaLab 或启动仿真：
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
   --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
 ```
+
+<a id="remote-inference"></a>
+
+## 🖥️ 方案 B — 远程推理部署
+
+方案 B 只把 NaVILA 推理放到独立 GPU 服务器；OrcaLab GUI、场景、相机、
+低层控制和导航循环仍在 OrcaLab 客户端运行。两台机器通过 SSH 本地端口
+转发连接，不直接暴露 NaVILA 的 TCP 端口：
+
+```text
+OrcaLab 客户端导航 → 127.0.0.1:54321 → SSH 隧道
+                  → 推理服务器 127.0.0.1:54321 → NaVILA
+```
+
+完整顺序是：**分别安装 → 启动远端服务 → 建立隧道 → 端到端检查 →
+准备场景并运行导航 → 清理**。开发包中还提供一份可独立阅读的
+[远程推理部署指南](NaVILA-Orca/docs/REMOTE_INFERENCE_zh.md)。
+
+### 分别安装客户端和推理服务器
+
+两台机器都需要 Git、Conda、可通过 `nvidia-smi` 检查的 NVIDIA 驱动，以及
+同一版本的 Orca_VLN checkout。不要在两台机器都运行 `setup_all.sh`。
+
+在 **OrcaLab 客户端** 的仓库目录中只安装 OrcaLab 侧依赖：
+
+```bash
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_system_deps.sh
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
+```
+
+在 **推理服务器** 的仓库目录中只安装 NaVILA 侧依赖和模型：
+
+```bash
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/download_navila_model.sh
+```
+
+`doctor.sh` 会检查同一台机器上的两套环境，因此只用于方案 A。上面的分项
+安装脚本会分别验证各自的环境和模型。
+
+### 推理服务器：启动 NaVILA
+
+在推理服务器上执行，并保持该终端运行：
+
+```bash
+ORCA_VLN_DIR="/path/to/Orca_VLN"  # 改为推理服务器上的实际仓库路径
+REMOTE_VLM_PORT="54321"
+
+cd "$ORCA_VLN_DIR"
+NAVVLM_HOST="127.0.0.1" \
+NAVVLM_PORT="$REMOTE_VLM_PORT" \
+./NaVILA-Orca/scripts/start_navvlm_server.sh
+```
+
+保持 `NAVVLM_HOST="127.0.0.1"`。不要在安全组或防火墙中开放 `54321`；
+NaVILA TCP 服务本身没有 TLS 和身份认证，对外只需开放 SSH 端口。
+
+### OrcaLab 客户端：建立 SSH 隧道
+
+在客户端设置连接参数。以下 IP、用户名、端口均为占位值：
+
+```bash
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+SSH_HOST="xx.xx.xx.xx"             # 改为推理服务器的实际 IP
+SSH_USER="your-ssh-user"          # 改为远端账号
+SSH_PORT="22"
+LOCAL_VLM_PORT="54321"
+REMOTE_VLM_PORT="54321"
+SSH_CONTROL_SOCKET="${HOME}/.ssh/orca-vln-%C"
+```
+
+使用下面的主命令。这里不强制指定密码或密钥：OpenSSH 会根据客户端配置、
+SSH agent 和服务端策略自动协商认证方式；如果此前认证方式均未成功，且
+客户端与服务端都允许交互式密码认证，SSH 会提示输入账号密码。认证和端口
+转发成功后，进程才转入后台。
+
+```bash
+ssh -p "$SSH_PORT" \
+  -M -S "$SSH_CONTROL_SOCKET" \
+  -f -N -T \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -L "127.0.0.1:${LOCAL_VLM_PORT}:127.0.0.1:${REMOTE_VLM_PORT}" \
+  "${SSH_USER}@${SSH_HOST}"
+```
+
+首次连接前先向服务器管理员核对 SSH 主机指纹。不要把密码写入命令、环境
+变量或 `sshpass -p`。如果需要明确指定一个未由 SSH 配置或 agent 管理的 PEM
+等私钥，请**改用**下面的命令，不要重复建立第二条隧道：
+
+```bash
+SSH_KEY_PATH="/path/to/private-key.pem"
+chmod 600 "$SSH_KEY_PATH"
+
+ssh -p "$SSH_PORT" \
+  -i "$SSH_KEY_PATH" \
+  -o IdentitiesOnly=yes \
+  -M -S "$SSH_CONTROL_SOCKET" \
+  -f -N -T \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -L "127.0.0.1:${LOCAL_VLM_PORT}:127.0.0.1:${REMOTE_VLM_PORT}" \
+  "${SSH_USER}@${SSH_HOST}"
+```
+
+### OrcaLab 客户端：执行 SSH 隧道与 NaVILA 协议端到端检查
+
+在启动导航前，从客户端经本地转发端口发送 NaVILA 协议 health 请求：
+
+```bash
+./NaVILA-Orca/scripts/check_navvlm_endpoint.py \
+  --host 127.0.0.1 \
+  --port "$LOCAL_VLM_PORT"
+```
+
+检查只有在收到远端 NaVILA 服务的匹配协议响应后才成功；它覆盖
+**本地端口 → SSH 隧道 → 远端端口 → NaVILA 应用层**，且不会执行模型推理。
+`ssh -O check` 或 `ss` 只能分别检查 SSH master 或本地监听，不能替代这项
+端到端检查。服务当前为串行处理；请在导航开始前检查，运行中超时也可能表示
+服务正在处理推理请求。
+
+### OrcaLab 客户端：运行导航并清理
+
+先完成方案 A 的[步骤 1：准备场景](#scene-setup)，在 OrcaLab 中启动外部
+仿真，然后运行：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --vlm-host 127.0.0.1 \
+  --vlm-port "$LOCAL_VLM_PORT"
+```
+
+导航结束后，只关闭本项目创建的 SSH master：
+
+```bash
+ssh -p "$SSH_PORT" \
+  -S "$SSH_CONTROL_SOCKET" \
+  -O exit \
+  "${SSH_USER}@${SSH_HOST}"
+```
+
+最后在推理服务器终端按 `Ctrl+C` 停止 NaVILA。若隧道提示
+`Address already in use`，请改用空闲的 `LOCAL_VLM_PORT`；若端到端检查失败，
+依次确认远端服务仍在运行、两端 `REMOTE_VLM_PORT` 一致，以及 SSH 隧道未断开。
 
 <a id="competition-baseline"></a>
 
@@ -163,7 +343,7 @@ OrcaLab 或启动仿真：
 | **低层控制** | 命令跟踪、转向、停止、稳定性、恢复 | 提供的控制模型刻意保持通用，未针对导航调优 |
 | **系统与证据** | 场景配置、相机采集、动作轨迹、可复现性 | 运行记录自动保存 |
 
-提供的控制模型是保守的平地基线，并未针对当前仓库、NaVILA 的离散动作片段或特定任务的停车精度进行调优。这一差距是有意保留的：低层执行质量本身就是竞赛指标，而不是需要被隐藏的实现细节。
+提供的控制模型是保守的平地基线，并未针对当前工厂场景、NaVILA 的离散动作片段或特定任务的停车精度进行调优。这一差距是有意保留的：低层执行质量本身就是竞赛指标，而不是需要被隐藏的实现细节。
 
 ## 🧩 进阶方向
 

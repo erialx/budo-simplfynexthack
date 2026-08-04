@@ -2,7 +2,7 @@
 
 # Low-level locomotion: train anywhere, integrate deliberately
 
-The packaged Go2 checkpoint is the runnable baseline and low-level execution is a competition metric. The model is intentionally a general flat-ground policy: it is not specialized for warehouse navigation, discrete NaVILA action chunks, or exact stopping near task objects. Participants can train a low-level policy in [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) (the default reference), IsaacLab, or another simulator/training stack.
+The packaged Go2 checkpoint is the runnable baseline and low-level execution is a competition metric. The model is intentionally a general flat-ground policy: it is not specialized for factory navigation, discrete NaVILA action chunks, or exact stopping near task objects. Participants can train a low-level policy in [OrcaLocomotion](https://github.com/openverse-orca/OrcaLocomotion) (the default reference), IsaacLab, or another simulator/training stack.
 
 Orca_VLN uses MJLab only to run the supplied baseline and to expose a concrete alignment report for the Go2 model. It does not ask teams to retrain in MJLab.
 
@@ -69,7 +69,7 @@ The baseline runner writes an alignment report into `measurements.json`. Use it 
 
 ## Suggested workflow
 
-1. Reproduce the supplied warehouse baseline unchanged.
+1. Reproduce the supplied factory baseline unchanged.
 2. Create a separate environment and train and validate a policy in OrcaLocomotion, IsaacLab, or your selected platform.
 3. Choose direct replacement only if the checkpoint ABI is compatible; otherwise build an adapter.
 4. Run fixed velocity tests before the VLN loop.
