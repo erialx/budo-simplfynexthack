@@ -33,6 +33,9 @@ The supplied Go2 checkpoint is deliberately a general flat-ground policy. It is 
 ### Baseline reproduction
 
 Required for every team. Run the default `orcalab_day` episode with the supplied layout, Go2 checkpoint, and NaVILA server. This verifies that the simulator, camera, networking, and action interface are correct.
+Choose either [Option A: single-host deployment](GETTING_STARTED.md#option-a-single-host)
+or [Option B: remote inference](REMOTE_INFERENCE.md). Option B must pass the
+documented end-to-end SSH tunnel and NaVILA protocol check first.
 
 ### Mission intelligence
 

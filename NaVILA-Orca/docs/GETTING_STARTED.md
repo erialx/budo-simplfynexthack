@@ -4,7 +4,24 @@
 
 The goal is not merely to launch a model. Observe the full robot decision chain: **what it sees, what the language model says, how the quadruped executes, and what changes in the scene**.
 
-Run OrcaLab, the NaVILA server, and the navigation process in three terminals. Keeping the layers separate makes failures easy to isolate.
+With Option A, run OrcaLab, the NaVILA server, and the navigation process in
+terminals 1, 2, and 3. Option B keeps the OrcaLab and navigation terminals on
+the client and moves the NaVILA service to a remote inference server. Keeping
+the layers separate makes failures easy to isolate.
+
+## Choose a deployment option
+
+Choose exactly one deployment option before installing:
+
+| Deployment option | Layout | Follow this guide |
+| --- | --- | --- |
+| **Option A (default) — single-host deployment** | OrcaLab, NaVILA, and navigation run on one machine | Continue with [Option A installation](#option-a-single-host) below |
+| **Option B — remote inference** | OrcaLab and navigation run on the client; NaVILA runs on a separate GPU server | Follow the [remote inference guide](REMOTE_INFERENCE.md) |
+
+The installation and first-run sequence below describes Option A. Option B
+uses the same scene and navigation behavior, but its per-machine installation,
+service startup, SSH tunnel, and end-to-end NaVILA protocol check are documented
+only in the dedicated remote guide. The check does not run model inference.
 
 ## 1. Goal and success criteria
 
@@ -28,7 +45,9 @@ A successful run is more than an error-free terminal. It should satisfy all of t
 
 For example, when NaVILA returns `turn left 15 degrees`, the navigation loop converts it to a fixed yaw velocity for 0.5 seconds. The Go2 policy executes continuously at 50 Hz, then the OrcaLab camera returns the next image. This is the high-level VLM / low-level control boundary.
 
-## 3. Install from zero
+<a id="option-a-single-host"></a>
+
+## 3. Option A: install on one host
 
 Install [Miniconda or Anaconda](https://docs.anaconda.com/miniconda/install/), Git, and an NVIDIA GPU of at least RTX 4090 class first. Do not proceed until `nvidia-smi` succeeds. Then clone this repository and run exactly these commands:
 
@@ -72,11 +91,13 @@ Verify or repair individual layers at any time:
 when preparing the environments offline, then run
 `./NaVILA-Orca/scripts/download_navila_model.sh` before starting the service.
 
-## 4. First run
+## 4. Option A: first run
 
-### Step A: open the default scene
+<a id="scene-setup"></a>
 
-In terminal A:
+### Step 1: open the default scene
+
+In terminal 1:
 
 ```bash
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
@@ -95,12 +116,12 @@ the complete default navigation episode.
 
 The launcher opens the normal OrcaLab editor and does not force a scene,
 layout, full-screen view, or external simulation. The navigation command in
-terminal C applies and verifies the `orca-train` profile after the selected
+terminal 3 applies and verifies the `orca-train` profile after the selected
 scene is running.
 
-### Step B: start NaVILA
+### Step 2: start NaVILA
 
-In terminal B:
+In terminal 2:
 
 ```bash
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
@@ -111,14 +132,16 @@ The server adapter is included at `scripts/navila_vlm_server.py`; users do not
 need to find or export a server script. A missing or partial model is rejected
 before model loading with the exact recovery command.
 
-### Step C: run navigation
+<a id="run-navigation"></a>
 
-Before using terminal C, keep OrcaLab open and start its external simulation:
+### Step 3: run navigation
+
+Before using terminal 3, keep OrcaLab open and start its external simulation:
 **Run → Start Simulation → No Simulation Program → Start**. Wait until the
-simulation is running; terminal C connects to that live OrcaLab session and
+simulation is running; terminal 3 connects to that live OrcaLab session and
 does not launch it itself.
 
-In terminal C:
+In terminal 3:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
@@ -126,7 +149,7 @@ In terminal C:
 
 Important defaults:
 
-| Option | Default behavior | Why it matters |
+| CLI argument | Default behavior | Why it matters |
 | --- | --- | --- |
 | `--robot-actor-name auto` | requires exactly one complete Go2 in the scene | prevents controlling the wrong actor |
 | `--camera-asset-path prefabs/mujococamera1080` | creates once and captures PNG continuously | uses robot ego view, not the viewport |
@@ -187,7 +210,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
-| VLM cannot connect | terminal B and port 54321 | NaVILA server is not running or port differs |
+| VLM cannot connect | terminal 2 and port 54321 | NaVILA server is not running or port differs; for Option B, follow the remote guide's end-to-end check |
 | model cannot load | `NAVVLM_MODEL_PATH` | wrong directory or incomplete NaVILA environment |
 | Go2 shakes or falls | checkpoint, warmup, scene start pose | incompatible checkpoint, penetration at start, or unstable policy state |
 

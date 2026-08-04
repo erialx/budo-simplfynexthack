@@ -88,9 +88,15 @@ git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-Choose one installation method for the intended deployment.
+> **Choose exactly one installation method:** follow either **Option A** or
+> **Option B**. Do not combine both sets of installation commands on one host.
 
-#### Single-host deployment (default)
+| Option | Deployment layout | Choose this when |
+| --- | --- | --- |
+| **Option A (default) — Single-host deployment** | OrcaLab and NaVILA run on the same machine | One GPU host has sufficient resources and the shortest setup is preferred |
+| **Option B — Remote-inference deployment (split hosts)** | OrcaLab runs on the client and NaVILA on a dedicated GPU server | Inference should run independently or GPU memory and compute must be separated |
+
+#### Option A (default) — Single-host deployment
 
 Create both pinned environments and download the reviewed NaVILA model:
 
@@ -115,38 +121,22 @@ For a single-host deployment, both environments live under this checkout in
 launchers resolve them from their own file paths; no `ORCA_VLN_ROOT`,
 `conda activate`, or manual `deactivate` step is required.
 
-#### Split deployment
+#### Option B — Remote-inference deployment (split hosts)
 
-When NaVILA will run on a separate inference server, do not run `setup_all.sh`
-on both machines. Install only the environment each machine needs:
-
-```bash
-# OrcaLab client
-./NaVILA-Orca/scripts/check_nvidia_driver.sh
-./NaVILA-Orca/scripts/setup_system_deps.sh
-./NaVILA-Orca/scripts/setup_orcalab_env.sh
-
-# Dedicated inference server (run inside the remote checkout)
-./NaVILA-Orca/scripts/check_nvidia_driver.sh
-./NaVILA-Orca/scripts/setup_navila_env.sh
-./NaVILA-Orca/scripts/download_navila_model.sh
-```
-
-`doctor.sh` checks for both environments on the same machine, so use it only
-for the default single-host deployment. For a split deployment, use the
-per-machine installation above. Each environment installer verifies itself
-before returning, the model download script checks the model files, and the
-remote service launcher performs an actual CUDA inference check.
+Install only OrcaLab on the client and only NaVILA on the inference server.
+Do not run `setup_all.sh` on both machines; follow the independent
+[remote-inference deployment chapter](#remote-inference) for per-host setup,
+the SSH tunnel, and end-to-end validation.
 
 Blackwell RTX 5090 Laptop GPU is supported.
 
-### Run in A/B/C order
+### Option A: run in steps 1 → 2 → 3
 
-A single-host deployment uses three local terminals. For a split deployment,
-B runs on the remote server; the SSH tunnel moves to the background in local
-terminal C, and that same terminal then starts navigation.
+A single-host deployment uses three local terminals in the following order.
 
-#### A — Open OrcaLab and assemble the preset scene
+<a id="scene-setup"></a>
+
+#### Step 1 — Open OrcaLab and assemble the preset scene
 
 ```bash
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
@@ -169,41 +159,88 @@ Do not start navigation yet. In OrcaLab:
 > those additional scenes.
 
 The map alone does not contain the preset task. `default_set.json` is the
-layout that instantiates it, and terminal A must remain open.
+layout that instantiates it, and terminal 1 must remain open.
 
-**Already using OrcaLab?** You may skip terminal A and use your own open
+**Already using OrcaLab?** You may skip terminal 1 and use your own open
 OrcaLab GUI, provided it is a compatible installation (the baseline is
 validated against OrcaLab 26.6.3). Open `orcalab_day` and the same layout in
 that GUI instead.
 
-#### B — Start the NaVILA service (choose one)
-
-##### Option 1: run locally (default)
+#### Step 2 — Start the NaVILA service locally
 
 ```bash
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-Wait until terminal B reports that it is listening on `127.0.0.1:54321`.
+Wait until terminal 2 reports that it is listening on `127.0.0.1:54321`.
+
+<a id="run-navigation"></a>
+
+#### Step 3 — Start closed-loop navigation
+
+Run step 3 only after the preset scene is visible in OrcaLab and the service is
+listening in step 2. In the OrcaLab GUI, first choose
+**Run → Start Simulation → No
+Simulation Program → Start** and wait for the external simulation to run.
+Terminal 3 connects to that existing session; it does not start OrcaLab or the
+simulation itself:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
+```
 
 <a id="remote-inference"></a>
 
-##### Option 2: run on a dedicated GPU server
+## 🖥️ Option B — Remote-inference deployment
 
-This keeps OrcaLab and the navigation loop on the local machine and moves only
-NaVILA inference to a remote GPU server. The remote service remains bound to
-loopback and is mapped locally through an encrypted SSH tunnel:
+Option B moves only NaVILA inference to a dedicated GPU server. The OrcaLab
+GUI, scene, camera, low-level control, and navigation loop stay on the OrcaLab
+client. An SSH local port forward connects the two hosts without exposing the
+NaVILA TCP port directly:
 
 ```text
-local navigation → 127.0.0.1:54321 → SSH tunnel
-                 → remote 127.0.0.1:54321 → NaVILA
+OrcaLab client navigation → 127.0.0.1:54321 → SSH tunnel
+                         → inference server 127.0.0.1:54321 → NaVILA
 ```
 
-First, start the inference service on the remote server and keep that terminal
-open:
+The complete order is: **install each host → start the remote service → create
+the tunnel → run the end-to-end check → prepare the scene and navigate → clean
+up**. The developer kit also includes a standalone
+[remote-inference deployment guide](NaVILA-Orca/docs/REMOTE_INFERENCE.md).
+
+### Install the client and inference server separately
+
+Both hosts need Git, Conda, an NVIDIA driver that passes `nvidia-smi`, and an
+Orca_VLN checkout at the same revision. Do not run `setup_all.sh` on both
+machines.
+
+In the **OrcaLab client** checkout, install only the OrcaLab-side dependencies:
 
 ```bash
-ORCA_VLN_DIR="/path/to/Orca_VLN"  # replace with the remote checkout path
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_system_deps.sh
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
+```
+
+In the **inference server** checkout, install only the NaVILA-side dependencies
+and model:
+
+```bash
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/download_navila_model.sh
+```
+
+`doctor.sh` checks for both environments on one machine and therefore applies
+only to Option A. The per-component installers above verify their respective
+environment and model.
+
+### Inference server: start NaVILA
+
+Run this on the inference server and keep the terminal open:
+
+```bash
+ORCA_VLN_DIR="/path/to/Orca_VLN"  # actual checkout path on the inference server
 REMOTE_VLM_PORT="54321"
 
 cd "$ORCA_VLN_DIR"
@@ -212,36 +249,38 @@ NAVVLM_PORT="$REMOTE_VLM_PORT" \
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-Do not change `NAVVLM_HOST` to `0.0.0.0`, and do not expose port `54321` in a
-security group or firewall. This TCP service does not provide TLS or
-authentication; only the SSH port needs to be reachable externally.
+Keep `NAVVLM_HOST="127.0.0.1"`. Do not expose port `54321` in a security group
+or firewall. The NaVILA TCP service has no TLS or authentication of its own;
+only the SSH port needs to be externally reachable.
 
-In the local terminal that will run step C, set the connection values. These
-are placeholders: use the actual host or IP, account, and ports for your
-server.
+### OrcaLab client: create the SSH tunnel
+
+Set the connection values on the client. The IP, account, and ports below are
+placeholders:
 
 ```bash
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
 
-SSH_HOST="xx.xx.xx.xx"              # replace with the remote server IP
-SSH_USER="your-ssh-user"           # remote account
+SSH_HOST="xx.xx.xx.xx"             # actual inference-server IP
+SSH_USER="your-ssh-user"          # remote account
 SSH_PORT="22"
 LOCAL_VLM_PORT="54321"
 REMOTE_VLM_PORT="54321"
 SSH_CONTROL_SOCKET="${HOME}/.ssh/orca-vln-%C"
 ```
 
-For account/password authentication, use the following command. SSH prompts
-for the password interactively and moves to the background only after
-authentication and port forwarding succeed:
+Use the main command below. It does not force password or key authentication:
+OpenSSH negotiates automatically from the client configuration, SSH agent,
+and server policy. If earlier methods do not succeed and both client and
+server policy permit interactive password authentication, SSH prompts for the
+account password. It moves to the background only after authentication and
+forwarding succeed.
 
 ```bash
 ssh -p "$SSH_PORT" \
   -M -S "$SSH_CONTROL_SOCKET" \
   -f -N -T \
-  -o PreferredAuthentications=password,keyboard-interactive \
-  -o PubkeyAuthentication=no \
   -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=30 \
   -o ServerAliveCountMax=3 \
@@ -249,14 +288,11 @@ ssh -p "$SSH_PORT" \
   "${SSH_USER}@${SSH_HOST}"
 ```
 
-On the first connection, verify the SSH host fingerprint with the server
-administrator before accepting it and entering the account password. Do not
-put the password in the command, an environment variable, or `sshpass -p`,
-where it may leak through shell history or process listings. If the server has
-disabled password authentication, use the key-based alternative below or ask
-the administrator; do not weaken the server policy just for this tunnel.
-
-For a PEM or other SSH private key, configure the key path separately:
+Before the first connection, verify the SSH host fingerprint with the server
+administrator. Never put a password in the command, an environment variable,
+or `sshpass -p`. To select a PEM or other key that is not managed by SSH
+configuration or an agent, use the command below **instead**; do not create a
+second tunnel:
 
 ```bash
 SSH_KEY_PATH="/path/to/private-key.pem"
@@ -274,39 +310,29 @@ ssh -p "$SSH_PORT" \
   "${SSH_USER}@${SSH_HOST}"
 ```
 
-Check the SSH master connection and local listening port:
+### OrcaLab client: run the end-to-end tunnel and NaVILA protocol check
+
+Before navigation, send a NaVILA protocol health request through the local
+forwarded port:
 
 ```bash
-ssh -p "$SSH_PORT" \
-  -S "$SSH_CONTROL_SOCKET" \
-  -O check \
-  "${SSH_USER}@${SSH_HOST}"
-
-ss -ltn "sport = :${LOCAL_VLM_PORT}"
+./NaVILA-Orca/scripts/check_navvlm_endpoint.py \
+  --host 127.0.0.1 \
+  --port "$LOCAL_VLM_PORT"
 ```
 
-When the default local port is unchanged, continue with terminal C below
-without changing any arguments. If the tunnel reports `Address already in
-use`, choose another `LOCAL_VLM_PORT` and pass the
-same value to terminal C. If inference reports `Connection refused`, confirm
-that the remote service is running and that `REMOTE_VLM_PORT` matches.
+The check succeeds only after receiving the matching protocol response from
+the remote NaVILA service. It covers the **local port → SSH tunnel → remote
+port → NaVILA application layer** without running model inference.
+`ssh -O check` and `ss` inspect only the SSH master or local listener and do
+not replace this end-to-end check. The server currently handles requests
+serially; run the check before navigation, because a timeout during navigation
+can also mean that the server is busy with inference.
 
-#### C — Start closed-loop navigation
+### OrcaLab client: navigate and clean up
 
-Run C only after the preset scene is visible in OrcaLab and the service is
-listening in B. For remote inference, also confirm that the SSH master and
-local listening port above are healthy. In the OrcaLab GUI, first choose
-**Run → Start Simulation → No
-Simulation Program → Start** and wait for the external simulation to run.
-Terminal C connects to that existing session; it does not start OrcaLab or the
-simulation itself:
-
-```bash
-./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
-```
-
-If remote inference uses a different `LOCAL_VLM_PORT`, run this in the same
-terminal that established the tunnel instead:
+Complete Option A's [Step 1: scene setup](#scene-setup), start the external
+simulation in OrcaLab, and then run:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
@@ -314,8 +340,7 @@ terminal that established the tunnel instead:
   --vlm-port "$LOCAL_VLM_PORT"
 ```
 
-After remote navigation finishes, close only the SSH master created for this
-project:
+After navigation, close only the SSH master created for this project:
 
 ```bash
 ssh -p "$SSH_PORT" \
@@ -324,7 +349,10 @@ ssh -p "$SSH_PORT" \
   "${SSH_USER}@${SSH_HOST}"
 ```
 
-Stop the remote inference service with `Ctrl+C` in its terminal.
+Finally, stop NaVILA with `Ctrl+C` in the inference-server terminal. If the
+tunnel reports `Address already in use`, choose a free `LOCAL_VLM_PORT`. If the
+end-to-end check fails, confirm that the remote service is still running, both
+sides use the same `REMOTE_VLM_PORT`, and the SSH tunnel remains connected.
 
 <a id="competition-baseline"></a>
 

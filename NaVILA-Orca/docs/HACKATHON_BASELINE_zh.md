@@ -33,6 +33,9 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 ### 基线复现
 
 每个团队都必须完成。使用提供的场景、Go2 checkpoint 和 NaVILA server 跑完默认仓库回合，验证仿真器、相机、网络和动作接口正确。
+部署时在[方案 A：单机部署](GETTING_STARTED_zh.md#option-a-single-host)与
+[方案 B：远程推理](REMOTE_INFERENCE_zh.md)中二选一；方案 B 必须先通过文档中的
+SSH 隧道与 NaVILA 协议端到端检查。
 
 ### 任务智能
 

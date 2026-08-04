@@ -25,6 +25,11 @@ from llava.mm_utils import process_images
 
 
 MAX_REQUEST_BYTES = 256 * 1024 * 1024
+HEALTH_RESPONSE = {
+    "service": "navila-vlm",
+    "status": "ok",
+    "protocol_version": 1,
+}
 
 
 def recv_exact(connection: socket.socket, size: int) -> bytes | None:
@@ -130,11 +135,14 @@ class NaVILAServer:
         if request_bytes is None:
             return
         request = json.loads(request_bytes.decode("utf-8"))
-        images = [
-            Image.open(BytesIO(base64.b64decode(encoded))).convert("RGB")
-            for encoded in request["images"]
-        ]
-        response = self.infer(images, str(request["query"]))
+        if isinstance(request, dict) and request.get("type") == "health":
+            response: object = HEALTH_RESPONSE
+        else:
+            images = [
+                Image.open(BytesIO(base64.b64decode(encoded))).convert("RGB")
+                for encoded in request["images"]
+            ]
+            response = self.infer(images, str(request["query"]))
         response_bytes = json.dumps(response).encode("utf-8")
         connection.sendall(len(response_bytes).to_bytes(8, "big"))
         connection.sendall(response_bytes)
