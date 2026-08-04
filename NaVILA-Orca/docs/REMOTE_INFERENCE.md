@@ -101,30 +101,27 @@ ssh -p "$SSH_PORT" \
   "${SSH_USER}@${SSH_HOST}"
 ```
 
-Before the first connection, verify the SSH host fingerprint with the server
-administrator. Never place a password in the command, an environment variable,
-or `sshpass -p`, where it can leak through shell history or process listings.
+### Explicit PEM key (PEM users only)
 
-### Explicit private key (optional alternative)
+> **Use this section only when you have a PEM key that must be specified
+> explicitly. If you do not have a PEM key, skip this section and use the main
+> command above unchanged.**
 
-To use a PEM or another key not managed by SSH configuration or an agent, use
-the command below **instead**. Do not run the default command first and create a
-second tunnel:
+First set the PEM key path and permissions:
 
 ```bash
 SSH_KEY_PATH="/path/to/private-key.pem"
 chmod 600 "$SSH_KEY_PATH"
+```
 
+Only when using this PEM key, insert the two `+` lines between `ssh -p` and
+`-M` in the main command; keep the remaining tunnel options unchanged:
+
+```diff
 ssh -p "$SSH_PORT" \
-  -i "$SSH_KEY_PATH" \
-  -o IdentitiesOnly=yes \
++  -i "$SSH_KEY_PATH" \
++  -o IdentitiesOnly=yes \
   -M -S "$SSH_CONTROL_SOCKET" \
-  -f -N -T \
-  -o ExitOnForwardFailure=yes \
-  -o ServerAliveInterval=30 \
-  -o ServerAliveCountMax=3 \
-  -L "127.0.0.1:${LOCAL_VLM_PORT}:127.0.0.1:${REMOTE_VLM_PORT}" \
-  "${SSH_USER}@${SSH_HOST}"
 ```
 
 ## OrcaLab client: run the end-to-end tunnel and NaVILA protocol check
