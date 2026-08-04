@@ -18,8 +18,8 @@ COMPATIBLE_VERSION_SPECS = {
     "mjlab": "1.2.0",
     "mujoco-warp": "3.5.0",
     "rsl-rl-lib": "5.x",
-    "orca-gym": "26.6.3",
-    "orca-lab": "26.6.3",
+    "orca-gym": "26.7.1",
+    "orca-lab": "26.7.1",
 }
 
 

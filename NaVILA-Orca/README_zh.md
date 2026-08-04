@@ -15,7 +15,8 @@
 
 全新 checkout 先执行一次 `./scripts/setup_all.sh`，并确认
 `./scripts/doctor.sh` 全部通过。此后无需激活 Conda 环境或设置仓库根目录
-变量。
+变量。经过验证的运行时固定为 OrcaLab 26.7.1。OrcaLocomotion 等低层训练
+工具请放在独立环境中，只传递兼容的策略 checkpoint。
 
 以下三条命令覆盖正常的单机开发流程：
 
@@ -35,13 +36,18 @@ NaVILA 服务。不要把上面的三条单机命令当作一组客户端命令�
 [远程推理指南](docs/REMOTE_INFERENCE_zh.md)，分别完成两台机器的安装、服务
 启动、SSH 隧道和 NaVILA 协议端到端检查。
 
-运行导航前，请打开默认地图 `orcalab_day`，然后选择
-**文件 → 打开布局 → `default_set.json`**。NaVILA 使用独立运行环境；
-两种方案的 TCP 服务适配器均由本项目提供，模型位于实际执行推理的机器上的
-项目默认模型目录。
+## 基线场景与随包资源
+
+两种部署方案都需要先在 OrcaLab 中订阅 `VLN_Presentation` 和
+`unitree_robots`，等待两个订阅完成后选择 `VLN_Presentation` 场景，再执行
+**文件 → 打开布局 → `factory.json`**。默认路线为：红色垃圾桶 → 右转 →
+蓝色油桶 → 白色机械臂。
+
+两种方案中的 NaVILA 都使用独立运行环境。TCP 服务适配器由本项目提供，模型
+下载到实际执行推理的机器上的项目默认模型目录。
 
 ```bash
 ./scripts/build_kit.sh
 ```
 
-该开发包包含 OrcaLab adapter、本地 Go2 task/MJCF/mesh 资源、默认 Go2 运动 checkpoint、全局设置和一个可复现的仓库回合。它不包含 NaVILA/LLaVA 源码、模型权重、3DGS 资源或 IsaacLab。
+该开发包包含 OrcaLab adapter、本地 Go2 task/MJCF/mesh 资源、默认 Go2 运动 checkpoint、`factory.json` 布局和一个可复现的 `VLN_Presentation` 回合。它不包含 NaVILA/LLaVA 源码、模型权重、已订阅的 OrcaLab 资源或 IsaacLab。

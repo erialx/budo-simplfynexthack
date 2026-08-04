@@ -160,9 +160,9 @@ Start the OrcaLab GUI:
 ```
 
 Follow [Step 1 in the getting-started guide](GETTING_STARTED.md#scene-setup)
-to open `orcalab_day` and load `default_set.json`, then choose
-**Run → Start Simulation → No Simulation Program → Start** in the GUI. In the
-client shell that created the tunnel, run:
+to subscribe to and select `VLN_Presentation`, load `factory.json`, and then
+choose **Run → Start Simulation → No Simulation Program → Start** in the GUI.
+In the client shell that created the tunnel, run:
 
 ```bash
 ./scripts/run_orcalab_scene_locomotion.sh \

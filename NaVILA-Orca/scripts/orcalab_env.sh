@@ -22,7 +22,7 @@ navila_orca_resolve_runtime() {
   if [[ -z "${resolved_python}" && -n "${CONDA_PREFIX:-}" ]]; then
     active_python="${CONDA_PREFIX}/bin/python"
     if [[ -x "${active_python}" ]] && "${active_python}" -c \
-      'from importlib.metadata import version; assert version("orca-lab") == "26.6.3"' \
+      'from importlib.metadata import version; assert version("orca-lab") == "26.7.1"' \
       >/dev/null 2>&1; then
       resolved_python="${active_python}"
     fi
@@ -31,7 +31,7 @@ navila_orca_resolve_runtime() {
   if [[ -z "${resolved_python}" ]]; then
     echo "No OrcaLab Python selected." >&2
     echo "Expected the project environment at: ${default_python}" >&2
-    echo "Run ./scripts/setup_orcalab_env.sh once, or set NAVILA_ORCA_PYTHON to a reviewed OrcaLab 26.6.3 Python." >&2
+    echo "Run ./scripts/setup_orcalab_env.sh once, or set NAVILA_ORCA_PYTHON to a reviewed OrcaLab 26.7.1 Python." >&2
     return 2
   fi
   if [[ ! -x "${resolved_python}" ]]; then
@@ -39,9 +39,9 @@ navila_orca_resolve_runtime() {
     return 2
   fi
   if ! "${resolved_python}" -c \
-    'from importlib.metadata import version; assert version("orca-lab") == "26.6.3"; assert version("orca-gym") == "26.6.3"; assert version("orcalab-pyside") == "26.6.3"; assert version("patchelf") == "0.17.2.4"' \
+    'from importlib.metadata import version; assert version("orca-lab") == "26.7.1"; assert version("orca-gym") == "26.7.1"; assert version("orcalab-pyside") == "26.7.1"; assert version("patchelf") == "0.17.2.4"' \
     >/dev/null 2>&1; then
-    echo "Selected Python is missing part of the reviewed OrcaLab 26.6.3 runtime: ${resolved_python}" >&2
+    echo "Selected Python is missing part of the reviewed OrcaLab 26.7.1 runtime: ${resolved_python}" >&2
     echo "Run ${NAVILA_ORCA_ENV_PROJECT_ROOT}/scripts/setup_orcalab_env.sh to repair it." >&2
     return 2
   fi
@@ -54,6 +54,9 @@ navila_orca_resolve_runtime() {
   export NAVILA_ORCA_ORCALAB_BIN="${resolved_orcalab}"
   export PATH="$(dirname "${resolved_python}"):${PATH}"
   export SKIP_PATCHELF=1
+  # Conda/CUDA library paths from the calling shell can inject a different
+  # libGLdispatch or NVML into OrcaLab's native viewport process.
+  unset LD_LIBRARY_PATH
 }
 
 navila_orca_require_gui() {

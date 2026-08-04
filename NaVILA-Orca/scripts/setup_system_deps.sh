@@ -9,6 +9,7 @@ VERIFY_ONLY=0
 PACKAGES=(
   libgl1
   libegl1
+  libopengl0
   libxkbcommon-x11-0
   libxcb-cursor0
   libxcb-icccm4

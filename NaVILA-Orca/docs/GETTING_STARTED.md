@@ -25,11 +25,14 @@ only in the dedicated remote guide. The check does not run model inference.
 
 ## 1. Goal and success criteria
 
-The default instruction is: `Move forward toward the blue barrel, then stop before the yellow vehicle.`
+The default instruction is stored in
+[`prompts/orcalab_scene_locomotion.txt`](../prompts/orcalab_scene_locomotion.txt):
+
+> Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm.
 
 A successful run is more than an error-free terminal. It should satisfy all of the following:
 
-- OrcaLab has the default `orcalab_day` map open, with one complete Go2, a blue barrel, and a yellow vehicle.
+- OrcaLab has the `VLN_Presentation` scene open, with one complete Go2, a tall red bin, a blue barrel, and the white robotic arm.
 - Images from `mujococamera1080` change as the Go2 moves.
 - The NaVILA server receives eight images plus the task text and returns a parseable action.
 - Go2 moves stably; `outputs/scene_locomotion_smoke/` contains result JSON and RGB frames after the run.
@@ -105,14 +108,18 @@ In terminal 1:
 
 In the GUI:
 
-1. Open the built-in default map `orcalab_day`.
-2. Choose **File → Open Layout → `NaVILA-Orca/default_set.json`**.
-3. Confirm the scene tree contains exactly one complete Go2 actor.
-4. Confirm that the blue barrel and yellow vehicle are visible ahead.
+1. In the OrcaLab asset browser, subscribe to `VLN_Presentation` and
+   `unitree_robots`; wait until both subscriptions are current.
+2. Select the `VLN_Presentation` scene.
+3. Choose **File → Open Layout → `NaVILA-Orca/factory.json`**.
+4. Confirm the scene tree contains exactly one complete Go2 actor.
+5. Confirm that the tall red bin, blue barrel, and white robotic arm are visible
+   in the intended order.
 
-`default_set.json` stores only the actor layout; it is not the map itself. Open
-`orcalab_day` first, then load the JSON through **File → Open Layout** to create
-the complete default navigation episode.
+`VLN_Presentation` supplies the factory scene; `factory.json` stores the actor
+layout layered onto it. The layout references `vln_presentation` assets for the
+factory props and `unitree_robots` for Go2, so importing it before those
+subscriptions finish produces missing actors.
 
 The launcher opens the normal OrcaLab editor and does not force a scene,
 layout, full-screen view, or external simulation. The navigation command in
@@ -147,6 +154,14 @@ In terminal 3:
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
+This command uses the default prompt quoted above. To make the active prompt
+explicit for a run, use:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
+
 Important defaults:
 
 | CLI argument | Default behavior | Why it matters |
@@ -165,7 +180,7 @@ Results are written to `outputs/scene_locomotion_smoke/`. Every run saves at lea
 - Run JSON containing the instruction, parsed action, timing, and trajectory.
 - A scene-alignment file for investigating coordinate or actor issues in the OrcaLab combined XML.
 
-Maintain an experiment table for each run: instruction, first model action, final position, whether it approached the blue barrel, unexpected turns, and screenshot filename. Do not record only “pass/fail”.
+Maintain an experiment table for each run: instruction, first model action, final position, whether it passed the red bin and blue barrel in order, whether it stopped at the white arm, unexpected turns, and screenshot filename. Do not record only “pass/fail”.
 
 ## 6. Three progressive tasks
 
@@ -177,7 +192,7 @@ Keep all defaults and run the case twice. Compare action sequences and final tra
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction 'Move to the blue barrel and stop.'
+  --instruction 'Pass the red bin, then turn right and stop at the blue barrel.'
 ```
 
 Then try “turn left first, then approach the blue barrel.” Record whether wording changes the returned action. This is not a language-model trivia test; it asks whether language, images, and geometry jointly influence the decision.
@@ -206,10 +221,11 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
 | `Failed to initialize NVML: Driver/library version mismatch` | Host NVIDIA driver | Userspace driver was updated while an older kernel module remains loaded; keep `.conda/`, reboot once, then run `nvidia-smi` and `setup_all.sh` |
 | Qt cannot load the `xcb` platform plugin | Ubuntu system libraries | Rerun `setup_all.sh`, or run `setup_system_deps.sh` directly to install the required Qt/XCB packages |
+| `libOpenGL.so.0: undefined symbol: _glapi_tls_Current` | OrcaLab's partial OpenGL copy is mixed with another GLVND build | Pull the latest branch and rerun `setup_orcalab_env.sh`; the project now binds the viewport to the host's complete OpenGL stack |
 | OrcaLab installs `orcalab-pyside` and asks for a restart | incomplete old setup | Pull the latest repository and rerun `setup_orcalab_env.sh`; Doctor verifies the native viewport, `patchelf`, and its environment-specific RPATH |
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
-| missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.6.3 or using old `agentcamera` |
+| missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.7.1 or using old `agentcamera` |
 | VLM cannot connect | terminal 2 and port 54321 | NaVILA server is not running or port differs; for Option B, follow the remote guide's end-to-end check |
 | model cannot load | `NAVVLM_MODEL_PATH` | wrong directory or incomplete NaVILA environment |
 | Go2 shakes or falls | checkpoint, warmup, scene start pose | incompatible checkpoint, penetration at start, or unstable policy state |

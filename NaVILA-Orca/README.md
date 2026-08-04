@@ -16,7 +16,9 @@ Choose exactly one deployment option:
 From a fresh clone, run `./scripts/setup_all.sh` once and require
 `./scripts/doctor.sh` to pass. The launchers use the two project-local
 environments directly, so no shell activation or repository-root environment
-variable is needed.
+variable is needed. The reviewed runtime is pinned to OrcaLab 26.7.1. Keep
+low-level training tools such as OrcaLocomotion in a separate environment and
+exchange only a compatible policy checkpoint.
 
 The following three commands cover the normal single-host development loop:
 
@@ -37,14 +39,19 @@ single-host commands above as one client-side sequence. Follow the dedicated
 [remote inference guide](docs/REMOTE_INFERENCE.md) for per-machine installation,
 service startup, the SSH tunnel, and the end-to-end NaVILA protocol check.
 
-Open the default `orcalab_day` map and choose
-**File → Open Layout → `default_set.json`** before running navigation. NaVILA
-remains in a separate runtime under both options, while the TCP server adapter
-is owned by this project and the model is downloaded to the default project
+## Baseline scene and packaged resources
+
+Under either deployment option, subscribe to `VLN_Presentation` and
+`unitree_robots` in OrcaLab and wait for both subscriptions to finish. Select
+`VLN_Presentation`, then choose **File → Open Layout → `factory.json`**. The
+default route is red bin → right turn → blue barrel → white robotic arm.
+
+NaVILA remains in a separate runtime under both options. The TCP server adapter
+is owned by this project, and the model is downloaded to the default project
 model directory on the machine that runs inference.
 
 ```bash
 ./scripts/build_kit.sh
 ```
 
-The kit contains the OrcaLab adapter, local Go2 task/MJCF/mesh assets, a default Go2 locomotion checkpoint, the global setting, and one reproducible `orcalab_day` episode. It does not include NaVILA/LLaVA source, model weights, 3DGS assets, or IsaacLab.
+The kit contains the OrcaLab adapter, local Go2 task/MJCF/mesh assets, a default Go2 locomotion checkpoint, the `factory.json` layout, and one reproducible `VLN_Presentation` episode. It does not include NaVILA/LLaVA source, model weights, subscribed OrcaLab assets, or IsaacLab.

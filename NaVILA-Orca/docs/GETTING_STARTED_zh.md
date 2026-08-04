@@ -23,11 +23,14 @@
 
 ## 一、实验目标与成功标准
 
-默认任务是：`Move forward toward the blue barrel, then stop before the yellow vehicle.`
+默认任务保存在
+[`prompts/orcalab_scene_locomotion.txt`](../prompts/orcalab_scene_locomotion.txt)：
+
+> Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm.
 
 成功不只等于终端没有报错。完成一次有效实验时，应同时满足：
 
-- OrcaLab 中已打开默认地图 `orcalab_day`，并有一个完整 Go2、蓝色桶和黄色车辆。
+- OrcaLab 中已打开 `VLN_Presentation` 场景，并有一个完整 Go2、红色高圆柱垃圾桶、蓝色油桶和白色机械臂。
 - `mujococamera1080` 的图像会随着 Go2 移动而改变。
 - NaVILA server 收到 8 帧图像和任务文本，并返回一条可解析动作。
 - Go2 动作平稳，结束后 `outputs/scene_locomotion_smoke/` 内有结果 JSON 与 RGB 帧。
@@ -101,13 +104,16 @@ cd Orca_VLN
 
 GUI 中执行：
 
-1. 打开 OrcaLab 内置默认地图 `orcalab_day`。
-2. 依次选择 **文件 → 打开布局 → `NaVILA-Orca/default_set.json`**。
-3. 在场景树中确认只有一个完整 Go2 actor。
-4. 目视确认蓝桶和黄色车辆在前方可见区域。
+1. 在 OrcaLab 资产浏览器中订阅 `VLN_Presentation` 和 `unitree_robots`，等待两个
+   订阅均显示为最新。
+2. 选择 `VLN_Presentation` 场景。
+3. 依次选择 **文件 → 打开布局 → `NaVILA-Orca/factory.json`**。
+4. 在场景树中确认只有一个完整 Go2 actor。
+5. 目视确认红色高圆柱垃圾桶、蓝色油桶和白色机械臂按任务所需方位可见。
 
-`default_set.json` 只保存 actor 布局，并不包含地图本体。请先打开
-`orcalab_day`，再通过 **文件 → 打开布局** 载入该 JSON，组成完整的默认导航任务。
+`VLN_Presentation` 提供工厂场景本体，`factory.json` 保存叠加在其上的 actor
+布局。该布局引用 `vln_presentation` 工厂资源和 `unitree_robots` 的 Go2；两个
+订阅未完成时导入会出现缺失 actor。
 
 启动脚本只打开 OrcaLab 的普通编辑器，不会强制选择地图、布局、全屏视图或
 外部仿真。终端 3 的导航命令会在当前场景运行后应用并校验
@@ -139,6 +145,13 @@ OrcaLab 会话，不会自行打开或启动仿真。
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
+该命令使用上面列出的默认 prompt。若要在本次运行中显式指定同一条指令，可使用：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
+
 脚本的关键默认项：
 
 | 参数 | 默认行为 | 教学含义 |
@@ -157,7 +170,7 @@ OrcaLab 会话，不会自行打开或启动仿真。
 - 运行 JSON：记录输入 instruction、解析后的动作、时间和轨迹。
 - scene alignment 文件：出现坐标或 actor 问题时用于核对 OrcaLab combined XML。
 
-建议每组建立一张实验表：指令、首次模型动作、最终位置、是否接近蓝桶、是否出现误转向、截图文件名。不要只记录“成功/失败”。
+建议每组建立一张实验表：指令、首次模型动作、最终位置、是否按顺序经过红桶和蓝桶、是否在白色机械臂前停下、是否出现误转向、截图文件名。不要只记录“成功/失败”。
 
 ## 六、三项递进任务
 
@@ -169,7 +182,7 @@ OrcaLab 会话，不会自行打开或启动仿真。
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction 'Move to the blue barrel and stop.'
+  --instruction 'Pass the red bin, then turn right and stop at the blue barrel.'
 ```
 
 再尝试“先向左转，再靠近蓝桶”。记录不同表达是否导致不同动作。注意：这不是测语言模型的常识题，而是观察语言、图像和几何关系是否共同影响决策。
@@ -198,10 +211,11 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | `Actor does not exist` | OrcaLab 场景树 | 未通过“文件 → 打开布局”载入 JSON、Go2 被删除或 actor 名不匹配 |
 | `Failed to initialize NVML: Driver/library version mismatch` | 宿主 NVIDIA 驱动 | 系统更新了用户态驱动，但内核仍加载旧模块；保留 `.conda/`，重启电脑后依次运行 `nvidia-smi` 和 `setup_all.sh` |
 | Qt 无法加载 `xcb` platform plugin | Ubuntu 系统库 | 重新运行 `setup_all.sh`，或单独执行 `setup_system_deps.sh` 安装 Qt/XCB 系统包 |
+| `libOpenGL.so.0: undefined symbol: _glapi_tls_Current` | OrcaLab 的不完整 OpenGL 副本与另一套 GLVND 混用 | 拉取最新分支并重新运行 `setup_orcalab_env.sh`；项目会让 viewport 使用主机完整的 OpenGL 库 |
 | OrcaLab 首启安装 `orcalab-pyside` 并要求重启 | 使用了旧安装流程 | 拉取最新代码后重新运行 `setup_orcalab_env.sh`；Doctor 会检查原生 viewport、`patchelf` 及其环境专用 RPATH |
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
-| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.6.3 或错误使用旧 `agentcamera` |
+| 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.7.1 或错误使用旧 `agentcamera` |
 | VLM 无法连接 | 终端 2、端口 54321 | NaVILA server 未启动或端口不一致；方案 B 应按远程指南执行端到端检查 |
 | 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
 | Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |

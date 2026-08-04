@@ -145,8 +145,8 @@ health 请求不会解码图像或执行模型推理。`ssh -O check` 只能确�
 ./scripts/start_orcalab_gui.sh
 ```
 
-按照[快速上手的步骤 1](GETTING_STARTED_zh.md#scene-setup)打开
-`orcalab_day` 并加载 `default_set.json`，再在 GUI 中选择
+按照[快速上手的步骤 1](GETTING_STARTED_zh.md#scene-setup)订阅并选择
+`VLN_Presentation`，加载 `factory.json`，再在 GUI 中选择
 **运行 → 开始模拟 → 无仿真程序 → 启动**。随后在建立隧道的客户端 shell
 中运行：
 

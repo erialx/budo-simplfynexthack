@@ -7,7 +7,8 @@ import subprocess
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = PROJECT_ROOT / "scripts"
-PYSIDE_SHA256 = "f8f110b078604c0e529285378b1e7bd8e15a0e773edde0a012c33c82012d7df6"
+PYSIDE_SHA256 = "30c50babaa8825be4519c9613166e595d97d2a1ce799f186667bb4c767ecffef"
+PAK_SHA256 = "11f292569ed54f2be5991b3a3f6e60fac2d34a52a384c3cbf97ef9b2f9a6af88"
 
 
 def _make_executable(path: Path, body: str = "#!/usr/bin/env bash\nexit 0\n") -> None:
@@ -161,6 +162,7 @@ def test_system_dependency_check_reports_missing_qt_xcb_package(
 
     assert result.returncode == 2
     assert "libxcb-cursor0" in result.stderr
+    assert "libopengl0" in result.stderr
     assert "setup_system_deps.sh" in result.stderr
 
 
@@ -180,6 +182,24 @@ def test_navila_install_and_server_verify_the_real_builder_import() -> None:
     assert "from llava.model.builder import load_pretrained_model" in setup
     assert "from llava.model.builder import load_pretrained_model" in server
     assert "check_navila_cuda.py" in server
+
+
+def test_orcalab_runtime_pins_the_cuda_12_8_wheel_pair() -> None:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text()
+    constraints = (
+        PROJECT_ROOT / "constraints/orcalab-26.7.1.txt"
+    ).read_text()
+    setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()
+
+    assert '"torch==2.11.0"' in pyproject
+    assert '"torchvision==0.26.0"' in pyproject
+    assert "torch==2.11.0+cu128" in constraints
+    assert "torchvision==0.26.0+cu128" in constraints
+    assert 'TORCH_VERSION="2.11.0"' in setup
+    assert 'TORCHVISION_VERSION="0.26.0"' in setup
+    assert "/whl/cu128" in setup
+    assert '"torch==${TORCH_VERSION}+cu128"' in setup
+    assert 'require_equal("torch CUDA build", torch.version.cuda, "12.8")' in setup
 
 
 def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
@@ -241,7 +261,7 @@ def test_scene_launcher_uses_editable_prompt_file_unless_overridden(
         fake_python,
         "#!/usr/bin/env bash\n"
         "if [[ \"${1:-}\" == '-c' ]]; then\n"
-        "  if [[ \"${2:-}\" == *'print(version'* ]]; then echo '26.6.3'; fi\n"
+        "  if [[ \"${2:-}\" == *'print(version'* ]]; then echo '26.7.1'; fi\n"
         "  exit 0\n"
         "fi\n"
         "printf '%s\\n' \"$@\"\n",
@@ -278,14 +298,22 @@ def test_scene_launcher_uses_editable_prompt_file_unless_overridden(
 
 
 def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
-    constraints = (PROJECT_ROOT / "constraints/orcalab-26.6.3.txt").read_text()
+    constraints = (PROJECT_ROOT / "constraints/orcalab-26.7.1.txt").read_text()
     setup = (SCRIPTS / "setup_orcalab_env.sh").read_text()
     resolver = (SCRIPTS / "orcalab_env.sh").read_text()
     preparer = (SCRIPTS / "prepare_orcalab_runtime.py").read_text()
 
-    assert "orcalab-pyside==26.6.3" in constraints
+    assert "orca-gym==26.7.1" in constraints
+    assert "orca-lab==26.7.1" in constraints
+    assert "orcalab-pyside==26.7.1" in constraints
     assert "patchelf==0.17.2.4" in constraints
     assert "prepare_orcalab_runtime.py" in setup
+    assert "env -u LD_LIBRARY_PATH" in setup
     assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
-    assert 'version("orcalab-pyside") == "26.6.3"' in resolver
+    assert "unset LD_LIBRARY_PATH" in resolver
+    assert 'version("orcalab-pyside") == "26.7.1"' in resolver
     assert PYSIDE_SHA256 in preparer
+    assert PAK_SHA256 in preparer
+    assert '"--replace-needed"' in preparer
+    assert "libPySideGameLauncher.so" in preparer
+    assert "_glapi_tls_Current" in preparer

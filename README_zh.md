@@ -20,8 +20,8 @@
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab 仓库导航场景" width="48%" />
-  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN 实时监视器" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-overview-two-column.png" alt="带 Go2 机器人的 OrcaLab 工厂导航场景" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN 工厂场景实时监视器" width="48%" />
 </p>
 
 > **Orca_VLN 是一套可直接运行的 VLN 基线，可在此基础上针对具体任务继续微调。**
@@ -31,7 +31,7 @@
 指令 + 第一视角 RGB  →  NaVILA  →  导航动作  →  OrcaLab  →  下一帧第一视角 RGB
 ```
 
-本仓库包含示例在 OrcaLab 中运行所需的部分：持续输出第一视角观测、管理场景生命周期、提供预置仓库任务与可运行的控制基线，并保存可追溯的运行记录。NaVILA 保持在独立环境中，通过 TCP 连接。
+本仓库包含示例在 OrcaLab 中运行所需的部分：持续输出第一视角观测、管理场景生命周期、提供预置工厂任务与可运行的控制基线，并保存可追溯的运行记录。NaVILA 保持在独立环境中，通过 TCP 连接。
 
 ## 👁️ 第一视角与仿真视图
 
@@ -122,6 +122,8 @@ cd Orca_VLN
 都运行 `setup_all.sh`；请直接按照独立的[远程推理部署章节](#remote-inference)
 完成两端安装、SSH 隧道和端到端验证。
 
+支持 Blackwell RTX 5090 Laptop GPU。
+
 ### 方案 A：按步骤 1 → 2 → 3 运行
 
 单机部署使用三个本机终端，并按下面的顺序执行。
@@ -136,24 +138,17 @@ cd Orca_VLN
 
 此时不要运行导航。在 OrcaLab 中：
 
-1. 打开默认地图 `orcalab_day`。
-2. 选择 **文件 → 打开布局**，选中
-   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json)。
-3. 等待 Go2、蓝色桶、黄色车辆及其他预设对象出现在场景中。
+1. 订阅 `VLN_Presentation` 和 `unitree_robots`。
+2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
+3. 确认 Go2、红色垃圾桶、蓝色油桶和白色机械臂均已出现。
 
-> **资产订阅——默认案例的最低要求。** 在 OrcaLab 中先订阅
-> `SimpleMovement_Conveybelt`、`SimpleMovement_Slope`、`unitree_robots` 和
-> `OrcaPlaygroundAssets`，再加载 `default_set.json`。它们分别提供布局所需的
-> 纸箱、料箱/蓝桶、Go2 和车辆。`IndustrialWarehouse1_3dgs`、
-> `IndustrialWarehouse2_3dgs`、`kitchen_3dgs`、
-> `AutoProductionLine_Warehouse` 是扩展场景；用户按自己的训练或评测需要订阅。
-
-仅打开地图不会得到预设任务；`default_set.json` 才是实例化这些对象的
-布局文件。完成后保持终端 1 和 OrcaLab 运行。
+`VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 1 和
+OrcaLab 运行。
 
 **已经在使用 OrcaLab？** 可以跳过终端 1，直接使用自己已打开的兼容
-OrcaLab GUI（本基线验证版本为 OrcaLab 26.6.3）。只需在该 GUI 中打开
-`orcalab_day`，并载入同一个布局文件。
+OrcaLab GUI（本基线验证版本为 OrcaLab 26.7.1）。只需在该 GUI 中选择
+`VLN_Presentation`，并载入同一个 `factory.json` 布局文件。
 
 #### 步骤 2 — 在本机启动 NaVILA 服务
 
@@ -175,6 +170,15 @@ OrcaLab 或启动仿真：
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
+```
+
+将你的导航指令写入
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)，
+或直接使用 `--instruction` 传入，例如：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
 ```
 
 <a id="remote-inference"></a>
@@ -331,7 +335,7 @@ ssh -p "$SSH_PORT" \
 
 ## 🏁 竞赛基线
 
-默认任务要求机器人接近蓝色桶，并在黄色车辆前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
+默认任务要求机器人经过红色垃圾桶、右转、经过蓝色油桶，最后在白色机械臂前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
 
 | 评测维度 | 可优化方向 | 基线状态 |
 | --- | --- | --- |
@@ -339,7 +343,7 @@ ssh -p "$SSH_PORT" \
 | **低层控制** | 命令跟踪、转向、停止、稳定性、恢复 | 提供的控制模型刻意保持通用，未针对导航调优 |
 | **系统与证据** | 场景配置、相机采集、动作轨迹、可复现性 | 运行记录自动保存 |
 
-提供的控制模型是保守的平地基线，并未针对当前仓库、NaVILA 的离散动作片段或特定任务的停车精度进行调优。这一差距是有意保留的：低层执行质量本身就是竞赛指标，而不是需要被隐藏的实现细节。
+提供的控制模型是保守的平地基线，并未针对当前工厂场景、NaVILA 的离散动作片段或特定任务的停车精度进行调优。这一差距是有意保留的：低层执行质量本身就是竞赛指标，而不是需要被隐藏的实现细节。
 
 ## 🧩 进阶方向
 
@@ -351,7 +355,7 @@ ssh -p "$SSH_PORT" \
 
 ## 📦 打包发布
 
-`NaVILA-Orca/` 包含运行时、默认全局设置、仓库任务、机器人资源和基线 checkpoint。使用以下命令构建干净的分发包：
+`NaVILA-Orca/` 包含运行时、`factory.json` 布局、`VLN_Presentation` 任务、机器人资源和基线 checkpoint。使用以下命令构建干净的分发包：
 
 ```bash
 ./scripts/build_kit.sh

@@ -69,7 +69,7 @@ else
   printf '%s\n' "${NVIDIA_DIAGNOSTIC}" >&2
 fi
 
-check_file "${PROJECT_ROOT}/default_set.json" "default global setting"
+check_file "${PROJECT_ROOT}/factory.json" "VLN_Presentation factory layout"
 check_file "${PROJECT_ROOT}/src/navila_orca/assets/checkpoints/go2_flat.pt" "Go2 checkpoint"
 check_file "${PROJECT_ROOT}/scripts/navila_vlm_server.py" "project-owned NaVILA server"
 
