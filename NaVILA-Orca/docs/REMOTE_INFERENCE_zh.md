@@ -93,28 +93,26 @@ ssh -p "$SSH_PORT" \
   "${SSH_USER}@${SSH_HOST}"
 ```
 
-首次连接前，先向服务器管理员核对 SSH 主机指纹。不要把密码写入命令、环境
-变量或 `sshpass -p`，以免泄露到 shell 历史或进程列表。
+### 显式指定 PEM 私钥（仅 PEM 用户）
 
-### 显式指定私钥（可选替代命令）
+> **仅当你有需要显式指定的 PEM 私钥时，才执行本节。没有 PEM 私钥请忽略
+> 本节，直接使用上面的主命令。**
 
-如果需要使用一个未由 SSH 配置或 agent 管理的 PEM 等私钥，请**改用**下面的
-命令，不要先执行默认命令再重复建立第二条隧道：
+先设置 PEM 私钥路径和权限：
 
 ```bash
 SSH_KEY_PATH="/path/to/private-key.pem"
 chmod 600 "$SSH_KEY_PATH"
+```
 
+仅在使用该 PEM 私钥时，才将标有 `+` 的两行插入主命令的 `ssh -p` 与 `-M`
+之间；其余隧道参数保持不变：
+
+```diff
 ssh -p "$SSH_PORT" \
-  -i "$SSH_KEY_PATH" \
-  -o IdentitiesOnly=yes \
++  -i "$SSH_KEY_PATH" \
++  -o IdentitiesOnly=yes \
   -M -S "$SSH_CONTROL_SOCKET" \
-  -f -N -T \
-  -o ExitOnForwardFailure=yes \
-  -o ServerAliveInterval=30 \
-  -o ServerAliveCountMax=3 \
-  -L "127.0.0.1:${LOCAL_VLM_PORT}:127.0.0.1:${REMOTE_VLM_PORT}" \
-  "${SSH_USER}@${SSH_HOST}"
 ```
 
 ## OrcaLab 客户端：执行 SSH 隧道与 NaVILA 协议端到端检查
