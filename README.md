@@ -14,13 +14,14 @@
   A visual-language navigation example in OrcaLab.
   <br />
   <a href="#quickstart">🚀 Quickstart</a> ·
+  <a href="#remote-inference">🖥️ Remote inference</a> ·
   <a href="#competition-baseline">🏁 Competition baseline</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
 </p>
 
 <p align="center">
-  <img src="NaVILA-Orca/assets/presentation/warehouse-overview.png" alt="OrcaLab warehouse navigation scene" width="48%" />
-  <img src="NaVILA-Orca/assets/presentation/live-monitor.png" alt="Orca_VLN live monitor" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-overview-two-column.png" alt="OrcaLab factory navigation scene with the Go2 robot" width="48%" />
+  <img src="NaVILA-Orca/assets/presentation/factory-live-monitor.png" alt="Orca_VLN factory live monitor" width="48%" />
 </p>
 
 > **Orca_VLN is a baseline VLN example. Fine-tune it for task-specific requirements.**
@@ -30,7 +31,7 @@
 instruction + ego RGB  →  NaVILA  →  navigation action  →  OrcaLab  →  next ego RGB
 ```
 
-The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default `orcalab_day` episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
+The repository provides the OrcaLab side of the example: persistent ego observation, scene lifecycle, a default `VLN_Presentation` factory episode, a runnable control baseline, and traceable run artifacts. NaVILA stays in its own environment and connects over TCP.
 
 ## 🧭 Ego Camera ↔ Simulator Views
 
@@ -63,7 +64,12 @@ least RTX 4090 class whose driver passes `nvidia-smi`.
 
 ### Install once
 
-If `conda --version` does not work, install one clean Miniconda:
+A single-host deployment prepares one machine. A split deployment requires
+Git, Conda, an NVIDIA driver, and a checkout at the same revision on both the
+OrcaLab client and the remote inference server.
+
+If `conda --version` does not work, install one clean Miniconda. For a split
+deployment, do this on both machines:
 
 ```bash
 curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -74,12 +80,23 @@ conda init bash
 conda --version
 ```
 
-Clone the project:
+Clone the project. For a split deployment, do this on both machines and keep
+the checkouts at the same revision:
 
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
+
+> **Choose exactly one installation method:** follow either **Option A** or
+> **Option B**. Do not combine both sets of installation commands on one host.
+
+| Option | Deployment layout | Choose this when |
+| --- | --- | --- |
+| **Option A (default) — Single-host deployment** | OrcaLab and NaVILA run on the same machine | One GPU host has sufficient resources and the shortest setup is preferred |
+| **Option B — Remote-inference deployment (split hosts)** | OrcaLab runs on the client and NaVILA on a dedicated GPU server | Inference should run independently or GPU memory and compute must be separated |
+
+#### Option A (default) — Single-host deployment
 
 Create both pinned environments and download the reviewed NaVILA model:
 
@@ -92,77 +109,256 @@ Qt/XCB libraries required by the OrcaLab GUI.
 It also prepares OrcaLab's verified native viewport and scene pak before the
 first GUI launch, so OrcaLab does not install components and request a restart.
 
-Verify the completed installation. The final line must be
-`Orca_VLN installation is ready.`:
+For a single-host deployment, verify the completed installation. The final
+line must be `Orca_VLN installation is ready.`:
 
 ```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-The environments live under this checkout in `.conda/envs/`: OrcaLab uses
-Python 3.12 and NaVILA uses Python 3.10. The launchers resolve them from their
-own file paths; no `ORCA_VLN_ROOT`, `conda activate`, or manual `deactivate`
-step is required.
+For a single-host deployment, both environments live under this checkout in
+`.conda/envs/`: OrcaLab uses Python 3.12 and NaVILA uses Python 3.10. The
+launchers resolve them from their own file paths; no `ORCA_VLN_ROOT`,
+`conda activate`, or manual `deactivate` step is required.
+
+#### Option B — Remote-inference deployment (split hosts)
+
+Install only OrcaLab on the client and only NaVILA on the inference server.
+Do not run `setup_all.sh` on both machines; follow the independent
+[remote-inference deployment chapter](#remote-inference) for per-host setup,
+the SSH tunnel, and end-to-end validation.
 
 Blackwell RTX 5090 Laptop GPU is supported.
 
-### Run in order in three terminals
+### Option A: run in steps 1 → 2 → 3
 
-#### A — Open OrcaLab and assemble the preset scene
+A single-host deployment uses three local terminals in the following order.
+
+<a id="scene-setup"></a>
+
+#### Step 1 — Open OrcaLab and assemble the preset scene
 
 ```bash
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
-Do not start navigation yet. In OrcaLab:
+Before navigation, in OrcaLab:
 
-1. Open the default map `orcalab_day`.
-2. Choose **File → Open Layout** and select
-   [`NaVILA-Orca/default_set.json`](NaVILA-Orca/default_set.json).
-3. Wait until the Go2, blue barrel, yellow vehicle, and other preset objects
-   appear in the scene.
+1. Subscribe to `VLN_Presentation` and `unitree_robots`.
+2. Select `VLN_Presentation`, wait for both subscriptions to finish, then open
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json) with
+   **File → Open Layout**.
+3. Confirm that the Go2, red bin, blue barrel, and white robotic arm are visible.
 
-> **Asset subscription — required for the default case.** In OrcaLab, subscribe
-> to `SimpleMovement_Conveybelt`, `SimpleMovement_Slope`, `unitree_robots`, and
-> `OrcaPlaygroundAssets` before loading `default_set.json`. These supply the
-> layout's boxes, bins/barrel, Go2, and vehicle. Subscribe to
-> `IndustrialWarehouse1_3dgs`, `IndustrialWarehouse2_3dgs`, `kitchen_3dgs`, or
-> `AutoProductionLine_Warehouse` only when you choose to build or evaluate in
-> those additional scenes.
+`VLN_Presentation` provides the factory; `factory.json` adds the authored route.
+Keep terminal 1 and OrcaLab running after the layout is visible.
 
-The map alone does not contain the preset task. `default_set.json` is the
-layout that instantiates it, and terminal A must remain open.
-
-**Already using OrcaLab?** You may skip terminal A and use your own open
+**Already using OrcaLab?** You may skip terminal 1 and use your own open
 OrcaLab GUI, provided it is a compatible installation (the baseline is
-validated against OrcaLab 26.6.3). Open `orcalab_day` and the same layout in
-that GUI instead.
+validated against OrcaLab 26.7.1). Select `VLN_Presentation` and load the same
+`factory.json` layout in that GUI instead.
 
-#### B — Start the NaVILA service
+#### Step 2 — Start the NaVILA service locally
 
 ```bash
 ./NaVILA-Orca/scripts/start_navvlm_server.sh
 ```
 
-Wait until terminal B reports that it is listening on `127.0.0.1:54321`.
+Wait until terminal 2 reports that it is listening on `127.0.0.1:54321`.
 
-#### C — Start closed-loop navigation
+<a id="run-navigation"></a>
 
-Run C only after the preset scene is visible in OrcaLab and the service is
-listening in B. In the OrcaLab GUI, first choose **Run → Start Simulation → No
+#### Step 3 — Start closed-loop navigation
+
+Run step 3 only after the preset scene is visible in OrcaLab and the service is
+listening in step 2. In the OrcaLab GUI, first choose
+**Run → Start Simulation → No
 Simulation Program → Start** and wait for the external simulation to run.
-Terminal C connects to that existing session; it does not start OrcaLab or the
+Terminal 3 connects to that existing session; it does not start OrcaLab or the
 simulation itself:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
 ```
 
+Write your navigation input in
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt),
+or send it directly with `--instruction`, for example:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+```
+
+<a id="remote-inference"></a>
+
+## 🖥️ Option B — Remote-inference deployment
+
+Option B moves only NaVILA inference to a dedicated GPU server. The OrcaLab
+GUI, scene, camera, low-level control, and navigation loop stay on the OrcaLab
+client. An SSH local port forward connects the two hosts without exposing the
+NaVILA TCP port directly:
+
+```text
+OrcaLab client navigation → 127.0.0.1:54321 → SSH tunnel
+                         → inference server 127.0.0.1:54321 → NaVILA
+```
+
+The complete order is: **install each host → start the remote service → create
+the tunnel → run the end-to-end check → prepare the scene and navigate → clean
+up**. The developer kit also includes a standalone
+[remote-inference deployment guide](NaVILA-Orca/docs/REMOTE_INFERENCE.md).
+
+### Install the client and inference server separately
+
+Both hosts need Git, Conda, an NVIDIA driver that passes `nvidia-smi`, and an
+Orca_VLN checkout at the same revision. Do not run `setup_all.sh` on both
+machines.
+
+In the **OrcaLab client** checkout, install only the OrcaLab-side dependencies:
+
+```bash
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_system_deps.sh
+./NaVILA-Orca/scripts/setup_orcalab_env.sh
+```
+
+In the **inference server** checkout, install only the NaVILA-side dependencies
+and model:
+
+```bash
+./NaVILA-Orca/scripts/check_nvidia_driver.sh
+./NaVILA-Orca/scripts/setup_navila_env.sh
+./NaVILA-Orca/scripts/download_navila_model.sh
+```
+
+`doctor.sh` checks for both environments on one machine and therefore applies
+only to Option A. The per-component installers above verify their respective
+environment and model.
+
+### Inference server: start NaVILA
+
+Run this on the inference server and keep the terminal open:
+
+```bash
+ORCA_VLN_DIR="/path/to/Orca_VLN"  # actual checkout path on the inference server
+REMOTE_VLM_PORT="54321"
+
+cd "$ORCA_VLN_DIR"
+NAVVLM_HOST="127.0.0.1" \
+NAVVLM_PORT="$REMOTE_VLM_PORT" \
+./NaVILA-Orca/scripts/start_navvlm_server.sh
+```
+
+Keep `NAVVLM_HOST="127.0.0.1"`. Do not expose port `54321` in a security group
+or firewall. The NaVILA TCP service has no TLS or authentication of its own;
+only the SSH port needs to be externally reachable.
+
+### OrcaLab client: create the SSH tunnel
+
+Set the connection values on the client. The IP, account, and ports below are
+placeholders:
+
+```bash
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+SSH_HOST="xx.xx.xx.xx"             # actual inference-server IP
+SSH_USER="your-ssh-user"          # remote account
+SSH_PORT="22"
+LOCAL_VLM_PORT="54321"
+REMOTE_VLM_PORT="54321"
+SSH_CONTROL_SOCKET="${HOME}/.ssh/orca-vln-%C"
+```
+
+Use the main command below. It does not force password or key authentication:
+OpenSSH negotiates automatically from the client configuration, SSH agent,
+and server policy. If earlier methods do not succeed and both client and
+server policy permit interactive password authentication, SSH prompts for the
+account password. It moves to the background only after authentication and
+forwarding succeed.
+
+```bash
+ssh -p "$SSH_PORT" \
+  -M -S "$SSH_CONTROL_SOCKET" \
+  -f -N -T \
+  -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -L "127.0.0.1:${LOCAL_VLM_PORT}:127.0.0.1:${REMOTE_VLM_PORT}" \
+  "${SSH_USER}@${SSH_HOST}"
+```
+
+> **Use the following section only when you have a PEM key that must be
+> specified explicitly. If you do not have a PEM key, skip it and use the main
+> command above unchanged.**
+
+First set the PEM key path and permissions:
+
+```bash
+SSH_KEY_PATH="/path/to/private-key.pem"
+chmod 600 "$SSH_KEY_PATH"
+```
+
+Only when using this PEM key, insert the two `+` lines between `ssh -p` and
+`-M` in the main command; keep the remaining tunnel options unchanged:
+
+```diff
+ssh -p "$SSH_PORT" \
++  -i "$SSH_KEY_PATH" \
++  -o IdentitiesOnly=yes \
+  -M -S "$SSH_CONTROL_SOCKET" \
+```
+
+### OrcaLab client: run the end-to-end tunnel and NaVILA protocol check
+
+Before navigation, send a NaVILA protocol health request through the local
+forwarded port:
+
+```bash
+./NaVILA-Orca/scripts/check_navvlm_endpoint.py \
+  --host 127.0.0.1 \
+  --port "$LOCAL_VLM_PORT"
+```
+
+The check succeeds only after receiving the matching protocol response from
+the remote NaVILA service. It covers the **local port → SSH tunnel → remote
+port → NaVILA application layer** without running model inference.
+`ssh -O check` and `ss` inspect only the SSH master or local listener and do
+not replace this end-to-end check. The server currently handles requests
+serially; run the check before navigation, because a timeout during navigation
+can also mean that the server is busy with inference.
+
+### OrcaLab client: navigate and clean up
+
+Complete Option A's [Step 1: scene setup](#scene-setup), start the external
+simulation in OrcaLab, and then run:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --vlm-host 127.0.0.1 \
+  --vlm-port "$LOCAL_VLM_PORT"
+```
+
+After navigation, close only the SSH master created for this project:
+
+```bash
+ssh -p "$SSH_PORT" \
+  -S "$SSH_CONTROL_SOCKET" \
+  -O exit \
+  "${SSH_USER}@${SSH_HOST}"
+```
+
+Finally, stop NaVILA with `Ctrl+C` in the inference-server terminal. If the
+tunnel reports `Address already in use`, choose a free `LOCAL_VLM_PORT`. If the
+end-to-end check fails, confirm that the remote service is still running, both
+sides use the same `REMOTE_VLM_PORT`, and the SSH tunnel remains connected.
+
 <a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
 
-The default episode approaches the blue barrel and stops before the yellow vehicle. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
+The default episode passes the red bin, turns right, passes the blue barrel, and stops in front of the white robotic arm. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
 
 | Evaluation dimension | What teams improve | Baseline status |
 | --- | --- | --- |
@@ -170,7 +366,7 @@ The default episode approaches the blue barrel and stops before the yellow vehic
 | **Low-level control** | command tracking, turning, stopping, stability, recovery | supplied control model is intentionally general, not navigation-tuned |
 | **System evidence** | scene setup, camera capture, action trace, reproducibility | run artifacts are saved automatically |
 
-The supplied control model is a conservative flat-ground baseline. It has not been tuned around this warehouse, NaVILA’s discrete motion chunks, or task-specific stopping accuracy. That gap is intentional: low-level execution quality is a competition metric, not a hidden implementation detail.
+The supplied control model is a conservative flat-ground baseline. It has not been tuned around this factory scene, NaVILA’s discrete motion chunks, or task-specific stopping accuracy. That gap is intentional: low-level execution quality is a competition metric, not a hidden implementation detail.
 
 ## 🧩 Extend the baseline
 
@@ -182,7 +378,7 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 
 ## 📦 Package
 
-`NaVILA-Orca/` contains the runtime, default global setting, `orcalab_day` episode, robot assets, and baseline checkpoint. Build a clean archive with:
+`NaVILA-Orca/` contains the runtime, `factory.json` layout, `VLN_Presentation` episode, robot assets, and baseline checkpoint. Build a clean archive with:
 
 ```bash
 ./scripts/build_kit.sh

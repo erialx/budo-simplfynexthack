@@ -8,7 +8,8 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 主办方提供：
 
-- OrcaLab 默认地图 `orcalab_day` 和 [`default_set.json`](../default_set.json)；
+- 通过资产订阅获取的 OrcaLab `VLN_Presentation` 场景，以及随包提供的
+  [`factory.json`](../factory.json) 布局；
 - Go2、常驻第一视角 RGB 相机和实时导航监视器；
 - NaVILA server 接入点和默认导航回合；
 - 随包 Go2 运动 checkpoint 与运行脚本；
@@ -17,13 +18,17 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 基线以仿真为先。可使用真实 EDU Go2 完成部分展示，但复现或提交核心流程不要求硬件。
 
-提供的 Go2 checkpoint 有意保持为通用平地策略，并未针对仓库布局、离散 NaVILA 命令词表或精确停车行为调优。团队应将其跟踪误差和恢复行为视为可见基线特征，而不是需要隐藏的缺陷。
+经过验证的运行时版本为 OrcaLab 26.7.1。开发包包含 `factory.json`，但不包含
+已订阅的 OrcaLab 资源；加载布局前必须等待 `VLN_Presentation` 和
+`unitree_robots` 两个订阅完成。
+
+提供的 Go2 checkpoint 有意保持为通用平地策略，并未针对工厂布局、离散 NaVILA 命令词表或精确停车行为调优。团队应将其跟踪误差和恢复行为视为可见基线特征，而不是需要隐藏的缺陷。
 
 ## 四个检查点
 
 | 检查点 | 团队产出 | 证据 |
 | --- | --- | --- |
-| 1. 环境 | 打开 `orcalab_day`，选择“文件 → 打开布局”，验证 Go2 相机 | 地图与机器人视图截图 |
+| 1. 环境 | 订阅 `VLN_Presentation` 和 `unitree_robots`，打开场景与布局并验证 Go2 相机 | 工厂地图与机器人视图截图 |
 | 2. 自动闭环 | 执行 指令 → NaVILA → 动作 → 运动 | `measurements.json` 与终端动作轨迹 |
 | 3. 巡检逻辑 | 增加巡逻、风险或图像采集行为 | 保存的图片和结构化巡检记录 |
 | 4. 集成 Demo | 打包一个可重复场景 | 短视频、源码、配置说明和运行目录 |
@@ -32,7 +37,12 @@ Orca_VLN 是主办方提供的仿真基线。团队从可运行的 OrcaLab 视�
 
 ### 基线复现
 
-每个团队都必须完成。使用提供的场景、Go2 checkpoint 和 NaVILA server 跑完默认仓库回合，验证仿真器、相机、网络和动作接口正确。
+每个团队都必须完成。订阅 `VLN_Presentation`、载入提供的 `factory.json` 布局，
+并使用 Go2 checkpoint 和 NaVILA server 跑完“红色垃圾桶 → 右转 → 蓝色油桶 →
+白色机械臂”的默认路线，验证仿真器、相机、网络和动作接口正确。
+部署时在[方案 A：单机部署](GETTING_STARTED_zh.md#option-a-single-host)与
+[方案 B：远程推理](REMOTE_INFERENCE_zh.md)中二选一；方案 B 必须先通过文档中的
+SSH 隧道与 NaVILA 协议端到端检查。
 
 ### 任务智能
 
