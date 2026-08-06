@@ -19,7 +19,8 @@ OrcaLocomotion 等低层训练工具请放在独立环境中，只传递兼容�
 
 运行导航前，请在 OrcaLab 中订阅 `VLN_Presentation` 和 `unitree_robots`，选择
 `VLN_Presentation` 场景，再执行 **文件 → 打开布局 → `factory.json`**。订阅完成前
-不要加载布局。默认路线为：红色垃圾桶 → 右转 → 蓝色油桶 → 白色机械臂。
+不要加载布局。场景继续使用提供的 `factory.json` 布局。默认路线为：红色垃圾桶 →
+蓝色油桶 → 沿白色安全围栏右转 → 红色灭火器 → 灰色底座上的白色工业机械臂。
 
 ```bash
 ./scripts/build_kit.sh

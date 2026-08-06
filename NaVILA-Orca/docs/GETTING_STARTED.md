@@ -11,11 +11,11 @@ Run OrcaLab, the NaVILA server, and the navigation process in three terminals. K
 The default instruction is stored in
 [`prompts/orcalab_scene_locomotion.txt`](../prompts/orcalab_scene_locomotion.txt):
 
-> Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm.
+> Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm.
 
 A successful run is more than an error-free terminal. It should satisfy all of the following:
 
-- OrcaLab has the `VLN_Presentation` scene open, with one complete Go2, a tall red bin, a blue barrel, and the white robotic arm.
+- OrcaLab has the `VLN_Presentation` scene open, with one complete Go2, the red waste bin, blue barrels, the red fire extinguisher, and the white industrial robotic arm on its gray pedestal.
 - Images from `mujococamera1080` change as the Go2 moves.
 - The NaVILA server receives eight images plus the task text and returns a parseable action.
 - Go2 moves stably; `outputs/scene_locomotion_smoke/` contains result JSON and RGB frames after the run.
@@ -92,8 +92,8 @@ In the GUI:
 2. Select the `VLN_Presentation` scene.
 3. Choose **File → Open Layout → `NaVILA-Orca/factory.json`**.
 4. Confirm the scene tree contains exactly one complete Go2 actor.
-5. Confirm that the tall red bin, blue barrel, and white robotic arm are visible
-   in the intended order.
+5. Confirm that the red waste bin, blue barrels, red fire extinguisher, and
+   white industrial robotic arm are visible in the intended order.
 
 `VLN_Presentation` supplies the factory scene; `factory.json` stores the actor
 layout layered onto it. The layout references `vln_presentation` assets for the
@@ -136,7 +136,7 @@ explicit for a run, use:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+  --instruction "Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm."
 ```
 
 Important defaults:
@@ -157,7 +157,7 @@ Results are written to `outputs/scene_locomotion_smoke/`. Every run saves at lea
 - Run JSON containing the instruction, parsed action, timing, and trajectory.
 - A scene-alignment file for investigating coordinate or actor issues in the OrcaLab combined XML.
 
-Maintain an experiment table for each run: instruction, first model action, final position, whether it passed the red bin and blue barrel in order, whether it stopped at the white arm, unexpected turns, and screenshot filename. Do not record only “pass/fail”.
+Maintain an experiment table for each run: instruction, first model action, final position, whether it passed the red bin and blue barrels, followed the safety fence to the red fire extinguisher, stopped at the white industrial arm, unexpected turns, and screenshot filename. Do not record only “pass/fail”.
 
 ## 6. Three progressive tasks
 

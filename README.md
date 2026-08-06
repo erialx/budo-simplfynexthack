@@ -120,7 +120,8 @@ Before navigation, in OrcaLab:
 2. Select `VLN_Presentation`, wait for both subscriptions to finish, then open
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json) with
    **File → Open Layout**.
-3. Confirm that the Go2, red bin, blue barrel, and white robotic arm are visible.
+3. Confirm that the Go2, red waste bin, blue barrels, red fire extinguisher,
+   and white industrial robotic arm are visible.
 
 `VLN_Presentation` provides the factory; `factory.json` adds the authored route.
 Keep terminal A and OrcaLab running after the layout is visible.
@@ -156,14 +157,14 @@ or send it directly with `--instruction`, for example:
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+  --instruction "Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm."
 ```
 
 <a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
 
-The default episode passes the red bin, turns right, passes the blue barrel, and stops in front of the white robotic arm. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
+The default episode passes the red waste bin and blue barrels, turns right along the white safety fence toward the red fire extinguisher, and stops in front of the white industrial robotic arm. It is designed to make the full loop visible: instruction, NaVILA response, executed action, ego camera frames, and saved measurements.
 
 | Evaluation dimension | What teams improve | Baseline status |
 | --- | --- | --- |

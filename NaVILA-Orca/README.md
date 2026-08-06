@@ -20,8 +20,10 @@ environment and exchange only a compatible policy checkpoint.
 
 Before navigation, subscribe to `VLN_Presentation` and `unitree_robots`, select
 `VLN_Presentation`, then choose **File → Open Layout → `factory.json`**. Wait
-for both subscriptions to finish before loading the layout. The default route
-is red bin → right turn → blue barrel → white robotic arm.
+for both subscriptions to finish before loading the layout. The scene continues
+to use the supplied `factory.json` layout. The default route is red waste bin →
+blue barrels → right along the white safety fence → red fire extinguisher →
+white industrial robotic arm.
 
 ```bash
 ./scripts/build_kit.sh
