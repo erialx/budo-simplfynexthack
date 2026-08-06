@@ -141,7 +141,7 @@ cd Orca_VLN
 1. 订阅 `VLN_Presentation` 和 `unitree_robots`。
 2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
    [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
-3. 确认 Go2、红色垃圾桶、蓝色油桶和白色机械臂均已出现。
+3. 确认 Go2、红色垃圾桶、蓝色油桶、红色灭火器和白色工业机械臂均已出现。
 
 `VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 1 和
 OrcaLab 运行。
@@ -178,7 +178,7 @@ OrcaLab 或启动仿真：
 
 ```bash
 ./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
-  --instruction "Walk toward the tall red cylindrical waste bin and pass close by it without stopping. As soon as you have passed the red bin, turn right and keep turning until the large blue metal oil barrel is visible in front of you. Walk toward the blue barrel and pass close by it without stopping. Only after you have reached the blue barrel, continue toward the white robotic arm at the far end. Approach the front of the white robot arm and stop only when you are close to its front. Follow this exact order: red bin, right turn, blue barrel, white arm."
+  --instruction "Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm."
 ```
 
 <a id="remote-inference"></a>
@@ -335,7 +335,7 @@ ssh -p "$SSH_PORT" \
 
 ## 🏁 竞赛基线
 
-默认任务要求机器人经过红色垃圾桶、右转、经过蓝色油桶，最后在白色机械臂前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
+默认任务要求机器人经过红色垃圾桶和蓝色油桶，沿白色安全围栏右转前往红色灭火器，最后在白色工业机械臂前停止。这条完整闭环的每一步都可直接观察：指令、NaVILA 响应、实际执行的动作、第一视角相机帧和保存的测量结果。
 
 | 评测维度 | 可优化方向 | 基线状态 |
 | --- | --- | --- |

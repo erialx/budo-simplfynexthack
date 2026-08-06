@@ -44,7 +44,9 @@ service startup, the SSH tunnel, and the end-to-end NaVILA protocol check.
 Under either deployment option, subscribe to `VLN_Presentation` and
 `unitree_robots` in OrcaLab and wait for both subscriptions to finish. Select
 `VLN_Presentation`, then choose **File → Open Layout → `factory.json`**. The
-default route is red bin → right turn → blue barrel → white robotic arm.
+scene continues to use the supplied `factory.json` layout. The default route
+is red waste bin → blue barrels → right along the white safety fence → red fire
+extinguisher → white industrial robotic arm.
 
 NaVILA remains in a separate runtime under both options. The TCP server adapter
 is owned by this project, and the model is downloaded to the default project
