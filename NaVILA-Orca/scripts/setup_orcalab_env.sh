@@ -90,22 +90,64 @@ if shutil.which("patchelf") is None:
         "patchelf is installed in the OrcaLab environment but is not on PATH. "
         "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
     )
+from importlib.util import find_spec
 import PySide6
-import orcalab_pyside
+import shiboken6
+orcalab_pyside_spec = find_spec("orcalab_pyside")
+if orcalab_pyside_spec is None or orcalab_pyside_spec.origin is None:
+    raise SystemExit("orcalab-pyside package is missing")
 native_library = (
-    Path(orcalab_pyside.__file__).resolve().parent / "dist" / "OrcaPySide.so"
+    Path(orcalab_pyside_spec.origin).resolve().parent / "dist" / "OrcaPySide.so"
 )
+glvnd_sonames = ("libGL.so.1", "libOpenGL.so.0")
+opengl_consumers = [
+    native_library,
+    native_library.parent / "libPySideGameLauncher.so",
+]
+for consumer in opengl_consumers:
+    if not consumer.is_file():
+        raise SystemExit(f"OrcaLab OpenGL consumer is missing: {consumer}")
+    needed = subprocess.check_output(
+        [shutil.which("patchelf"), "--print-needed", str(consumer)], text=True
+    ).splitlines()
+    glvnd = [item for item in needed if Path(item).name in glvnd_sonames]
+    if not glvnd:
+        raise SystemExit(
+            f"{consumer.name} declares no supported OpenGL dependency. "
+            "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+        )
+    unbound = [
+        item
+        for item in glvnd
+        if not Path(item).is_absolute() or not Path(item).is_file()
+    ]
+    if unbound:
+        raise SystemExit(
+            f"{consumer.name} is not bound to host GLVND: {', '.join(unbound)}. "
+            "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+        )
 native_rpath = subprocess.check_output(
     [shutil.which("patchelf"), "--print-rpath", str(native_library)], text=True
 ).strip()
-expected_pyside = str(Path(PySide6.__file__).resolve().parent)
-if expected_pyside not in native_rpath.split(":"):
+expected_pyside = Path(PySide6.__file__).resolve().parent
+expected_rpath_entries = {
+    str(expected_pyside),
+    str(expected_pyside / "Qt" / "lib"),
+    str(Path(shiboken6.__file__).resolve().parent),
+}
+missing_rpath_entries = sorted(
+    expected_rpath_entries.difference(native_rpath.split(":"))
+)
+if missing_rpath_entries:
     raise SystemExit(
-        "OrcaLab native viewport points at a different Python environment. "
+        "OrcaLab native viewport RPATH is incomplete or points at a different "
+        f"Python environment; missing {', '.join(missing_rpath_entries)}. "
         "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
     )
 
-qt_root = Path(PySide6.__file__).resolve().parent
+import orcalab_pyside
+
+qt_root = expected_pyside
 xcb_plugin = next(qt_root.rglob("libqxcb.so"), None)
 if xcb_plugin is None:
     raise SystemExit("PySide6 xcb platform plugin is missing")
