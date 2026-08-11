@@ -29,6 +29,7 @@ PAK_URL = (
     "orcalab_linux.26.7.1.pak"
 )
 PAK_SHA256 = "11f292569ed54f2be5991b3a3f6e60fac2d34a52a384c3cbf97ef9b2f9a6af88"
+GLVND_SONAMES = ("libGL.so.1", "libOpenGL.so.0")
 
 
 def sha256(path: Path) -> str:
@@ -106,8 +107,18 @@ def extract_runtime(archive: Path, destination: Path) -> Path:
     return root
 
 
-def system_opengl() -> Path:
-    """Resolve the host GLVND OpenGL library instead of OrcaLab's partial copy."""
+def glvnd_dependencies(needed: list[str]) -> tuple[str, ...]:
+    """Return the OpenGL ABI entries declared in an ELF dependency list."""
+    return tuple(
+        item for item in needed if Path(item).name in GLVND_SONAMES
+    )
+
+
+def system_glvnd_library(soname: str) -> Path:
+    """Resolve a requested OpenGL ABI from the host GLVND installation."""
+    if soname not in GLVND_SONAMES:
+        raise ValueError(f"unsupported GLVND library: {soname}")
+
     ldconfig = shutil.which("ldconfig")
     if ldconfig is None:
         for candidate in (Path("/sbin/ldconfig"), Path("/usr/sbin/ldconfig")):
@@ -117,21 +128,25 @@ def system_opengl() -> Path:
     if ldconfig is not None:
         cache = subprocess.check_output([ldconfig, "-p"], text=True)
         for line in cache.splitlines():
-            match = re.match(r"\s*libOpenGL\.so\.0\s+.*=>\s+(\S+)\s*$", line)
+            match = re.match(
+                rf"\s*{re.escape(soname)}\s+.*=>\s+(\S+)\s*$", line
+            )
             if match:
                 library = Path(match.group(1))
                 if library.is_file():
                     return library
 
     for pattern in (
-        "/lib/*-linux-gnu/libOpenGL.so.0",
-        "/usr/lib/*-linux-gnu/libOpenGL.so.0",
+        f"/lib/*-linux-gnu/{soname}",
+        f"/usr/lib/*-linux-gnu/{soname}",
+        f"/lib/{soname}",
+        f"/usr/lib/{soname}",
     ):
         candidates = sorted(Path("/").glob(pattern.removeprefix("/")))
         if candidates:
             return candidates[0]
     raise RuntimeError(
-        "system libOpenGL.so.0 is missing; run "
+        f"system {soname} is missing; run "
         "./NaVILA-Orca/scripts/setup_system_deps.sh"
     )
 
@@ -151,40 +166,39 @@ def patch_native_runtime(root: Path) -> None:
     pyside6 = Path(PySide6.__file__).resolve().parent
     python_lib = Path(sysconfig.get_config_var("LIBDIR")).resolve()
     dist = native_library.parent.resolve()
-    host_opengl = system_opengl()
 
-    # OrcaLab 26.7.1 ships libOpenGL.so.0 without its matching
-    # libGLdispatch.so.0. On some driver/Ubuntu combinations this mixes two
-    # GLVND builds and fails with an undefined _glapi_tls_Current symbol.
-    # Patch only the two viewport consumers; keep all other packaged runtime
-    # libraries unchanged.
+    # OrcaLab runtime builds have directly linked either libGL.so.1 or
+    # libOpenGL.so.0. Bind whichever ABI each ELF actually declares to the
+    # matching host GLVND library. This prevents a packaged OpenGL front end
+    # from mixing with a different host libGLdispatch.so.0 build and failing
+    # with an undefined _glapi_tls_Current symbol.
     opengl_consumers = [native_library, dist / "libPySideGameLauncher.so"]
+    host_glvnd_libraries: set[Path] = set()
     for consumer in opengl_consumers:
         if not consumer.is_file():
             raise RuntimeError(f"OrcaLab OpenGL consumer is missing: {consumer}")
         needed = subprocess.check_output(
             [str(patchelf), "--print-needed", str(consumer)], text=True
         ).splitlines()
-        current = next(
-            (
-                item
-                for item in needed
-                if Path(item).name.startswith("libOpenGL.so.0")
-            ),
-            None,
-        )
-        if current is None:
-            raise RuntimeError(f"{consumer.name} does not declare libOpenGL.so.0")
-        if current != str(host_opengl):
-            subprocess.check_call(
-                [
-                    str(patchelf),
-                    "--replace-needed",
-                    current,
-                    str(host_opengl),
-                    str(consumer),
-                ]
+        declared_glvnd = glvnd_dependencies(needed)
+        if not declared_glvnd:
+            supported = " or ".join(GLVND_SONAMES)
+            raise RuntimeError(
+                f"{consumer.name} does not declare {supported}"
             )
+        for current in declared_glvnd:
+            host_glvnd = system_glvnd_library(Path(current).name)
+            host_glvnd_libraries.add(host_glvnd)
+            if current != str(host_glvnd):
+                subprocess.check_call(
+                    [
+                        str(patchelf),
+                        "--replace-needed",
+                        current,
+                        str(host_glvnd),
+                        str(consumer),
+                    ]
+                )
 
     rpath = f"$ORIGIN:{pyside6}:{python_lib}:{dist}"
     subprocess.check_call(
@@ -202,14 +216,21 @@ def patch_native_runtime(root: Path) -> None:
     linked = subprocess.check_output(
         ["ldd", str(native_library)], text=True, env=clean_environment
     )
-    if str(host_opengl) not in linked:
+    unresolved_glvnd = [
+        str(library)
+        for library in sorted(host_glvnd_libraries)
+        if str(library) not in linked
+    ]
+    if unresolved_glvnd:
         raise RuntimeError(
             "OrcaLab native viewport does not resolve against the complete "
-            f"host OpenGL stack:\n{linked}"
+            "host OpenGL stack; missing "
+            f"{', '.join(unresolved_glvnd)}:\n{linked}"
         )
+    resolved = ", ".join(str(library) for library in sorted(host_glvnd_libraries))
     print(
         "[orcalab-runtime] native viewport RPATH and host OpenGL verified: "
-        f"{host_opengl}"
+        f"{resolved}"
     )
 
 

@@ -221,7 +221,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | `Actor does not exist` | OrcaLab scene tree | setting not imported, Go2 deleted, or actor name mismatch |
 | `Failed to initialize NVML: Driver/library version mismatch` | Host NVIDIA driver | Userspace driver was updated while an older kernel module remains loaded; keep `.conda/`, reboot once, then run `nvidia-smi` and `setup_all.sh` |
 | Qt cannot load the `xcb` platform plugin | Ubuntu system libraries | Rerun `setup_all.sh`, or run `setup_system_deps.sh` directly to install the required Qt/XCB packages |
-| `libOpenGL.so.0: undefined symbol: _glapi_tls_Current` | OrcaLab's partial OpenGL copy is mixed with another GLVND build | Pull the latest branch and rerun `setup_orcalab_env.sh`; the project now binds the viewport to the host's complete OpenGL stack |
+| `libOpenGL.so.0: undefined symbol: _glapi_tls_Current` | An OrcaLab OpenGL front end is mixed with a different GLVND dispatcher | Pull the latest branch and rerun `setup_orcalab_env.sh`; the project binds the ELF-declared `libGL.so.1` or `libOpenGL.so.0` ABI to the matching host library |
 | OrcaLab installs `orcalab-pyside` and asks for a restart | incomplete old setup | Pull the latest repository and rerun `setup_orcalab_env.sh`; Doctor verifies the native viewport, `patchelf`, and its environment-specific RPATH |
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |

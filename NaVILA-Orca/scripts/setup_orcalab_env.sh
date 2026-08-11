@@ -95,6 +95,33 @@ import orcalab_pyside
 native_library = (
     Path(orcalab_pyside.__file__).resolve().parent / "dist" / "OrcaPySide.so"
 )
+glvnd_sonames = ("libGL.so.1", "libOpenGL.so.0")
+opengl_consumers = [
+    native_library,
+    native_library.parent / "libPySideGameLauncher.so",
+]
+for consumer in opengl_consumers:
+    if not consumer.is_file():
+        raise SystemExit(f"OrcaLab OpenGL consumer is missing: {consumer}")
+    needed = subprocess.check_output(
+        [shutil.which("patchelf"), "--print-needed", str(consumer)], text=True
+    ).splitlines()
+    glvnd = [item for item in needed if Path(item).name in glvnd_sonames]
+    if not glvnd:
+        raise SystemExit(
+            f"{consumer.name} declares no supported OpenGL dependency. "
+            "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+        )
+    unbound = [
+        item
+        for item in glvnd
+        if not Path(item).is_absolute() or not Path(item).is_file()
+    ]
+    if unbound:
+        raise SystemExit(
+            f"{consumer.name} is not bound to host GLVND: {', '.join(unbound)}. "
+            "Run ./NaVILA-Orca/scripts/setup_orcalab_env.sh to repair it."
+        )
 native_rpath = subprocess.check_output(
     [shutil.which("patchelf"), "--print-rpath", str(native_library)], text=True
 ).strip()

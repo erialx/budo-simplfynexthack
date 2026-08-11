@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -15,6 +16,17 @@ def _make_executable(path: Path, body: str = "#!/usr/bin/env bash\nexit 0\n") ->
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body, encoding="utf-8")
     path.chmod(0o755)
+
+
+def _load_runtime_preparer():
+    module_path = SCRIPTS / "prepare_orcalab_runtime.py"
+    spec = importlib.util.spec_from_file_location(
+        "prepare_orcalab_runtime", module_path
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_runtime_resolver_prefers_project_prefix_over_active_conda(
@@ -202,6 +214,45 @@ def test_orcalab_runtime_pins_the_cuda_12_8_wheel_pair() -> None:
     assert 'require_equal("torch CUDA build", torch.version.cuda, "12.8")' in setup
 
 
+def test_orcalab_runtime_recognizes_both_glvnd_frontend_abis() -> None:
+    preparer = _load_runtime_preparer()
+
+    assert preparer.glvnd_dependencies(
+        ["libQt6Gui.so.6", "libGL.so.1", "libc.so.6"]
+    ) == ("libGL.so.1",)
+    assert preparer.glvnd_dependencies(
+        [
+            "libQt6Gui.so.6",
+            "/lib/x86_64-linux-gnu/libOpenGL.so.0",
+            "libc.so.6",
+        ]
+    ) == ("/lib/x86_64-linux-gnu/libOpenGL.so.0",)
+
+
+def test_orcalab_runtime_resolves_the_requested_host_glvnd_library(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    preparer = _load_runtime_preparer()
+    host_libgl = tmp_path / "libGL.so.1"
+    host_libopengl = tmp_path / "libOpenGL.so.0"
+    host_libgl.touch()
+    host_libopengl.touch()
+    cache = (
+        f"\tlibOpenGL.so.0 (libc6,x86-64) => {host_libopengl}\n"
+        f"\tlibGL.so.1 (libc6,x86-64) => {host_libgl}\n"
+    )
+
+    monkeypatch.setattr(preparer.shutil, "which", lambda _name: "/sbin/ldconfig")
+    monkeypatch.setattr(
+        preparer.subprocess,
+        "check_output",
+        lambda _command, text: cache,
+    )
+
+    assert preparer.system_glvnd_library("libGL.so.1") == host_libgl
+    assert preparer.system_glvnd_library("libOpenGL.so.0") == host_libopengl
+
+
 def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
     import importlib.util
     import sys
@@ -309,6 +360,8 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert "patchelf==0.17.2.4" in constraints
     assert "prepare_orcalab_runtime.py" in setup
     assert "env -u LD_LIBRARY_PATH" in setup
+    assert 'glvnd_sonames = ("libGL.so.1", "libOpenGL.so.0")' in setup
+    assert "is not bound to host GLVND" in setup
     assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
     assert "unset LD_LIBRARY_PATH" in resolver
     assert 'version("orcalab-pyside") == "26.7.1"' in resolver
@@ -316,4 +369,5 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert PAK_SHA256 in preparer
     assert '"--replace-needed"' in preparer
     assert "libPySideGameLauncher.so" in preparer
+    assert 'GLVND_SONAMES = ("libGL.so.1", "libOpenGL.so.0")' in preparer
     assert "_glapi_tls_Current" in preparer
