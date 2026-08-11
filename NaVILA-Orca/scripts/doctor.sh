@@ -38,6 +38,18 @@ fail() {
   FAILURES=$((FAILURES + 1))
 }
 
+print_verification_details() {
+  local check_name="$1"
+  local diagnostic="$2"
+
+  printf 'Verification details (%s):\n' "${check_name}" >&2
+  if [[ -n "${diagnostic}" ]]; then
+    printf '%s\n' "${diagnostic}" >&2
+  else
+    printf '%s\n' '(verification command failed without output)' >&2
+  fi
+}
+
 check_command() {
   if command -v "$1" >/dev/null 2>&1; then
     pass "$1: $(command -v "$1")"
@@ -73,24 +85,36 @@ check_file "${PROJECT_ROOT}/factory.json" "VLN_Presentation factory layout"
 check_file "${PROJECT_ROOT}/src/navila_orca/assets/checkpoints/go2_flat.pt" "Go2 checkpoint"
 check_file "${PROJECT_ROOT}/scripts/navila_vlm_server.py" "project-owned NaVILA server"
 
-if "${PROJECT_ROOT}/scripts/setup_system_deps.sh" --verify >/dev/null 2>&1; then
+SYSTEM_DEPS_DIAGNOSTIC=""
+if SYSTEM_DEPS_DIAGNOSTIC="$(
+  "${PROJECT_ROOT}/scripts/setup_system_deps.sh" --verify 2>&1
+)"; then
   pass "OrcaLab GUI system libraries"
 else
   fail "OrcaLab GUI system libraries are missing; run scripts/setup_system_deps.sh"
+  print_verification_details "OrcaLab GUI system libraries" "${SYSTEM_DEPS_DIAGNOSTIC}"
 fi
 
-if NAVILA_ORCALAB_ENV_PREFIX="${ORCALAB_PREFIX}" \
-  "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh" --verify >/dev/null 2>&1; then
+ORCALAB_ENV_DIAGNOSTIC=""
+if ORCALAB_ENV_DIAGNOSTIC="$(
+  NAVILA_ORCALAB_ENV_PREFIX="${ORCALAB_PREFIX}" \
+    "${PROJECT_ROOT}/scripts/setup_orcalab_env.sh" --verify 2>&1
+)"; then
   pass "OrcaLab environment: ${ORCALAB_PREFIX}"
 else
   fail "OrcaLab environment is missing or inconsistent; run scripts/setup_orcalab_env.sh"
+  print_verification_details "OrcaLab environment" "${ORCALAB_ENV_DIAGNOSTIC}"
 fi
 
-if NAVILA_ENV_PREFIX="${NAVILA_PREFIX}" \
-  "${PROJECT_ROOT}/scripts/setup_navila_env.sh" --verify >/dev/null 2>&1; then
+NAVILA_ENV_DIAGNOSTIC=""
+if NAVILA_ENV_DIAGNOSTIC="$(
+  NAVILA_ENV_PREFIX="${NAVILA_PREFIX}" \
+    "${PROJECT_ROOT}/scripts/setup_navila_env.sh" --verify 2>&1
+)"; then
   pass "NaVILA environment: ${NAVILA_PREFIX}"
 else
   fail "NaVILA environment is missing or inconsistent; run scripts/setup_navila_env.sh"
+  print_verification_details "NaVILA environment" "${NAVILA_ENV_DIAGNOSTIC}"
 fi
 
 if [[ -x "${ORCALAB_PREFIX}/bin/python" ]] && \
