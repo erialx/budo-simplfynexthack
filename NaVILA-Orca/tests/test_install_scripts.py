@@ -229,6 +229,21 @@ def test_orcalab_runtime_recognizes_both_glvnd_frontend_abis() -> None:
     ) == ("/lib/x86_64-linux-gnu/libOpenGL.so.0",)
 
 
+def test_orcalab_runtime_reuses_the_verified_legacy_archive(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    preparer = _load_runtime_preparer()
+    legacy = tmp_path / "python-project-unknown.tar.xz"
+    legacy.touch()
+    monkeypatch.setattr(
+        preparer,
+        "sha256",
+        lambda path: preparer.PYSIDE_SHA256 if path == legacy else "invalid",
+    )
+
+    assert preparer.runtime_archive(tmp_path) == legacy
+
+
 def test_orcalab_runtime_resolves_the_requested_host_glvnd_library(
     tmp_path: Path, monkeypatch,
 ) -> None:
@@ -394,6 +409,8 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert '"--replace-needed"' in preparer
     assert "libPySideGameLauncher.so" in preparer
     assert 'GLVND_SONAMES = ("libGL.so.1", "libOpenGL.so.0")' in preparer
+    assert 'f"orcalab-pyside-{url_version}"' in preparer
+    assert "url_version = ORCALAB_VERSION" in preparer
     assert 'pyside6 / "Qt" / "lib"' in preparer
     assert "has unresolved libraries" in preparer
     assert "_glapi_tls_Current" in preparer

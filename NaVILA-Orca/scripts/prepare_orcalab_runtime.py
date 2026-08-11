@@ -63,6 +63,18 @@ def download_verified(url: str, destination: Path, expected_sha256: str) -> None
         temporary.unlink(missing_ok=True)
 
 
+def runtime_archive(user_root: Path) -> Path:
+    """Reuse either the versioned cache or the legacy ``unknown`` cache."""
+    candidates = (
+        user_root / f"python-project-{ORCALAB_VERSION}.tar.xz",
+        user_root / "python-project-unknown.tar.xz",
+    )
+    for candidate in candidates:
+        if candidate.is_file() and sha256(candidate) == PYSIDE_SHA256:
+            return candidate
+    return candidates[0]
+
+
 def editable_root(root: Path) -> Path | None:
     candidates = [root, *sorted(path.parent for path in root.rglob("pyproject.toml"))]
     for candidate in candidates:
@@ -277,12 +289,13 @@ def main() -> int:
     user_root = (
         Path.home() / "Orca" / "OrcaStudio" / project_id / "user"
     )
-    # OrcaLab 26.7.1's own URL parser names this release "unknown". Keep the
-    # same paths and state value so its first GUI process recognizes the
-    # preinstalled official runtime instead of installing it again.
-    url_version = "unknown"
-    archive = user_root / f"python-project-{url_version}.tar.xz"
-    destination = user_root / "orcalab-pyside"
+    # OrcaLab 26.7.1 loads its external viewport from a versioned directory.
+    # Older project setup runs cached the same verified archive under the
+    # "unknown" name, so reuse that cache while installing and patching the
+    # directory the GUI actually imports.
+    url_version = ORCALAB_VERSION
+    archive = runtime_archive(user_root)
+    destination = user_root / f"orcalab-pyside-{url_version}"
     state_file = user_root / ".orcalab-pyside-install-state.json"
     pak = Path(get_cache_folder()) / Path(PAK_URL).name
 
