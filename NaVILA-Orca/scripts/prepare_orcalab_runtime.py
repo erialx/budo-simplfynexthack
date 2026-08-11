@@ -151,6 +151,21 @@ def system_glvnd_library(soname: str) -> Path:
     )
 
 
+def native_rpath(
+    pyside6: Path, shiboken6: Path, python_lib: Path, dist: Path
+) -> str:
+    """Build the search path required by the OrcaLab viewport extension."""
+    entries = (
+        "$ORIGIN",
+        str(pyside6),
+        str(pyside6 / "Qt" / "lib"),
+        str(shiboken6),
+        str(python_lib),
+        str(dist),
+    )
+    return ":".join(entries)
+
+
 def patch_native_runtime(root: Path) -> None:
     native_library = (
         root / "src" / "orcalab_pyside" / "dist" / "OrcaPySide.so"
@@ -162,10 +177,15 @@ def patch_native_runtime(root: Path) -> None:
         raise RuntimeError(f"pinned patchelf executable is missing: {patchelf}")
 
     import PySide6
+    import shiboken6
 
     pyside6 = Path(PySide6.__file__).resolve().parent
+    shiboken6_root = Path(shiboken6.__file__).resolve().parent
     python_lib = Path(sysconfig.get_config_var("LIBDIR")).resolve()
     dist = native_library.parent.resolve()
+    qt_lib = pyside6 / "Qt" / "lib"
+    if not qt_lib.is_dir():
+        raise RuntimeError(f"PySide6 Qt library directory is missing: {qt_lib}")
 
     # OrcaLab runtime builds have directly linked either libGL.so.1 or
     # libOpenGL.so.0. Bind whichever ABI each ELF actually declares to the
@@ -200,7 +220,7 @@ def patch_native_runtime(root: Path) -> None:
                     ]
                 )
 
-    rpath = f"$ORIGIN:{pyside6}:{python_lib}:{dist}"
+    rpath = native_rpath(pyside6, shiboken6_root, python_lib, dist)
     subprocess.check_call(
         [str(patchelf), "--set-rpath", rpath, str(native_library)]
     )
@@ -216,6 +236,14 @@ def patch_native_runtime(root: Path) -> None:
     linked = subprocess.check_output(
         ["ldd", str(native_library)], text=True, env=clean_environment
     )
+    missing_libraries = [
+        line.strip() for line in linked.splitlines() if "not found" in line
+    ]
+    if missing_libraries:
+        raise RuntimeError(
+            "OrcaLab native viewport has unresolved libraries:\n"
+            + "\n".join(missing_libraries)
+        )
     unresolved_glvnd = [
         str(library)
         for library in sorted(host_glvnd_libraries)

@@ -253,6 +253,28 @@ def test_orcalab_runtime_resolves_the_requested_host_glvnd_library(
     assert preparer.system_glvnd_library("libOpenGL.so.0") == host_libopengl
 
 
+def test_orcalab_runtime_rpath_includes_qt_and_shiboken_libraries() -> None:
+    preparer = _load_runtime_preparer()
+    pyside6 = Path("/env/site-packages/PySide6")
+    shiboken6 = Path("/env/site-packages/shiboken6")
+
+    entries = preparer.native_rpath(
+        pyside6,
+        shiboken6,
+        Path("/env/lib"),
+        Path("/runtime/dist"),
+    ).split(":")
+
+    assert entries == [
+        "$ORIGIN",
+        str(pyside6),
+        str(pyside6 / "Qt" / "lib"),
+        str(shiboken6),
+        "/env/lib",
+        "/runtime/dist",
+    ]
+
+
 def test_blackwell_cuda_preflight_rejects_a_pre_cuda_12_8_torch_build() -> None:
     import importlib.util
     import sys
@@ -362,6 +384,8 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert "env -u LD_LIBRARY_PATH" in setup
     assert 'glvnd_sonames = ("libGL.so.1", "libOpenGL.so.0")' in setup
     assert "is not bound to host GLVND" in setup
+    assert 'expected_pyside / "Qt" / "lib"' in setup
+    assert "import shiboken6" in setup
     assert 'export PATH="$(dirname "${resolved_python}"):${PATH}"' in resolver
     assert "unset LD_LIBRARY_PATH" in resolver
     assert 'version("orcalab-pyside") == "26.7.1"' in resolver
@@ -370,4 +394,6 @@ def test_orcalab_setup_prepares_native_viewport_before_first_gui() -> None:
     assert '"--replace-needed"' in preparer
     assert "libPySideGameLauncher.so" in preparer
     assert 'GLVND_SONAMES = ("libGL.so.1", "libOpenGL.so.0")' in preparer
+    assert 'pyside6 / "Qt" / "lib"' in preparer
+    assert "has unresolved libraries" in preparer
     assert "_glapi_tls_Current" in preparer
