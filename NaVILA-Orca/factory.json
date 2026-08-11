@@ -2,15 +2,15 @@
     "version": "3.0",
     "viewport_camera_transform": {
         "position": [
-            -4.746154308319092,
-            0.46544623374938965,
-            4.24453067779541
+            -0.19132697582244873,
+            9.026653289794922,
+            6.894167900085449
         ],
         "rotation": [
-            0.9685627435102514,
-            -0.03231788497722833,
-            -0.008225766191513254,
-            0.24652404135308206
+            0.32884808607429045,
+            -0.15210772695835573,
+            0.39128764550743594,
+            -0.8459409873969257
         ]
     },
     "actors": [
@@ -138,15 +138,15 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            7.544166088104248,
-                                            11.798785209655762,
+                                            7.696183681488037,
+                                            12.33553695678711,
                                             1.2999999523162842
                                         ],
                                         "rotation": [
-                                            0.8031354217531327,
+                                            0.8031354100870378,
                                             0.0,
                                             0.0,
-                                            -0.5957965209074468
+                                            -0.5957965366333761
                                         ],
                                         "scale": 1.0
                                     },
@@ -158,15 +158,15 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            8.782684326171875,
-                                            8.83973217010498,
+                                            8.281548500061035,
+                                            8.5595121383667,
                                             1.2999999523162842
                                         ],
                                         "rotation": [
-                                            0.6360923993982804,
+                                            0.6360924202625906,
                                             0.0,
                                             0.0,
-                                            -0.7716128948039545
+                                            -0.7716128776041
                                         ],
                                         "scale": 1.0
                                     },
@@ -178,15 +178,73 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            7.538831233978272,
-                                            11.809159278869627,
+                                            7.6908488273620605,
+                                            12.345911026000977,
                                             2.86102294921875e-06
                                         ],
                                         "rotation": [
-                                            0.5991505159986267,
+                                            0.5991505294937896,
                                             0.0,
                                             0.0,
-                                            0.8006364088514707
+                                            0.8006363987524623
+                                        ],
+                                        "scale": 1.0
+                                    },
+                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_a"
+                                },
+                                {
+                                    "name": "CoolingRib_01_A_2",
+                                    "path": "/Group/Static/CoolingRib/CoolingRib_01_A_2",
+                                    "type": "AssetActor",
+                                    "transform": {
+                                        "position": [
+                                            8.938568115234375,
+                                            9.375001907348633,
+                                            2.86102294921875e-06
+                                        ],
+                                        "rotation": [
+                                            0.8593607529112378,
+                                            0.0,
+                                            0.0,
+                                            -0.5113698234700895
+                                        ],
+                                        "scale": 1.0
+                                    },
+                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_a",
+                                    "entity_overrides": [
+                                        {
+                                            "entity_path": [],
+                                            "group_overrids": [
+                                                {
+                                                    "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                                                    "type_index": 0,
+                                                    "property_overrides": [
+                                                        {
+                                                            "name": "rotate.z",
+                                                            "value": -61.510250091552734,
+                                                            "type": "float"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "CoolingRib_01_A_3",
+                                    "path": "/Group/Static/CoolingRib/CoolingRib_01_A_3",
+                                    "type": "AssetActor",
+                                    "transform": {
+                                        "position": [
+                                            9.017301559448242,
+                                            9.2853364944458,
+                                            2.86102294921875e-06
+                                        ],
+                                        "rotation": [
+                                            0.9192302672801475,
+                                            0.0,
+                                            0.0,
+                                            0.39372035217406376
                                         ],
                                         "scale": 1.0
                                     },
@@ -198,15 +256,15 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            8.729409217834473,
-                                            8.560286521911621,
+                                            8.228273391723633,
+                                            8.28006649017334,
                                             2.86102294921875e-06
                                         ],
                                         "rotation": [
-                                            0.6381538361535942,
+                                            0.638153832005474,
                                             0.0,
                                             0.0,
-                                            -0.7699088786359407
+                                            -0.7699088820741902
                                         ],
                                         "scale": 1.0
                                     },
@@ -218,19 +276,39 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            8.012598037719727,
-                                            10.262965202331545,
+                                            8.164615631103516,
+                                            10.79971694946289,
                                             1.2999999523162842
                                         ],
                                         "rotation": [
-                                            0.8595279660506739,
+                                            0.8595279549987909,
                                             0.0,
                                             0.0,
-                                            -0.5110887159552553
+                                            -0.5110887345418568
                                         ],
                                         "scale": 1.0
                                     },
                                     "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
+                                },
+                                {
+                                    "name": "metal_grille_vent_panel_1",
+                                    "path": "/Group/Static/CoolingRib/metal_grille_vent_panel_1",
+                                    "type": "AssetActor",
+                                    "transform": {
+                                        "position": [
+                                            9.00730037689209,
+                                            9.274371147155762,
+                                            1.2999999523162842
+                                        ],
+                                        "rotation": [
+                                            0.3777322684700917,
+                                            0.0,
+                                            0.0,
+                                            -0.925914862909349
+                                        ],
+                                        "scale": 1.0
+                                    },
+                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_c"
                                 }
                             ]
                         },
@@ -920,42 +998,19 @@
                                     "type": "AssetActor",
                                     "transform": {
                                         "position": [
-                                            2.619776725769043,
-                                            6.5338850021362305,
+                                            2.1721315383911133,
+                                            7.041862964630127,
                                             -2.384185791015625e-07
                                         ],
                                         "rotation": [
-                                            0.7071071090120096,
+                                            0.7071071107358423,
                                             0.0,
                                             0.0,
-                                            0.7071064533609334
+                                            0.7071064516370992
                                         ],
                                         "scale": 1.0
                                     },
-                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/prop/cardbox/cardbox_01_static",
-                                    "entity_overrides": [
-                                        {
-                                            "entity_path": [],
-                                            "group_overrids": [
-                                                {
-                                                    "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                                                    "type_index": 0,
-                                                    "property_overrides": [
-                                                        {
-                                                            "name": "translate.x",
-                                                            "value": 2.619776725769043,
-                                                            "type": "float"
-                                                        },
-                                                        {
-                                                            "name": "translate.y",
-                                                            "value": 6.5338850021362305,
-                                                            "type": "float"
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/prop/cardbox/cardbox_01_static"
                                 },
                                 {
                                     "name": "CardBox_01_Static_3",
@@ -1378,6 +1433,26 @@
                                     "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/prop/cardbox/cardbox_01_static"
                                 },
                                 {
+                                    "name": "CardBox_01_Static_22",
+                                    "path": "/Group/Static/CardBox/CardBox_01_Static_22",
+                                    "type": "AssetActor",
+                                    "transform": {
+                                        "position": [
+                                            9.028546333312988,
+                                            8.379754066467285,
+                                            -2.2351741790771484e-07
+                                        ],
+                                        "rotation": [
+                                            0.8000221437732833,
+                                            0.0,
+                                            0.0,
+                                            -0.5999704738338378
+                                        ],
+                                        "scale": 1.0
+                                    },
+                                    "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/prop/cardbox/cardbox_01_static"
+                                },
+                                {
                                     "name": "CardBox_01_Static_15",
                                     "path": "/Group/Static/CardBox/CardBox_01_Static_15",
                                     "type": "AssetActor",
@@ -1686,9 +1761,9 @@
                             "type": "AssetActor",
                             "transform": {
                                 "position": [
-                                    0.34197163581848145,
-                                    3.49121356010437,
-                                    -0.050045132637023926
+                                    0.8006011843681335,
+                                    3.163637161254883,
+                                    -1.1920928955078125e-07
                                 ],
                                 "rotation": [
                                     1.0,
@@ -1698,55 +1773,27 @@
                                 ],
                                 "scale": 1.0
                             },
-                            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/simple_case_0119/bin/bin",
-                            "entity_overrides": [
-                                {
-                                    "entity_path": [],
-                                    "group_overrids": [
-                                        {
-                                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                                            "type_index": 0,
-                                            "property_overrides": [
-                                                {
-                                                    "name": "translate.x",
-                                                    "value": 0.34197163581848145,
-                                                    "type": "float"
-                                                },
-                                                {
-                                                    "name": "translate.y",
-                                                    "value": 3.49121356010437,
-                                                    "type": "float"
-                                                },
-                                                {
-                                                    "name": "translate.z",
-                                                    "value": -0.050045132637023926,
-                                                    "type": "float"
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
+                            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/simple_case_0119/bin/bin"
                         }
                     ]
                 }
             ]
         },
         {
-            "name": "go2_usda_1",
-            "path": "/go2_usda_1",
+            "name": "quadruped_robot_1",
+            "path": "/quadruped_robot_1",
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    1.0129287242889404,
-                    0.6423062086105347,
+                    0.047792792320251465,
+                    0.8324360847473145,
                     -7.450580152834618e-09
                 ],
                 "rotation": [
-                    0.6945177117450593,
+                    0.7301523186696985,
                     0.0,
                     0.0,
-                    0.7194756063080991
+                    0.6832844148239174
                 ],
                 "scale": 1.0
             },
@@ -1761,827 +1808,12 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": 1.0129287242889404,
+                                    "value": 0.047792792320251465,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": 0.6423062086105347,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 92.02240753173828,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 8.580349922180176,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -4.09252405166626,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.31039711833000183,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -0.1494939923286438,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -0.19635428488254547,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -91.32962799072266,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.19340038299560547,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.04649925231933594,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 2.9802322387695312e-08,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -5.908840179443359,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -3.5884606397473817e-09,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 4.8240362815477056e-09,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        },
-                        {
-                            "name": "FL_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.09549903869628906,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -6.523659124013648e-08,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 39.704559326171875,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 2.3553878847337728e-08,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        },
-                        {
-                            "name": "FL_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "FL_calf",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -4.76837158203125e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -0.21300005912780762,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -180.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -83.56611633300781,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -180.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -0.19340038299560547,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.04649925231933594,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -5.592411994934082,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -3.964760253438726e-08,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -8.61451709965877e-09,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 9.5367431640625e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.09550189971923828,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.00015997886657714844,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": 0.0959266945719719,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 63.69760513305664,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -7.526491430098758e-09,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_calf",
-                            "index": 2
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -1.1920928955078125e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -0.21300077438354492,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": 179.99998474121094,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -88.5083999633789,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 179.99998474121094,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.19339990615844727,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -0.04650115966796875,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -1.4901161193847656e-08,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": 6.478508949279785,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 4.492285210488944e-09,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -3.8668730439894716e-08,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_thigh",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": -0.09549808502197266,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 2.86102294921875e-05,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -0.017252372577786446,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 64.0198974609375,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 6.661594511570001e-07,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_thigh",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_calf",
-                            "index": 2
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -4.76837158203125e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -9.5367431640625e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -0.21300029754638672,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -179.99998474121094,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -87.45709228515625,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -179.99998474121094,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -0.19339942932128906,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -0.046500205993652344,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 2.9802322387695312e-08,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": 6.156955718994141,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 1.746271793834353e-09,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 3.246984192628588e-08,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 4.76837158203125e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -0.09549999237060547,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -1.7881393432617188e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -1.911266878096285e-07,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": 37.527809143066406,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 6.493049653499838e-08,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "RR_calf",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": -0.21300005912780762,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": 180.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -81.72730255126953,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 180.0,
+                                    "value": 0.8324360847473145,
                                     "type": "float"
                                 }
                             ]
