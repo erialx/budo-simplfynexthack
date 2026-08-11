@@ -63,6 +63,18 @@ def download_verified(url: str, destination: Path, expected_sha256: str) -> None
         temporary.unlink(missing_ok=True)
 
 
+def runtime_archive(user_root: Path) -> Path:
+    """Reuse either the versioned cache or the legacy ``unknown`` cache."""
+    candidates = (
+        user_root / f"python-project-{ORCALAB_VERSION}.tar.xz",
+        user_root / "python-project-unknown.tar.xz",
+    )
+    for candidate in candidates:
+        if candidate.is_file() and sha256(candidate) == PYSIDE_SHA256:
+            return candidate
+    return candidates[0]
+
+
 def editable_root(root: Path) -> Path | None:
     candidates = [root, *sorted(path.parent for path in root.rglob("pyproject.toml"))]
     for candidate in candidates:
@@ -151,6 +163,21 @@ def system_glvnd_library(soname: str) -> Path:
     )
 
 
+def native_rpath(
+    pyside6: Path, shiboken6: Path, python_lib: Path, dist: Path
+) -> str:
+    """Build the search path required by the OrcaLab viewport extension."""
+    entries = (
+        "$ORIGIN",
+        str(pyside6),
+        str(pyside6 / "Qt" / "lib"),
+        str(shiboken6),
+        str(python_lib),
+        str(dist),
+    )
+    return ":".join(entries)
+
+
 def patch_native_runtime(root: Path) -> None:
     native_library = (
         root / "src" / "orcalab_pyside" / "dist" / "OrcaPySide.so"
@@ -162,10 +189,15 @@ def patch_native_runtime(root: Path) -> None:
         raise RuntimeError(f"pinned patchelf executable is missing: {patchelf}")
 
     import PySide6
+    import shiboken6
 
     pyside6 = Path(PySide6.__file__).resolve().parent
+    shiboken6_root = Path(shiboken6.__file__).resolve().parent
     python_lib = Path(sysconfig.get_config_var("LIBDIR")).resolve()
     dist = native_library.parent.resolve()
+    qt_lib = pyside6 / "Qt" / "lib"
+    if not qt_lib.is_dir():
+        raise RuntimeError(f"PySide6 Qt library directory is missing: {qt_lib}")
 
     # OrcaLab runtime builds have directly linked either libGL.so.1 or
     # libOpenGL.so.0. Bind whichever ABI each ELF actually declares to the
@@ -200,7 +232,7 @@ def patch_native_runtime(root: Path) -> None:
                     ]
                 )
 
-    rpath = f"$ORIGIN:{pyside6}:{python_lib}:{dist}"
+    rpath = native_rpath(pyside6, shiboken6_root, python_lib, dist)
     subprocess.check_call(
         [str(patchelf), "--set-rpath", rpath, str(native_library)]
     )
@@ -216,6 +248,14 @@ def patch_native_runtime(root: Path) -> None:
     linked = subprocess.check_output(
         ["ldd", str(native_library)], text=True, env=clean_environment
     )
+    missing_libraries = [
+        line.strip() for line in linked.splitlines() if "not found" in line
+    ]
+    if missing_libraries:
+        raise RuntimeError(
+            "OrcaLab native viewport has unresolved libraries:\n"
+            + "\n".join(missing_libraries)
+        )
     unresolved_glvnd = [
         str(library)
         for library in sorted(host_glvnd_libraries)
@@ -249,12 +289,13 @@ def main() -> int:
     user_root = (
         Path.home() / "Orca" / "OrcaStudio" / project_id / "user"
     )
-    # OrcaLab 26.7.1's own URL parser names this release "unknown". Keep the
-    # same paths and state value so its first GUI process recognizes the
-    # preinstalled official runtime instead of installing it again.
-    url_version = "unknown"
-    archive = user_root / f"python-project-{url_version}.tar.xz"
-    destination = user_root / "orcalab-pyside"
+    # OrcaLab 26.7.1 loads its external viewport from a versioned directory.
+    # Older project setup runs cached the same verified archive under the
+    # "unknown" name, so reuse that cache while installing and patching the
+    # directory the GUI actually imports.
+    url_version = ORCALAB_VERSION
+    archive = runtime_archive(user_root)
+    destination = user_root / f"orcalab-pyside-{url_version}"
     state_file = user_root / ".orcalab-pyside-install-state.json"
     pak = Path(get_cache_folder()) / Path(PAK_URL).name
 
