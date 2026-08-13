@@ -349,6 +349,48 @@ OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
 建立隧道、无需第三方库的健康检查，以及可选的模拟推理往返。主办方为
 每支队伍开通一个 SSO 账号；指南中的固定值为当前测试环境配置。
 
+完成 SSM 连接并通过 NaVILA 服务健康检查后，再完成接下来的步骤。
+
+#### 步骤 1 — 打开 OrcaLab 并组成预设场景
+
+```bash
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
+```
+
+此时不要运行导航。在 OrcaLab 中：
+
+1. 订阅 `VLN_Presentation` 和 `unitree_robots`。
+2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json)。
+3. 确认 Go2、红色垃圾桶、蓝色油桶、红色灭火器和白色工业机械臂均已出现。
+
+`VLN_Presentation` 提供工厂，`factory.json` 加载已编排的路线。完成后保持终端 1 和
+OrcaLab 运行。
+
+**已经在使用 OrcaLab？** 可以跳过终端 1，直接使用自己已打开的兼容
+OrcaLab GUI（本基线验证版本为 OrcaLab 26.7.1）。只需在该 GUI 中选择
+`VLN_Presentation`，并载入同一个 `factory.json` 布局文件。
+
+#### 步骤 2 — 启动闭环导航
+
+只有 OrcaLab 中已显示完整预设场景，并已按照托管访问指南建立 SSM 端口转发、
+通过 NaVILA 服务健康检查后，才能运行步骤 2。先在 OrcaLab GUI 中依次选择：
+**运行 → 开始模拟 → 无仿真程序 → 启动**，等待外部仿真开始运行。终端 2
+只连接这个已启动的会话，不会自行打开 OrcaLab 或启动仿真：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
+```
+
+将你的导航指令写入
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt)，
+或直接使用 `--instruction` 传入，例如：
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm."
+```
+
 <a id="competition-baseline"></a>
 
 ## 🏁 竞赛基线
