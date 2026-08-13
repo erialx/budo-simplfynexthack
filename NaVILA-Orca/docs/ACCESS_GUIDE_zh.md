@@ -2,17 +2,17 @@
 
 # NaVILA 远程推理 — 访问与冒烟测试指南
 
-本文档面向**单个测试人员**，指导如何实际连通 NaVILA GPU 推理端点。文档
-刻意写死当前环境（单实例、单账号、东京区域），并假定使用 **Linux** 客户端
-（以下命令基于 Debian/Ubuntu）。本文档**不是**学生讲义——请配合现场讲解
-一起使用。
+本文档面向**单个测试人员**，帮助你实际连上 NaVILA GPU 推理端点。文档中的
+参数固定为当前环境（单实例、单账号、东京区域），并假定使用 **Linux** 客户端
+（以下命令基于 Debian/Ubuntu）。本文档**不是**学生讲义，请配合现场讲解
+使用。
 
-你以 IAM Identity Center（SSO）用户身份认证，该身份只被允许**做一件事：
+你的身份是 IAM Identity Center（SSO）用户，该身份只被允许**做一件事：
 对 NaVILA 实例建立 SSM 端口转发**。没有 shell 权限，也没有任何其他 AWS
 访问权限。隧道建立后，推理服务就表现为 `127.0.0.1:54321` 上的本地服务。
 
-连接前只需要**两项安装**（步骤 1–2）。认证只需要从 AWS 访问门户复制粘贴
-临时凭据（步骤 3）。uv 是第三项**可选**安装——仅用于步骤 6 的模拟推理，
+连接前只需安装**两个组件**（步骤 1–2）。认证只需从 AWS 访问门户复制粘贴
+一组临时凭据（步骤 3）。uv 是第三项**可选**安装，仅用于步骤 6 的模拟推理，
 health 检查不需要。
 
 ## 本环境固定参数
@@ -26,13 +26,11 @@ health 检查不需要。
 | 角色 | `NavilaPortForwardOnly` |
 | 本地端口 | `54321` |
 
-> **有一件事不受你控制：** NaVILA **服务必须正在**实例上运行。你无法自行
-> 启动它——按设计，你的权限只包含端口转发。如果步骤 5 的 health 检查连不上，
-> 那是管理员需要处理的事项。
+> **有一件事不受你控制：** 实例上的 NaVILA **服务必须处于运行状态**。你
+> 无法自行启动它——按设计，你的权限只包含端口转发。如果步骤 5 的 health
+> 检查连不上，那是管理员需要处理的事项。
 
-## 最终会用到的东西
-
-两个终端：
+## 你将用到两个终端
 
 - **终端 A** — 你的 AWS 凭据 + SSM 隧道。全程保持打开。
 - **终端 B** — health 检查（以及可选的模拟推理）。只访问
@@ -53,7 +51,7 @@ aws --version
 
 ## 2. 安装 Session Manager 插件
 
-端口转发实际由该插件承载，CLI 会调用它。
+端口转发实际由该插件完成，CLI 会调用它。
 
 ```bash
 curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
@@ -61,7 +59,7 @@ sudo dpkg -i session-manager-plugin.deb
 session-manager-plugin
 ```
 
-最后一条命令应输出一行 "successfully installed"。（RPM 系发行版使用同一
+最后一条命令应输出一行 “successfully installed”。（RPM 系发行版使用同一
 S3 路径下 `linux_64bit/` 目录中的 `.rpm` 包。）
 
 ## 3. 获取临时凭据 — 终端 A
@@ -79,17 +77,17 @@ S3 路径下 `linux_64bit/` 目录中的 `.rpm` 包。）
    export AWS_SESSION_TOKEN="..."
    ```
 
-5. 粘贴到**终端 A**。确认生效——不需要 `--profile`：
+5. 粘贴到**终端 A**。确认已生效——不需要 `--profile`：
 
    ```bash
    aws sts get-caller-identity
    ```
 
-   输出中应包含
-   `assumed-role/AWSReservedSSO_NavilaPortForwardOnly_.../<你>` 的 ARN。
+   输出中应出现一段形如
+   `assumed-role/AWSReservedSSO_NavilaPortForwardOnly_.../<你的用户名>` 的 ARN。
 
 > 这些凭据是**临时的**，只存在于当前终端。过期后（或新开终端时），重复
-> 步骤 3 从门户获取新的一组。想要一条命令完成刷新？参见附录中基于
+> 步骤 3 从门户获取新的一组。如果想用一条命令完成刷新，参见附录中基于
 > profile 的替代方案。
 
 ---
@@ -119,9 +117,9 @@ Waiting for connections...
 
 ## 5. Health 检查 — 终端 B
 
-将以下内容保存为 `check_navvlm_endpoint.py`。它发送 NaVILA 的 health 请求
-（8 字节长度前缀 + JSON，不带图片、不做推理）并校验响应。只使用标准库，
-因此用系统自带的 `python3` 运行即可——且不需要 AWS 凭据。
+将以下内容保存为 `check_navvlm_endpoint.py`。它向 NaVILA 发送 health 请求
+（8 字节长度前缀 + JSON，不带图片、不做推理）并校验响应。脚本只使用标准库，
+因此用系统自带的 `python3` 运行即可，且不需要 AWS 凭据。
 
 ```python
 #!/usr/bin/env python3
@@ -181,8 +179,8 @@ NaVILA endpoint healthy at 127.0.0.1:54321 (protocol_version=1)
 
 ## 6. （可选）模拟推理 — 终端 B
 
-这一步超出 health 检查：发送 8 帧真实图像并在 GPU 上运行模型。它需要
-`pillow` 库，因此这是唯一需要包管理器的地方。
+这一步比 health 检查更进一步：发送 8 帧真实图像并在 GPU 上运行模型。
+它需要 `pillow` 库，因此这是唯一需要用到包管理器的步骤。
 [uv](https://docs.astral.sh/uv/) 最简单——它会读取 `# /// script` 头并自动
 安装 `pillow`，无需手动创建 venv。
 
@@ -268,7 +266,7 @@ response: 'The next action is move forward 25 cm.'
 ```
 
 这次端到端往返——你的受限 SSO 身份 → SSM 隧道 → GPU 推理 → 返回动作——
-就是完整的测试。
+就完成了完整的测试。
 
 ---
 
@@ -280,9 +278,9 @@ response: 'The next action is move forward 25 cm.'
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| 报 `AccessDeniedException`，提示凭据过期或无效 | 临时凭据超时（或贴错了终端） | 重做步骤 3——从门户获取新的环境变量并粘贴到终端 A |
+| 报 `AccessDeniedException`，提示凭据过期或无效 | 临时凭据超时（或粘贴到了错误的终端） | 重做步骤 3——从门户获取新的环境变量并粘贴到终端 A |
 | `Unable to locate credentials` | 当前终端没有凭据 | 你开错了终端，或还没有粘贴步骤 3 的内容 |
-| 报 `AccessDeniedException` 且包含 `SSM-SessionManagerRunShell` | 你尝试了普通 shell 会话（未传 `--document-name`） | 这是设计上禁止的——始终按步骤 4 传入端口转发文档 |
+| 报 `AccessDeniedException` 且包含 `SSM-SessionManagerRunShell` | 你尝试了普通 shell 会话（未传 `--document-name`） | 这是设计上禁止的——始终像步骤 4 那样传入端口转发文档 |
 | Health 检查：`connection refused` / `connection closed` | 实例上的 NaVILA 服务未运行 | 请管理员启动（你无法操作——只有端口转发权限） |
 | Health 检查：`connection refused` 且隧道终端已关闭 | 隧道未运行 | 重新打开终端 A（步骤 3–4） |
 | 建立隧道时报 `Address already in use` | 本地 54321 端口被旧隧道占用 | 关闭旧隧道，或将隧道的 `localPortNumber` **与**两个脚本中的 `PORT` 常量一起改成空闲端口 |
@@ -294,8 +292,8 @@ response: 'The next action is move forward 25 cm.'
 ## 附录 — 备选认证：持久 SSO profile
 
 不想每次会话都复制粘贴临时环境变量（步骤 3），可以一次性配置命名
-profile，之后一条命令即可刷新。取舍：现在做一次向导配置，换取凭据过期时
-不用每次跑浏览器。
+profile，之后一条命令即可刷新。权衡在于：现在做一次向导配置，之后凭据
+过期时就不必再打开浏览器。
 
 一次性配置：
 

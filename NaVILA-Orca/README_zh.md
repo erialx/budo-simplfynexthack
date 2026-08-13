@@ -36,8 +36,8 @@ NaVILA 服务。不要把上面的三条单机命令当作一组客户端命令�
 [远程推理指南](docs/REMOTE_INFERENCE_zh.md)，分别完成两台机器的安装、服务
 启动、SSH 隧道和 NaVILA 协议端到端检查。
 
-如果推理服务器由主办方托管运维（无法 SSH 登录实例），请改按
-[托管访问指南](docs/ACCESS_GUIDE_zh.md) 操作：使用临时 SSO 凭据建立 AWS SSM
+如果推理服务器由主办方托管运维（你无法 SSH 登录实例），请改用
+[托管访问指南](docs/ACCESS_GUIDE_zh.md)：使用临时 SSO 凭据建立 AWS SSM
 端口转发，即可让 NaVILA 表现为 `127.0.0.1:54321` 上的本地服务。
 
 ## 基线场景与随包资源
