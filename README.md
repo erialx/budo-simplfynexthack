@@ -389,7 +389,7 @@ check, complete the following steps.
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
-Do not start navigation yet. In OrcaLab:
+In OrcaLab:
 
 1. Subscribe to `VLN_Presentation` and `unitree_robots`.
 2. Select `VLN_Presentation`. After both subscriptions finish, use
