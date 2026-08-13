@@ -39,6 +39,12 @@ single-host commands above as one client-side sequence. Follow the dedicated
 [remote inference guide](docs/REMOTE_INFERENCE.md) for per-machine installation,
 service startup, the SSH tunnel, and the end-to-end NaVILA protocol check.
 
+If the inference server is hosted and operated by the organizers (no SSH
+access to the instance), follow the
+[managed access guide](docs/ACCESS_GUIDE.md) instead: temporary SSO
+credentials plus an AWS SSM port-forward make NaVILA look like a local
+service on `127.0.0.1:54321`.
+
 ## Baseline scene and packaged resources
 
 Under either deployment option, subscribe to `VLN_Presentation` and

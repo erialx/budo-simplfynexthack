@@ -210,6 +210,29 @@ the tunnel → run the end-to-end check → prepare the scene and navigate → c
 up**. The developer kit also includes a standalone
 [remote-inference deployment guide](NaVILA-Orca/docs/REMOTE_INFERENCE.md).
 
+### Managed remote inference for participants (AWS SSM)
+
+For a server hosted and operated by the organizers — a hackathon or lab
+deployment where participants reach NaVILA without owning the inference host —
+use the dedicated
+[managed access guide](NaVILA-Orca/docs/ACCESS_GUIDE.md). There is no SSH, no
+public endpoint, and no key distribution. Each participant authenticates as an
+IAM Identity Center (SSO) user whose permissions allow exactly one action: an
+AWS SSM port-forward to the NaVILA instance. The inference server then appears
+as a local service on `127.0.0.1:54321`:
+
+```text
+OrcaLab client navigation → 127.0.0.1:54321 → AWS SSM port-forward
+                         → inference server 127.0.0.1:54321 → NaVILA
+```
+
+The tunnel carries only the NaVILA protocol and cannot open a shell on the
+instance. The guide covers the two required installs (AWS CLI v2 and the
+Session Manager plugin), grabbing temporary credentials from the access
+portal, opening the tunnel, a standard-library-only health check, and an
+optional mock inference round trip. Organizers provision one SSO account per
+team; the fixed values in the guide are the current test setup.
+
 ### Install the client and inference server separately
 
 Both hosts need Git, Conda, an NVIDIA driver that passes `nvidia-smi`, and an
@@ -372,6 +395,8 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 ## 🧩 Extend the baseline
 
 - [Getting started](NaVILA-Orca/docs/GETTING_STARTED.md) — scene setup, processes, camera, and first run.
+- [Remote inference](NaVILA-Orca/docs/REMOTE_INFERENCE.md) — split-host deployment over an SSH tunnel.
+- [Managed inference access](NaVILA-Orca/docs/ACCESS_GUIDE.md) — reach a hosted NaVILA server through an AWS SSM port-forward, no SSH or keys.
 - [Hackathon baseline](NaVILA-Orca/docs/HACKATHON_BASELINE.md) — checkpoints, tracks, evidence, and submission scope.
 - [High-level VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — reviewed-data requirements and SFT/LoRA direction.
 - [Low-level integration](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md) — train in OrcaLocomotion, IsaacLab, or another platform; align the model through a stable adapter.
