@@ -62,11 +62,9 @@
 
 ### 一次性安装
 
-单机部署只需准备一台机器；分离部署则要在 OrcaLab 客户端和远端推理服务器
-上分别准备 Git、Conda、NVIDIA 驱动和一份相同版本的仓库 checkout。
-
-如果 `conda --version` 无法运行，直接安装一套干净的 Miniconda。分离部署时
-在两台机器分别执行：
+如果 `conda --version` 无法运行，先安装一套干净的 Miniconda，再克隆项目。
+方案 B 还要求在两台机器上分别执行下面两个步骤——两端都需要 Git、Conda、
+可通过 `nvidia-smi` 检查的 NVIDIA 驱动，以及同一版本的仓库 checkout：
 
 ```bash
 curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -77,25 +75,23 @@ conda init bash
 conda --version
 ```
 
-克隆项目。分离部署时，在客户端和推理服务器分别执行，并保持相同版本：
-
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-> **部署方式三选一：** 选择 **方案 A**、**方案 B** 或 **方案 C**。不要把
-> 方案 A 与方案 B 的安装命令混在同一台机器上执行。
+然后选择一种部署方式：
 
 | 部署方案 | 部署结构 | 适用情况 |
 | --- | --- | --- |
-| **方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
-| **方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
-| **方案 C — 托管远程推理（AWS SSM）** | OrcaLab 在参与者本机，NaVILA 在主办方托管的 AWS 实例 | 黑客松或实验室场景，参与者使用共享 GPU 服务器但无需拥有它 |
+| **💻 方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
+| **🖥️ 方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
+| **☁️ 方案 C — 托管远程推理（AWS SSM）** | OrcaLab 在参与者本机，NaVILA 在主办方托管的 AWS 实例 | 黑客松或实验室场景，参与者使用共享 GPU 服务器但无需拥有它 |
 
-#### 方案 A（默认）— 单机部署
+#### 💻 方案 A（默认）— 单机部署
 
-创建两套锁定环境，并下载经过验证的 NaVILA 模型：
+创建两套锁定环境、下载经过验证的 NaVILA 模型，并检查安装结果（最后一行
+必须是 `Orca_VLN installation is ready.`）：
 
 ```bash
 ./NaVILA-Orca/scripts/setup_all.sh
@@ -103,37 +99,29 @@ cd Orca_VLN
 
 全新 Ubuntu 首次安装时，脚本可能请求一次 `sudo`，用于安装 OrcaLab GUI
 所需的 Qt/XCB 系统库。
-脚本也会在首次打开 GUI 前准备好 OrcaLab 官方原生 viewport 和场景 pak，
-避免 OrcaLab 在首启过程中临时安装组件并要求重启。
-
-单机部署时，单独检查安装结果。最后一行必须是
-`Orca_VLN installation is ready.`：
 
 ```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-单机部署的两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
-3.12，NaVILA 使用 Python 3.10。启动器根据自己的文件位置定位环境，
-因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
-`deactivate`。
+两套环境都位于当前 checkout 的 `.conda/envs/`（OrcaLab 使用 Python 3.12，
+NaVILA 使用 Python 3.10）；启动器会自动定位环境，因此不需要设置
+`ORCA_VLN_ROOT`，也不用手动执行 `conda activate`。
 
-#### 方案 B — 远程推理部署（分离部署）
+#### 🖥️ 方案 B — 远程推理部署（分离部署）
 
-客户端只安装 OrcaLab 环境，推理服务器只安装 NaVILA 环境。不要在两台机器
-都运行 `setup_all.sh`；请直接按照独立的[远程推理部署章节](#remote-inference)
-完成两端安装、SSH 隧道和端到端验证。
+客户端只安装 OrcaLab 环境，推理服务器只安装 NaVILA 环境，不要在两台机器
+都运行 `setup_all.sh`。请按照独立的[远程推理部署章节](#remote-inference)
+完成两端安装、SSH 隧道和端到端验证。支持 Blackwell RTX 5090 Laptop GPU。
 
-支持 Blackwell RTX 5090 Laptop GPU。
-
-#### 方案 C — 托管远程推理（AWS SSM）
+#### ☁️ 方案 C — 托管远程推理（AWS SSM）
 
 NaVILA 服务由主办方托管和运维，你无需安装或接触推理服务器。只需在本机
 安装 OrcaLab 侧环境，并按[托管访问章节](#managed-access)连接托管服务器：
 无需 SSH、无需密钥，一条 AWS SSM 端口转发即可让 NaVILA 表现为
 `127.0.0.1:54321` 上的本地服务。
 
-### 方案 A：按步骤 1 → 2 → 3 运行
+### 💻 方案 A：按步骤 1 → 2 → 3 运行
 
 单机部署使用三个本机终端，并按下面的顺序执行。
 
