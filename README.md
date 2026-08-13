@@ -380,6 +380,52 @@ standard-library-only health check, and an optional mock inference round trip.
 Organizers provision one SSO account per team; the fixed values in the guide
 are the current test setup.
 
+After establishing the SSM connection and passing the NaVILA service health
+check, complete the following steps.
+
+#### Step 1 — Open OrcaLab and assemble the preset scene
+
+```bash
+./NaVILA-Orca/scripts/start_orcalab_gui.sh
+```
+
+Do not start navigation yet. In OrcaLab:
+
+1. Subscribe to `VLN_Presentation` and `unitree_robots`.
+2. Select `VLN_Presentation`. After both subscriptions finish, use
+   **File → Open Layout** to load
+   [`NaVILA-Orca/factory.json`](NaVILA-Orca/factory.json).
+3. Confirm that Go2, the red waste bin, blue barrels, red fire extinguisher,
+   and white industrial robotic arm are all present.
+
+`VLN_Presentation` provides the factory, while `factory.json` loads the
+prearranged route. Keep terminal 1 and OrcaLab running after setup.
+
+**Already using OrcaLab?** You may skip terminal 1 and use an existing
+compatible OrcaLab GUI (the validated baseline version is OrcaLab 26.7.1).
+Select `VLN_Presentation` in that GUI and load the same `factory.json` layout.
+
+#### Step 2 — Start closed-loop navigation
+
+Run step 2 only after OrcaLab displays the complete preset scene, the SSM port
+forward is established, and the NaVILA service health check passes. In the
+OrcaLab GUI, select **Run → Start Simulation → No Simulation Program → Start**
+and wait for the external simulation to begin. Terminal 2 only connects to
+this running session; it does not open OrcaLab or start the simulation:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh
+```
+
+Write your navigation instruction to
+[`NaVILA-Orca/prompts/orcalab_scene_locomotion.txt`](NaVILA-Orca/prompts/orcalab_scene_locomotion.txt),
+or pass it directly with `--instruction`, for example:
+
+```bash
+./NaVILA-Orca/scripts/run_orcalab_scene_locomotion.sh \
+  --instruction "Walk toward the red waste bin and pass close by it without stopping. Continue toward the blue barrels and pass them. Then turn right and follow the open aisle beside the white safety fence toward the red fire extinguisher. Keep outside the fenced work cell and avoid the boxes. When the white industrial robotic arm mounted on a gray pedestal is visible, approach the open floor directly in front of the pedestal. Stop about 1.5 meters away from the arm."
+```
+
 <a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
