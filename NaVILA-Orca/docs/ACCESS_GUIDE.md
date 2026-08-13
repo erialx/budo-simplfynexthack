@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="ACCESS_GUIDE_zh.md">中文</a></sub></p>
+
 # NaVILA remote inference — access & smoke-test guide
 
 A companion for a **single tester** getting hands-on access to the NaVILA GPU

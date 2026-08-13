@@ -198,6 +198,25 @@ OrcaLab 客户端导航 → 127.0.0.1:54321 → SSH 隧道
 准备场景并运行导航 → 清理**。开发包中还提供一份可独立阅读的
 [远程推理部署指南](NaVILA-Orca/docs/REMOTE_INFERENCE_zh.md)。
 
+### 面向参与者的托管远程推理（AWS SSM）
+
+当推理服务器由主办方托管和运维——例如黑客松或实验室部署，参与者无需
+拥有推理主机即可使用 NaVILA——请使用专门的
+[托管访问指南](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md)。整个过程不需要 SSH、
+公网端点或密钥分发。每位参与者以 IAM Identity Center（SSO）用户身份认证，
+权限只允许一个动作：对 NaVILA 实例建立 AWS SSM 端口转发。推理服务随即
+表现为 `127.0.0.1:54321` 上的本地服务：
+
+```text
+OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
+                  → 推理服务器 127.0.0.1:54321 → NaVILA
+```
+
+隧道只承载 NaVILA 协议，无法在实例上打开 shell。指南覆盖两项必要安装
+（AWS CLI v2 与 Session Manager 插件）、从访问门户获取临时凭据、建立隧道、
+仅依赖标准库的 health 检查，以及可选的模拟推理往返。主办方为每支队伍
+开通一个 SSO 账号；指南中的固定值为当前测试环境配置。
+
 ### 分别安装客户端和推理服务器
 
 两台机器都需要 Git、Conda、可通过 `nvidia-smi` 检查的 NVIDIA 驱动，以及
@@ -348,6 +367,8 @@ ssh -p "$SSH_PORT" \
 ## 🧩 进阶方向
 
 - [快速上手](NaVILA-Orca/docs/GETTING_STARTED_zh.md) — 场景配置、进程、相机与首次运行。
+- [远程推理](NaVILA-Orca/docs/REMOTE_INFERENCE_zh.md) — 通过 SSH 隧道的分离部署。
+- [托管推理访问](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md) — 经 AWS SSM 端口转发访问托管 NaVILA 服务器，无需 SSH 或密钥。
 - [竞赛基线](NaVILA-Orca/docs/HACKATHON_BASELINE_zh.md) — 检查点、赛道、证据与提交范围。
 - [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 已审核数据要求，以及 SFT/LoRA 的实践方向。
 - [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION_zh.md) — 可在 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定适配器对齐模型。
