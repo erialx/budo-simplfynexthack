@@ -357,7 +357,7 @@ OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
 ./NaVILA-Orca/scripts/start_orcalab_gui.sh
 ```
 
-此时不要运行导航。在 OrcaLab 中：
+在 OrcaLab 中：
 
 1. 订阅 `VLN_Presentation` 和 `unitree_robots`。
 2. 选择 `VLN_Presentation`；待两个订阅完成后，通过 **文件 → 打开布局** 载入
