@@ -28,7 +28,7 @@ health 检查不需要。
 
 > **有一件事不受你控制：** 实例上的 NaVILA **服务必须处于运行状态**。你
 > 无法自行启动它——按设计，你的权限只包含端口转发。如果步骤 5 的 health
-> 检查连不上，那是管理员需要处理的事项。
+> 检查连不上，那需要管理员来处理。
 
 ## 你将用到两个终端
 
@@ -110,7 +110,7 @@ aws ssm start-session \
 Waiting for connections...
 ```
 
-**保持这个终端打开。** 关闭它（或按 Ctrl-C）会断开隧道。如果这里报
+**保持这个终端打开。** 关闭它（或按 Ctrl-C）会断开隧道。如果这里提示
 `AccessDeniedException`（凭据过期或无效），重做步骤 3 刷新凭据。
 
 ---
@@ -169,9 +169,9 @@ python3 check_navvlm_endpoint.py
 NaVILA endpoint healthy at 127.0.0.1:54321 (protocol_version=1)
 ```
 
-如果报 `connection closed` 或 `connection refused`，说明隧道已建立，但实例
-上的 **NaVILA 服务没有运行**——这属于管理员操作，你的权限无法修复。请
-联系管理员启动服务，然后重试。
+如果提示 `connection closed` 或 `connection refused`，说明隧道已建立，但
+实例上的 **NaVILA 服务没有运行**——这属于管理员操作，你的权限无法修复。
+请联系管理员启动服务，然后重试。
 
 **这就是核心冒烟测试。** 步骤 6 仅在你需要确认真实推理往返时执行。
 
