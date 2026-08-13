@@ -15,6 +15,7 @@
   <br />
   <a href="#quickstart">🚀 Quickstart</a> ·
   <a href="#remote-inference">🖥️ Remote inference</a> ·
+  <a href="#managed-access">☁️ Managed access</a> ·
   <a href="#competition-baseline">🏁 Competition baseline</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
 </p>
@@ -88,13 +89,15 @@ git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-> **Choose exactly one installation method:** follow either **Option A** or
-> **Option B**. Do not combine both sets of installation commands on one host.
+> **Choose exactly one deployment option:** **Option A**, **Option B**, or
+> **Option C**. Do not combine the Option A and Option B installation commands
+> on one host.
 
 | Option | Deployment layout | Choose this when |
 | --- | --- | --- |
 | **Option A (default) — Single-host deployment** | OrcaLab and NaVILA run on the same machine | One GPU host has sufficient resources and the shortest setup is preferred |
 | **Option B — Remote-inference deployment (split hosts)** | OrcaLab runs on the client and NaVILA on a dedicated GPU server | Inference should run independently or GPU memory and compute must be separated |
+| **Option C — Managed remote inference (AWS SSM)** | OrcaLab runs on the participant's machine; NaVILA on a hosted AWS instance managed by the organizers | Hackathon or lab setups where participants use a shared GPU server without owning it |
 
 #### Option A (default) — Single-host deployment
 
@@ -129,6 +132,14 @@ Do not run `setup_all.sh` on both machines; follow the independent
 the SSH tunnel, and end-to-end validation.
 
 Blackwell RTX 5090 Laptop GPU is supported.
+
+#### Option C — Managed remote inference (AWS SSM)
+
+The NaVILA server is hosted and operated by the organizers; you never install
+or touch it. Install only the OrcaLab side on your machine and connect to the
+hosted server as described in the
+[managed access chapter](#managed-access): no SSH, no keys — an AWS SSM
+port-forward makes NaVILA look like a local service on `127.0.0.1:54321`.
 
 ### Option A: run in steps 1 → 2 → 3
 
@@ -209,29 +220,6 @@ The complete order is: **install each host → start the remote service → crea
 the tunnel → run the end-to-end check → prepare the scene and navigate → clean
 up**. The developer kit also includes a standalone
 [remote-inference deployment guide](NaVILA-Orca/docs/REMOTE_INFERENCE.md).
-
-### Managed remote inference for participants (AWS SSM)
-
-For a server hosted and operated by the organizers — a hackathon or lab
-deployment where participants reach NaVILA without owning the inference host —
-use the dedicated
-[managed access guide](NaVILA-Orca/docs/ACCESS_GUIDE.md). There is no SSH, no
-public endpoint, and no key distribution. Each participant authenticates as an
-IAM Identity Center (SSO) user whose permissions allow exactly one action: an
-AWS SSM port-forward to the NaVILA instance. The inference server then appears
-as a local service on `127.0.0.1:54321`:
-
-```text
-OrcaLab client navigation → 127.0.0.1:54321 → AWS SSM port-forward
-                         → inference server 127.0.0.1:54321 → NaVILA
-```
-
-The tunnel carries only the NaVILA protocol and cannot open a shell on the
-instance. The guide covers the two required installs (AWS CLI v2 and the
-Session Manager plugin), grabbing temporary credentials from the access
-portal, opening the tunnel, a standard-library-only health check, and an
-optional mock inference round trip. Organizers provision one SSO account per
-team; the fixed values in the guide are the current test setup.
 
 ### Install the client and inference server separately
 
@@ -377,6 +365,32 @@ Finally, stop NaVILA with `Ctrl+C` in the inference-server terminal. If the
 tunnel reports `Address already in use`, choose a free `LOCAL_VLM_PORT`. If the
 end-to-end check fails, confirm that the remote service is still running, both
 sides use the same `REMOTE_VLM_PORT`, and the SSH tunnel remains connected.
+
+<a id="managed-access"></a>
+
+## ☁️ Option C — Managed remote inference (AWS SSM)
+
+Option C is for a server hosted and operated by the organizers — a hackathon
+or lab deployment where participants reach NaVILA without owning the inference
+host. There is no SSH, no public endpoint, and no key distribution. Each
+participant authenticates as an IAM Identity Center (SSO) user whose
+permissions allow exactly one action: an AWS SSM port-forward to the NaVILA
+instance. The inference server then appears as a local service on
+`127.0.0.1:54321`:
+
+```text
+OrcaLab client navigation → 127.0.0.1:54321 → AWS SSM port-forward
+                         → inference server 127.0.0.1:54321 → NaVILA
+```
+
+The tunnel carries only the NaVILA protocol and cannot open a shell on the
+instance. Follow the dedicated
+[managed access guide](NaVILA-Orca/docs/ACCESS_GUIDE.md): it covers the two
+required installs (AWS CLI v2 and the Session Manager plugin), grabbing
+temporary credentials from the access portal, opening the tunnel, a
+standard-library-only health check, and an optional mock inference round trip.
+Organizers provision one SSO account per team; the fixed values in the guide
+are the current test setup.
 
 <a id="competition-baseline"></a>
 

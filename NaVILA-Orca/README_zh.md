@@ -4,12 +4,13 @@
 
 此目录是可分发的 OrcaLab 运行时。GitHub 项目主页位于上一级：[Orca_VLN](../README_zh.md)。
 
-部署方式二选一：
+部署方式三选一：
 
 | 部署方式 | 结构 | 操作指南 |
 | --- | --- | --- |
 | **方案 A（默认）— 单机部署** | OrcaLab、NaVILA 与导航进程位于同一台机器 | [快速上手](docs/GETTING_STARTED_zh.md#option-a-single-host) |
 | **方案 B — 远程推理** | OrcaLab 与导航进程位于客户端，NaVILA 位于独立 GPU 服务器 | [远程推理部署](docs/REMOTE_INFERENCE_zh.md) |
+| **方案 C — 托管远程推理** | OrcaLab 与导航进程位于参与者本机，NaVILA 位于主办方托管的实例 | [托管访问指南](docs/ACCESS_GUIDE_zh.md) |
 
 ## 方案 A（默认）— 单机开发流程
 
@@ -36,9 +37,12 @@ NaVILA 服务。不要把上面的三条单机命令当作一组客户端命令�
 [远程推理指南](docs/REMOTE_INFERENCE_zh.md)，分别完成两台机器的安装、服务
 启动、SSH 隧道和 NaVILA 协议端到端检查。
 
-如果推理服务器由主办方托管运维（你无法 SSH 登录实例），请改用
-[托管访问指南](docs/ACCESS_GUIDE_zh.md)：使用临时 SSO 凭据建立 AWS SSM
-端口转发，即可让 NaVILA 表现为 `127.0.0.1:54321` 上的本地服务。
+## 方案 C — 托管远程推理（AWS SSM）
+
+方案 C 适用于由主办方托管运维的 NaVILA 服务器：你无法 SSH 登录实例。请
+改用[托管访问指南](docs/ACCESS_GUIDE_zh.md)：使用临时 SSO 凭据建立 AWS SSM
+端口转发，即可让 NaVILA 表现为 `127.0.0.1:54321` 上的本地服务，且隧道无法
+在实例上打开 shell。
 
 ## 基线场景与随包资源
 

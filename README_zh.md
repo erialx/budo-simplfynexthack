@@ -15,6 +15,7 @@
   <br />
   <a href="#quickstart">🚀 快速开始</a> ·
   <a href="#remote-inference">🖥️ 远程推理</a> ·
+  <a href="#managed-access">☁️ 托管访问</a> ·
   <a href="#competition-baseline">🏁 竞赛基线</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED_zh.md">📚 文档</a>
 </p>
@@ -83,13 +84,14 @@ git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-> **安装方式二选一：** 只执行下面的 **方案 A** 或 **方案 B**，不要把两套
-> 安装命令混在同一台机器上执行。
+> **部署方式三选一：** 选择 **方案 A**、**方案 B** 或 **方案 C**。不要把
+> 方案 A 与方案 B 的安装命令混在同一台机器上执行。
 
-| 安装方案 | 部署结构 | 适用情况 |
+| 部署方案 | 部署结构 | 适用情况 |
 | --- | --- | --- |
 | **方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
 | **方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
+| **方案 C — 托管远程推理（AWS SSM）** | OrcaLab 在参与者本机，NaVILA 在主办方托管的 AWS 实例 | 黑客松或实验室场景，参与者使用共享 GPU 服务器但无需拥有它 |
 
 #### 方案 A（默认）— 单机部署
 
@@ -123,6 +125,13 @@ cd Orca_VLN
 完成两端安装、SSH 隧道和端到端验证。
 
 支持 Blackwell RTX 5090 Laptop GPU。
+
+#### 方案 C — 托管远程推理（AWS SSM）
+
+NaVILA 服务由主办方托管和运维，你无需安装或接触推理服务器。只需在本机
+安装 OrcaLab 侧环境，并按[托管访问章节](#managed-access)连接托管服务器：
+无需 SSH、无需密钥，一条 AWS SSM 端口转发即可让 NaVILA 表现为
+`127.0.0.1:54321` 上的本地服务。
 
 ### 方案 A：按步骤 1 → 2 → 3 运行
 
@@ -197,25 +206,6 @@ OrcaLab 客户端导航 → 127.0.0.1:54321 → SSH 隧道
 完整顺序是：**分别安装 → 启动远端服务 → 建立隧道 → 端到端检查 →
 准备场景并运行导航 → 清理**。开发包中还提供一份可独立阅读的
 [远程推理部署指南](NaVILA-Orca/docs/REMOTE_INFERENCE_zh.md)。
-
-### 面向参与者的托管远程推理（AWS SSM）
-
-当推理服务器由主办方托管和运维时（例如黑客松或实验室场景，参与者无需
-拥有推理主机即可使用 NaVILA），请使用专门的
-[托管访问指南](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md)。整个过程不需要 SSH、
-公网端点或密钥分发。每位参与者使用 IAM Identity Center（SSO）用户身份
-认证，该身份的权限只允许一个动作：对 NaVILA 实例建立 AWS SSM 端口转发。
-于是推理服务就表现为 `127.0.0.1:54321` 上的本地服务：
-
-```text
-OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
-                  → 推理服务器 127.0.0.1:54321 → NaVILA
-```
-
-隧道只传输 NaVILA 协议数据，无法在实例上打开 shell。指南涵盖两个必要
-组件的安装（AWS CLI v2 与 Session Manager 插件）、从访问门户获取临时凭据、
-建立隧道、无需第三方库的健康检查，以及可选的模拟推理往返。主办方为
-每支队伍开通一个 SSO 账号；指南中的固定值为当前测试环境配置。
 
 ### 分别安装客户端和推理服务器
 
@@ -349,6 +339,27 @@ ssh -p "$SSH_PORT" \
 最后在推理服务器终端按 `Ctrl+C` 停止 NaVILA。若隧道提示
 `Address already in use`，请改用空闲的 `LOCAL_VLM_PORT`；若端到端检查失败，
 依次确认远端服务仍在运行、两端 `REMOTE_VLM_PORT` 一致，以及 SSH 隧道未断开。
+
+<a id="managed-access"></a>
+
+## ☁️ 方案 C — 托管远程推理（AWS SSM）
+
+方案 C 适用于由主办方托管和运维推理服务器的场景（例如黑客松或实验室，
+参与者无需拥有推理主机即可使用 NaVILA）。整个过程不需要 SSH、公网端点
+或密钥分发。每位参与者使用 IAM Identity Center（SSO）用户身份认证，该
+身份的权限只允许一个动作：对 NaVILA 实例建立 AWS SSM 端口转发。于是推理
+服务就表现为 `127.0.0.1:54321` 上的本地服务：
+
+```text
+OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
+                  → 推理服务器 127.0.0.1:54321 → NaVILA
+```
+
+隧道只传输 NaVILA 协议数据，无法在实例上打开 shell。请按照专门的
+[托管访问指南](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md)操作：涵盖两个必要组件
+的安装（AWS CLI v2 与 Session Manager 插件）、从访问门户获取临时凭据、
+建立隧道、无需第三方库的健康检查，以及可选的模拟推理往返。主办方为
+每支队伍开通一个 SSO 账号；指南中的固定值为当前测试环境配置。
 
 <a id="competition-baseline"></a>
 
