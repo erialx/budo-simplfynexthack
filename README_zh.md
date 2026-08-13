@@ -15,6 +15,7 @@
   <br />
   <a href="#quickstart">🚀 快速开始</a> ·
   <a href="#remote-inference">🖥️ 远程推理</a> ·
+  <a href="#managed-access">☁️ 托管访问</a> ·
   <a href="#competition-baseline">🏁 竞赛基线</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED_zh.md">📚 文档</a>
 </p>
@@ -61,11 +62,9 @@
 
 ### 一次性安装
 
-单机部署只需准备一台机器；分离部署则要在 OrcaLab 客户端和远端推理服务器
-上分别准备 Git、Conda、NVIDIA 驱动和一份相同版本的仓库 checkout。
-
-如果 `conda --version` 无法运行，直接安装一套干净的 Miniconda。分离部署时
-在两台机器分别执行：
+如果 `conda --version` 无法运行，先安装一套干净的 Miniconda，再克隆项目。
+方案 B 还要求在两台机器上分别执行下面两个步骤——两端都需要 Git、Conda、
+可通过 `nvidia-smi` 检查的 NVIDIA 驱动，以及同一版本的仓库 checkout：
 
 ```bash
 curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -76,24 +75,23 @@ conda init bash
 conda --version
 ```
 
-克隆项目。分离部署时，在客户端和推理服务器分别执行，并保持相同版本：
-
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-> **安装方式二选一：** 只执行下面的 **方案 A** 或 **方案 B**，不要把两套
-> 安装命令混在同一台机器上执行。
+然后选择一种部署方式：
 
-| 安装方案 | 部署结构 | 适用情况 |
+| 部署方案 | 部署结构 | 适用情况 |
 | --- | --- | --- |
-| **方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
-| **方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
+| **💻 方案 A（默认）— 单机部署** | OrcaLab 与 NaVILA 在同一台机器 | 单机 GPU 资源足够，希望最快完成安装 |
+| **🖥️ 方案 B — 远程推理部署（分离部署）** | OrcaLab 在客户端，NaVILA 在独立 GPU 服务器 | 希望推理独立运行，或需要分担 GPU 显存与算力 |
+| **☁️ 方案 C — 托管远程推理（AWS SSM）** | OrcaLab 在参与者本机，NaVILA 在主办方托管的 AWS 实例 | 黑客松或实验室场景，参与者使用共享 GPU 服务器但无需拥有它 |
 
-#### 方案 A（默认）— 单机部署
+#### 💻 方案 A（默认）— 单机部署
 
-创建两套锁定环境，并下载经过验证的 NaVILA 模型：
+创建两套锁定环境、下载经过验证的 NaVILA 模型，并检查安装结果（最后一行
+必须是 `Orca_VLN installation is ready.`）：
 
 ```bash
 ./NaVILA-Orca/scripts/setup_all.sh
@@ -101,30 +99,29 @@ cd Orca_VLN
 
 全新 Ubuntu 首次安装时，脚本可能请求一次 `sudo`，用于安装 OrcaLab GUI
 所需的 Qt/XCB 系统库。
-脚本也会在首次打开 GUI 前准备好 OrcaLab 官方原生 viewport 和场景 pak，
-避免 OrcaLab 在首启过程中临时安装组件并要求重启。
-
-单机部署时，单独检查安装结果。最后一行必须是
-`Orca_VLN installation is ready.`：
 
 ```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-单机部署的两套环境都位于当前 checkout 的 `.conda/envs/`：OrcaLab 使用 Python
-3.12，NaVILA 使用 Python 3.10。启动器根据自己的文件位置定位环境，
-因此不需要设置 `ORCA_VLN_ROOT`，也不用手动执行 `conda activate` 或
-`deactivate`。
+两套环境都位于当前 checkout 的 `.conda/envs/`（OrcaLab 使用 Python 3.12，
+NaVILA 使用 Python 3.10）；启动器会自动定位环境，因此不需要设置
+`ORCA_VLN_ROOT`，也不用手动执行 `conda activate`。
 
-#### 方案 B — 远程推理部署（分离部署）
+#### 🖥️ 方案 B — 远程推理部署（分离部署）
 
-客户端只安装 OrcaLab 环境，推理服务器只安装 NaVILA 环境。不要在两台机器
-都运行 `setup_all.sh`；请直接按照独立的[远程推理部署章节](#remote-inference)
-完成两端安装、SSH 隧道和端到端验证。
+客户端只安装 OrcaLab 环境，推理服务器只安装 NaVILA 环境，不要在两台机器
+都运行 `setup_all.sh`。请按照独立的[远程推理部署章节](#remote-inference)
+完成两端安装、SSH 隧道和端到端验证。支持 Blackwell RTX 5090 Laptop GPU。
 
-支持 Blackwell RTX 5090 Laptop GPU。
+#### ☁️ 方案 C — 托管远程推理（AWS SSM）
 
-### 方案 A：按步骤 1 → 2 → 3 运行
+NaVILA 服务由主办方托管和运维，你无需安装或接触推理服务器。只需在本机
+安装 OrcaLab 侧环境，并按[托管访问章节](#managed-access)连接托管服务器：
+无需 SSH、无需密钥，一条 AWS SSM 端口转发即可让 NaVILA 表现为
+`127.0.0.1:54321` 上的本地服务。
+
+### 💻 方案 A：按步骤 1 → 2 → 3 运行
 
 单机部署使用三个本机终端，并按下面的顺序执行。
 
@@ -331,6 +328,27 @@ ssh -p "$SSH_PORT" \
 `Address already in use`，请改用空闲的 `LOCAL_VLM_PORT`；若端到端检查失败，
 依次确认远端服务仍在运行、两端 `REMOTE_VLM_PORT` 一致，以及 SSH 隧道未断开。
 
+<a id="managed-access"></a>
+
+## ☁️ 方案 C — 托管远程推理（AWS SSM）
+
+方案 C 适用于由主办方托管和运维推理服务器的场景（例如黑客松或实验室，
+参与者无需拥有推理主机即可使用 NaVILA）。整个过程不需要 SSH、公网端点
+或密钥分发。每位参与者使用 IAM Identity Center（SSO）用户身份认证，该
+身份的权限只允许一个动作：对 NaVILA 实例建立 AWS SSM 端口转发。于是推理
+服务就表现为 `127.0.0.1:54321` 上的本地服务：
+
+```text
+OrcaLab 客户端导航 → 127.0.0.1:54321 → AWS SSM 端口转发
+                  → 推理服务器 127.0.0.1:54321 → NaVILA
+```
+
+隧道只传输 NaVILA 协议数据，无法在实例上打开 shell。请按照专门的
+[托管访问指南](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md)操作：涵盖两个必要组件
+的安装（AWS CLI v2 与 Session Manager 插件）、从访问门户获取临时凭据、
+建立隧道、无需第三方库的健康检查，以及可选的模拟推理往返。主办方为
+每支队伍开通一个 SSO 账号；指南中的固定值为当前测试环境配置。
+
 <a id="competition-baseline"></a>
 
 ## 🏁 竞赛基线
@@ -348,6 +366,8 @@ ssh -p "$SSH_PORT" \
 ## 🧩 进阶方向
 
 - [快速上手](NaVILA-Orca/docs/GETTING_STARTED_zh.md) — 场景配置、进程、相机与首次运行。
+- [远程推理](NaVILA-Orca/docs/REMOTE_INFERENCE_zh.md) — 通过 SSH 隧道的分离部署。
+- [托管推理访问](NaVILA-Orca/docs/ACCESS_GUIDE_zh.md) — 经 AWS SSM 端口转发访问托管 NaVILA 服务器，无需 SSH 或密钥。
 - [竞赛基线](NaVILA-Orca/docs/HACKATHON_BASELINE_zh.md) — 检查点、赛道、证据与提交范围。
 - [高层 VLN](NaVILA-Orca/docs/VLN_FINE_TUNING_zh.md) — 已审核数据要求，以及 SFT/LoRA 的实践方向。
 - [低层接入](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION_zh.md) — 可在 OrcaLocomotion、IsaacLab 或其他平台训练，再通过稳定适配器对齐模型。

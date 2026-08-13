@@ -15,6 +15,7 @@
   <br />
   <a href="#quickstart">🚀 Quickstart</a> ·
   <a href="#remote-inference">🖥️ Remote inference</a> ·
+  <a href="#managed-access">☁️ Managed access</a> ·
   <a href="#competition-baseline">🏁 Competition baseline</a> ·
   <a href="NaVILA-Orca/docs/GETTING_STARTED.md">📚 Docs</a>
 </p>
@@ -64,12 +65,10 @@ least RTX 4090 class whose driver passes `nvidia-smi`.
 
 ### Install once
 
-A single-host deployment prepares one machine. A split deployment requires
-Git, Conda, an NVIDIA driver, and a checkout at the same revision on both the
-OrcaLab client and the remote inference server.
-
-If `conda --version` does not work, install one clean Miniconda. For a split
-deployment, do this on both machines:
+If `conda --version` does not work, install a clean Miniconda, then clone the
+project. Option B additionally needs both blocks run on a second machine —
+Git, Conda, an NVIDIA driver, and a checkout at the same revision on both
+hosts:
 
 ```bash
 curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -80,59 +79,59 @@ conda init bash
 conda --version
 ```
 
-Clone the project. For a split deployment, do this on both machines and keep
-the checkouts at the same revision:
-
 ```bash
 git clone https://github.com/openverse-orca/Orca_VLN.git
 cd Orca_VLN
 ```
 
-> **Choose exactly one installation method:** follow either **Option A** or
-> **Option B**. Do not combine both sets of installation commands on one host.
+Then choose exactly one deployment option:
 
 | Option | Deployment layout | Choose this when |
 | --- | --- | --- |
-| **Option A (default) — Single-host deployment** | OrcaLab and NaVILA run on the same machine | One GPU host has sufficient resources and the shortest setup is preferred |
-| **Option B — Remote-inference deployment (split hosts)** | OrcaLab runs on the client and NaVILA on a dedicated GPU server | Inference should run independently or GPU memory and compute must be separated |
+| **💻 Option A (default) — Single-host deployment** | OrcaLab and NaVILA run on the same machine | One GPU host has sufficient resources and the shortest setup is preferred |
+| **🖥️ Option B — Remote-inference deployment (split hosts)** | OrcaLab runs on the client and NaVILA on a dedicated GPU server | Inference should run independently or GPU memory and compute must be separated |
+| **☁️ Option C — Managed remote inference (AWS SSM)** | OrcaLab runs on the participant's machine; NaVILA on a hosted AWS instance managed by the organizers | Hackathon or lab setups where participants use a shared GPU server without owning it |
 
-#### Option A (default) — Single-host deployment
+#### 💻 Option A (default) — Single-host deployment
 
-Create both pinned environments and download the reviewed NaVILA model:
+Create both pinned environments, download the reviewed NaVILA model, and
+verify the installation (the final line must be
+`Orca_VLN installation is ready.`):
 
 ```bash
 ./NaVILA-Orca/scripts/setup_all.sh
 ```
 
-On a fresh Ubuntu installation, setup may request `sudo` once to install the
-Qt/XCB libraries required by the OrcaLab GUI.
-It also prepares OrcaLab's verified native viewport and scene pak before the
-first GUI launch, so OrcaLab does not install components and request a restart.
-
-For a single-host deployment, verify the completed installation. The final
-line must be `Orca_VLN installation is ready.`:
+On a fresh Ubuntu, setup may request `sudo` once for the Qt/XCB libraries
+required by the OrcaLab GUI.
 
 ```bash
 ./NaVILA-Orca/scripts/doctor.sh
 ```
 
-For a single-host deployment, both environments live under this checkout in
-`.conda/envs/`: OrcaLab uses Python 3.12 and NaVILA uses Python 3.10. The
-launchers resolve them from their own file paths; no `ORCA_VLN_ROOT`,
-`conda activate`, or manual `deactivate` step is required.
+Both environments live under this checkout in `.conda/envs/` (OrcaLab uses
+Python 3.12, NaVILA Python 3.10); the launchers resolve them automatically,
+so no `ORCA_VLN_ROOT` or `conda activate` is needed.
 
-#### Option B — Remote-inference deployment (split hosts)
+#### 🖥️ Option B — Remote-inference deployment (split hosts)
 
-Install only OrcaLab on the client and only NaVILA on the inference server.
-Do not run `setup_all.sh` on both machines; follow the independent
+Install only OrcaLab on the client and only NaVILA on the inference server;
+do not run `setup_all.sh` on both machines. Follow the independent
 [remote-inference deployment chapter](#remote-inference) for per-host setup,
-the SSH tunnel, and end-to-end validation.
+the SSH tunnel, and end-to-end validation. Blackwell RTX 5090 Laptop GPU is
+supported.
 
-Blackwell RTX 5090 Laptop GPU is supported.
+#### ☁️ Option C — Managed remote inference (AWS SSM)
 
-### Option A: run in steps 1 → 2 → 3
+The NaVILA server is hosted and operated by the organizers; you never install
+or touch it. Install only the OrcaLab side on your machine and connect as
+described in the [managed access chapter](#managed-access): no SSH, no keys —
+an AWS SSM port-forward makes NaVILA look like a local service on
+`127.0.0.1:54321`.
 
-A single-host deployment uses three local terminals in the following order.
+### 💻 Option A: run in steps 1 → 2 → 3
+
+A single-host deployment uses three local terminals in this order.
 
 <a id="scene-setup"></a>
 
@@ -355,6 +354,32 @@ tunnel reports `Address already in use`, choose a free `LOCAL_VLM_PORT`. If the
 end-to-end check fails, confirm that the remote service is still running, both
 sides use the same `REMOTE_VLM_PORT`, and the SSH tunnel remains connected.
 
+<a id="managed-access"></a>
+
+## ☁️ Option C — Managed remote inference (AWS SSM)
+
+Option C is for a server hosted and operated by the organizers — a hackathon
+or lab deployment where participants reach NaVILA without owning the inference
+host. There is no SSH, no public endpoint, and no key distribution. Each
+participant authenticates as an IAM Identity Center (SSO) user whose
+permissions allow exactly one action: an AWS SSM port-forward to the NaVILA
+instance. The inference server then appears as a local service on
+`127.0.0.1:54321`:
+
+```text
+OrcaLab client navigation → 127.0.0.1:54321 → AWS SSM port-forward
+                         → inference server 127.0.0.1:54321 → NaVILA
+```
+
+The tunnel carries only the NaVILA protocol and cannot open a shell on the
+instance. Follow the dedicated
+[managed access guide](NaVILA-Orca/docs/ACCESS_GUIDE.md): it covers the two
+required installs (AWS CLI v2 and the Session Manager plugin), grabbing
+temporary credentials from the access portal, opening the tunnel, a
+standard-library-only health check, and an optional mock inference round trip.
+Organizers provision one SSO account per team; the fixed values in the guide
+are the current test setup.
+
 <a id="competition-baseline"></a>
 
 ## 🏁 Competition baseline
@@ -372,6 +397,8 @@ The supplied control model is a conservative flat-ground baseline. It has not be
 ## 🧩 Extend the baseline
 
 - [Getting started](NaVILA-Orca/docs/GETTING_STARTED.md) — scene setup, processes, camera, and first run.
+- [Remote inference](NaVILA-Orca/docs/REMOTE_INFERENCE.md) — split-host deployment over an SSH tunnel.
+- [Managed inference access](NaVILA-Orca/docs/ACCESS_GUIDE.md) — reach a hosted NaVILA server through an AWS SSM port-forward, no SSH or keys.
 - [Hackathon baseline](NaVILA-Orca/docs/HACKATHON_BASELINE.md) — checkpoints, tracks, evidence, and submission scope.
 - [High-level VLN](NaVILA-Orca/docs/VLN_FINE_TUNING.md) — reviewed-data requirements and SFT/LoRA direction.
 - [Low-level integration](NaVILA-Orca/docs/LOW_LEVEL_LOCOMOTION.md) — train in OrcaLocomotion, IsaacLab, or another platform; align the model through a stable adapter.
