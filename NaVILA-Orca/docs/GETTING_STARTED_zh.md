@@ -5,10 +5,11 @@
 本实验不是“把模型跑起来”就结束。你要观察一条完整的机器人决策链：**看见什么、语言模型说了什么、四足机器人怎样执行、场景中发生了什么**。
 
 方案 A 将 OrcaLab、NaVILA server 和导航进程分别放在终端 1、2、3。方案 B
-把 OrcaLab 与导航终端留在客户端，将 NaVILA 服务移到远程推理服务器。各层
-保持独立，便于定位问题。
+把 OrcaLab 与导航终端留在客户端，将 NaVILA 服务移到远程推理服务器。方案 C
+同样在参与者本机运行 OrcaLab 和导航，但通过 AWS SSM 端口转发连接主办方
+托管的 NaVILA 服务。各层保持独立，便于定位问题。
 
-## 部署方式：二选一
+## 部署方式：三选一
 
 安装前只选择一种部署方式：
 
@@ -16,10 +17,13 @@
 | --- | --- | --- |
 | **方案 A（默认）— 单机部署** | OrcaLab、NaVILA 与导航进程位于同一台机器 | 继续阅读下文的[方案 A 安装](#option-a-single-host) |
 | **方案 B — 远程推理** | OrcaLab 与导航进程位于客户端，NaVILA 位于独立 GPU 服务器 | 按照[远程推理指南](REMOTE_INFERENCE_zh.md)操作 |
+| **方案 C — 托管远程推理（AWS SSM）** | OrcaLab 与导航进程位于参与者本机，NaVILA 位于主办方托管的 AWS 实例 | 按照[托管访问指南](ACCESS_GUIDE_zh.md)操作 |
 
 下文的安装与首次运行流程描述方案 A。方案 B 使用相同的场景与导航行为，
 但两台机器的安装、服务启动、SSH 隧道和 NaVILA 协议端到端检查只在独立
-远程指南中说明。该检查不执行模型推理。
+远程指南中说明。方案 C 也使用相同的客户端场景与导航行为，其临时 SSO
+凭据、AWS SSM 隧道、健康检查和客户端启动流程只在托管访问指南中说明。
+这些连通性检查不执行模型推理。
 
 ## 一、实验目标与成功标准
 
@@ -216,7 +220,7 @@ MJLab 在 Orca_VLN 中只负责运行当前 baseline 和输出对齐报告。自
 | `No module named 'deepspeed'` | NaVILA 环境 | 重新运行 `setup_navila_env.sh`；Doctor 现在会验证真实 model-builder import |
 | 找到 0/多个 Go2 | 当前 scene | 没有完整 Go2 或重复导入了 setting |
 | 相机属性缺失 | `orca-lab` 与 `orca-gym` 版本 | 未使用 26.7.1 或错误使用旧 `agentcamera` |
-| VLM 无法连接 | 终端 2、端口 54321 | NaVILA server 未启动或端口不一致；方案 B 应按远程指南执行端到端检查 |
+| VLM 无法连接 | 终端 2、端口 54321 | NaVILA server 未启动或端口不一致；方案 B 应按远程指南执行端到端检查；方案 C 应检查 SSM 隧道和托管服务健康状态 |
 | 模型加载失败 | `NAVVLM_MODEL_PATH` | 指向了错误目录或 NaVILA 环境不完整 |
 | Go2 抖动/跌倒 | checkpoint、warmup、场景初始位置 | checkpoint 不匹配、起点穿模、尚未稳定 |
 

@@ -6,8 +6,10 @@ The goal is not merely to launch a model. Observe the full robot decision chain:
 
 With Option A, run OrcaLab, the NaVILA server, and the navigation process in
 terminals 1, 2, and 3. Option B keeps the OrcaLab and navigation terminals on
-the client and moves the NaVILA service to a remote inference server. Keeping
-the layers separate makes failures easy to isolate.
+the client and moves the NaVILA service to a remote inference server. Option C
+also keeps OrcaLab and navigation on the participant's machine, but reaches an
+organizer-managed NaVILA service through an AWS SSM port-forward. Keeping the
+layers separate makes failures easy to isolate.
 
 ## Choose a deployment option
 
@@ -17,11 +19,15 @@ Choose exactly one deployment option before installing:
 | --- | --- | --- |
 | **Option A (default) — single-host deployment** | OrcaLab, NaVILA, and navigation run on one machine | Continue with [Option A installation](#option-a-single-host) below |
 | **Option B — remote inference** | OrcaLab and navigation run on the client; NaVILA runs on a separate GPU server | Follow the [remote inference guide](REMOTE_INFERENCE.md) |
+| **Option C — managed remote inference (AWS SSM)** | OrcaLab and navigation run on the participant's machine; NaVILA runs on an organizer-managed AWS instance | Follow the [managed access guide](ACCESS_GUIDE.md) |
 
 The installation and first-run sequence below describes Option A. Option B
 uses the same scene and navigation behavior, but its per-machine installation,
 service startup, SSH tunnel, and end-to-end NaVILA protocol check are documented
-only in the dedicated remote guide. The check does not run model inference.
+only in the dedicated remote guide. Option C uses that same client-side scene
+and navigation behavior, while its temporary SSO credentials, AWS SSM tunnel,
+health check, and client startup are documented only in the managed access
+guide. The connectivity checks do not run model inference.
 
 ## 1. Goal and success criteria
 
@@ -226,7 +232,7 @@ MJLab in Orca_VLN only runs the baseline and writes an alignment report. Custom 
 | `No module named 'deepspeed'` | NaVILA environment | Rerun `setup_navila_env.sh`; Doctor now validates the real model-builder import |
 | zero or multiple Go2 actors | current scene | no complete Go2 or setting imported more than once |
 | missing camera properties | `orca-lab` / `orca-gym` versions | not on 26.7.1 or using old `agentcamera` |
-| VLM cannot connect | terminal 2 and port 54321 | NaVILA server is not running or port differs; for Option B, follow the remote guide's end-to-end check |
+| VLM cannot connect | terminal 2 and port 54321 | NaVILA server is not running or port differs; for Option B, follow the remote guide's end-to-end check; for Option C, verify the SSM tunnel and managed-service health check |
 | model cannot load | `NAVVLM_MODEL_PATH` | wrong directory or incomplete NaVILA environment |
 | Go2 shakes or falls | checkpoint, warmup, scene start pose | incompatible checkpoint, penetration at start, or unstable policy state |
 
