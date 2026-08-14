@@ -30,10 +30,13 @@ change the VLM or locomotion contracts described below:
 | --- | --- | --- |
 | **Option A (default) — single-host deployment** | OrcaLab, the navigation process, and NaVILA run on one machine | The TCP client reaches NaVILA through the local loopback endpoint |
 | **Option B — remote inference** | OrcaLab and navigation run on the client; NaVILA runs on a separate GPU server | The client still uses a loopback endpoint, forwarded securely to the inference server; the `VLMClient` contract is unchanged |
+| **Option C — managed remote inference (AWS SSM)** | OrcaLab and navigation run on the participant's machine; NaVILA runs on an organizer-managed AWS instance | An AWS SSM port-forward exposes the managed service through the same local loopback endpoint; the `VLMClient` contract is unchanged |
 
 Choose one option for a deployment. For Option B installation, service
 startup, tunneling, and end-to-end validation, follow the
-[remote inference guide](REMOTE_INFERENCE.md).
+[remote inference guide](REMOTE_INFERENCE.md). For Option C temporary SSO
+credentials, AWS SSM port-forwarding, health checks, and client startup,
+follow the [managed access guide](ACCESS_GUIDE.md).
 
 ## The only control contract
 
