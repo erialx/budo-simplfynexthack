@@ -29,9 +29,11 @@ RGB 历史帧 + 指令
 | --- | --- | --- |
 | **方案 A（默认）— 单机部署** | OrcaLab、导航进程与 NaVILA 位于同一台机器 | TCP client 通过本机回环地址访问 NaVILA |
 | **方案 B — 远程推理** | OrcaLab 与导航进程位于客户端，NaVILA 位于独立 GPU 服务器 | 客户端仍使用回环地址，并将连接安全转发到推理服务器；`VLMClient` 接口不变 |
+| **方案 C — 托管远程推理（AWS SSM）** | OrcaLab 与导航进程位于参与者本机，NaVILA 位于主办方托管的 AWS 实例 | AWS SSM 端口转发通过相同的本机回环地址提供托管服务；`VLMClient` 接口不变 |
 
 一次部署只选择一种方案。方案 B 的安装、服务启动、隧道和端到端验证见
-[远程推理指南](REMOTE_INFERENCE_zh.md)。
+[远程推理指南](REMOTE_INFERENCE_zh.md)。方案 C 的临时 SSO 凭据、AWS SSM
+端口转发、健康检查和客户端启动流程见[托管访问指南](ACCESS_GUIDE_zh.md)。
 
 ## 唯一的控制接口
 
