@@ -1,3 +1,5 @@
+<p align="right"><sub><strong>English</strong> · <a href="ACCESS_GUIDE_zh.md">中文</a></sub></p>
+
 # NaVILA remote inference — access & smoke-test guide
 
 A companion for a **single tester** getting hands-on access to the NaVILA GPU
@@ -9,10 +11,11 @@ assumes a **Linux** client
 (Debian/Ubuntu commands shown). It is *not* the student handout — expect a live
 walkthrough alongside it.
 
-You authenticate as an IAM Identity Center (SSO) user whose permissions allow
-**exactly one thing: an SSM port-forward to the NaVILA load-balancer box.** No
-shell, no other AWS access. Once the tunnel is up, the inference endpoint looks
-like a local service on `127.0.0.1:54321`.
+You authenticate as an IAM Identity Center (SSO) user whose permissions are
+narrowly limited to discovering the NaVILA load-balancer box and opening an SSM
+port-forward to it. There is no shell access or general AWS access. Once the
+tunnel is up, the inference endpoint looks like a local service on
+`127.0.0.1:54321`.
 
 Only **two installs** are needed before you can connect (steps 1–2). Auth is just
 copy-pasting temporary credentials from the AWS access portal (step 3). uv is a
@@ -118,13 +121,16 @@ then open the tunnel to it:
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name orca-vln-navila-nginx-lb --region ap-northeast-1 \
   --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-echo "LB box: $INSTANCE_ID"     # should print an i-... id
-
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
 Wait for:
@@ -350,12 +356,16 @@ aws sts get-caller-identity --profile navila
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name orca-vln-navila-nginx-lb --profile navila --region ap-northeast-1 \
   --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --profile navila --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --profile navila --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
 The health check and mock inference are unchanged — they never use AWS

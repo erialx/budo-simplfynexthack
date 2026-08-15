@@ -1,3 +1,5 @@
+<p align="right"><sub><a href="ACCESS_GUIDE.md">English</a> · <strong>中文</strong></sub></p>
+
 # NaVILA 远程推理 — 访问与冒烟测试指南
 
 本文档面向**单个测试人员**，帮助你实际连上 NaVILA GPU 推理端点。该端点是位于
@@ -6,10 +8,10 @@ GPU 集群前端的 **nginx 负载均衡器**：你向它建立端口转发，�
 查询负载均衡器实例 ID），并假定使用 **Linux** 客户端（以下命令基于
 Debian/Ubuntu）。本文档**不是**学生讲义，请配合现场讲解使用。
 
-你的身份是 IAM Identity Center（SSO）用户，该身份只被允许**做一件事：
-对 NaVILA 负载均衡器实例建立 SSM 端口转发**。没有 shell 权限，也没有任何
-其他 AWS 访问权限。隧道建立后，推理端点就表现为
-`127.0.0.1:54321` 上的本地服务。
+你的身份是 IAM Identity Center（SSO）用户，其权限严格限制为查询 NaVILA
+负载均衡器实例，以及向该实例建立 SSM 端口转发。没有 shell 权限，也没有
+通用 AWS 访问权限。隧道建立后，推理端点就表现为 `127.0.0.1:54321` 上的
+本地服务。
 
 连接前只需安装**两个组件**（步骤 1–2）。认证只需从 AWS 访问门户复制粘贴
 一组临时凭据（步骤 3）。uv 是第三项**可选**安装，仅用于步骤 6 的模拟推理，
@@ -110,13 +112,16 @@ S3 路径下 `linux_64bit/` 目录中的 `.rpm` 包。）
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name orca-vln-navila-nginx-lb --region ap-northeast-1 \
   --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-echo "LB box: $INSTANCE_ID"     # 应输出一个 i-... ID
-
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "无法获取负载均衡器实例 ID（结果：${INSTANCE_ID:-<空>}）" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
 等待出现：
@@ -338,12 +343,16 @@ aws sts get-caller-identity --profile navila
 INSTANCE_ID=$(aws cloudformation describe-stacks \
   --stack-name orca-vln-navila-nginx-lb --profile navila --region ap-northeast-1 \
   --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-
-aws ssm start-session \
-  --target "$INSTANCE_ID" \
-  --profile navila --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "无法获取负载均衡器实例 ID（结果：${INSTANCE_ID:-<空>}）" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --profile navila --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
 health 检查和模拟推理不变——它们从不使用 AWS 凭据。
