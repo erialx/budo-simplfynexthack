@@ -3,20 +3,24 @@
 # NaVILA remote inference — access & smoke-test guide
 
 A companion for a **single tester** getting hands-on access to the NaVILA GPU
-inference endpoint. Its values are intentionally hardcoded to the current
-setup (one instance, one account, Tokyo), and it assumes a **Linux** client
-(Debian/Ubuntu commands shown). It is *not* the student handout — expect a
-live walkthrough alongside it.
+inference endpoint. The endpoint is the **nginx load balancer** that fronts the
+GPU fleet: you port-forward to it, and your requests are fanned across whatever
+GPU clones are currently running. It is intentionally tied to the current setup
+(one account, Tokyo — the LB box id is looked up automatically in step 4) and
+assumes a **Linux** client
+(Debian/Ubuntu commands shown). It is *not* the student handout — expect a live
+walkthrough alongside it.
 
-You authenticate as an IAM Identity Center (SSO) user whose permissions allow
-**exactly one thing: an SSM port-forward to the NaVILA instance.** No shell, no
-other AWS access. Once the tunnel is up, the inference server looks like a local
-service on `127.0.0.1:54321`.
+You authenticate as an IAM Identity Center (SSO) user whose permissions are
+narrowly limited to discovering the NaVILA load-balancer box and opening an SSM
+port-forward to it. There is no shell access or general AWS access. Once the
+tunnel is up, the inference endpoint looks like a local service on
+`127.0.0.1:54321`.
 
-Only **two installs** are needed before you can connect (steps 1–2). Auth is
-just a matter of pasting temporary credentials from the AWS access portal
-(step 3). uv is a third, **optional** install — only for the mock inference in
-step 6, not the health check.
+Only **two installs** are needed before you can connect (steps 1–2). Auth is just
+copy-pasting temporary credentials from the AWS access portal (step 3). uv is a
+third, **optional** install — only for the mock inference in step 6, not the
+health check.
 
 ## Fixed values for this setup
 
@@ -24,16 +28,27 @@ step 6, not the health check.
 |---|---|
 | AWS account | `sn.devlabs` (`433129444392`) |
 | Region | `ap-northeast-1` (Tokyo) |
-| Instance | `i-0d3b20f83a073d940` |
+| LB CloudFormation stack | `orca-vln-navila-nginx-lb` (step 4 reads the box id from its output) |
 | Access portal (SSO) URL | `https://d-9667b91afb.awsapps.com/start` |
-| Role | `NavilaPortForwardOnly` |
+| Role | `NavilaEC2FleetSSMPortForward` |
 | Local port | `54321` |
 
-> **One thing outside your control:** the NaVILA **server must be running** on the
-> instance. You cannot start it yourself — your access is port-forward only by
-> design. If the health check in step 5 can't reach it, that's an admin action.
+> **One thing outside your control:** at least one **GPU backend must be running
+> and healthy** behind the load balancer. You cannot start one yourself — your
+> access is port-forward only by design. If the health check in step 5 can't reach
+> a backend, that's an admin action.
 
-## The two terminals you'll use
+> **How the load balancer fits in:** the **Instance** above is the nginx box, not
+> a GPU. nginx balances at the TCP layer and is transparent to NaVILA's protocol,
+> so from your side everything below — the tunnel, the health check, the mock
+> inference — is byte-for-byte identical to talking to a single GPU. Your requests
+> are fanned across whatever GPU clones are in the pool, with automatic failover
+> if one dies. _(The LB box id can change if the box is ever recreated, so step 4
+> reads the current one from the LB stack's output rather than hardcoding it.)_
+
+## What you'll end up running
+
+Two terminals:
 
 - **Terminal A** — your AWS credentials + the SSM tunnel. Stays open the whole time.
 - **Terminal B** — the health check (and optionally a mock inference). Talks only
@@ -54,7 +69,7 @@ aws --version
 
 ## 2. Install the Session Manager plugin
 
-The plugin performs the actual port-forward; the CLI shells out to it.
+The plugin is what actually carries the port-forward; the CLI shells out to it.
 
 ```bash
 curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
@@ -69,7 +84,7 @@ distros use the `.rpm` from the same S3 path under `linux_64bit/`.)
 
 1. Open the access portal in a browser: **https://d-9667b91afb.awsapps.com/start**
    and sign in with your username and password.
-2. Choose the account **`sn.devlabs`**, then the role **`NavilaPortForwardOnly`**.
+2. Choose the account **`sn.devlabs`**, then the role **`NavilaEC2FleetSSMPortForward`**.
 3. Click **Access keys**.
 4. Under **Option 1: Set AWS environment variables**, copy the block. It looks
    like this (yours will have real values):
@@ -87,7 +102,7 @@ distros use the `.rpm` from the same S3 path under `linux_64bit/`.)
    ```
 
    You should see an ARN containing
-   `assumed-role/AWSReservedSSO_NavilaPortForwardOnly_.../<you>`.
+   `assumed-role/AWSReservedSSO_NavilaEC2FleetSSMPortForward_.../<you>`.
 
 > These credentials are **temporary** and live only in this terminal. When they
 > expire (or if you open a new terminal), just repeat step 3 to grab a fresh set
@@ -98,17 +113,27 @@ distros use the `.rpm` from the same S3 path under `linux_64bit/`.)
 
 ## 4. Open the tunnel — Terminal A
 
-Same terminal, using the credentials you just pasted:
+Same terminal, using the credentials you just pasted. First ask the LB stack for
+the current box id (so this keeps working even if the box is ever recreated),
+then open the tunnel to it:
 
 ```bash
-aws ssm start-session \
-  --target i-0d3b20f83a073d940 \
-  --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+INSTANCE_ID=$(aws cloudformation describe-stacks \
+  --stack-name orca-vln-navila-nginx-lb --region ap-northeast-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
-Wait until you see:
+Wait for:
 
 ```text
 Waiting for connections...
@@ -124,8 +149,7 @@ step 3 to refresh them.
 
 Save this as `check_navvlm_endpoint.py`. It sends NaVILA's health request
 (8-byte length prefix + JSON, no images, no inference) and checks the reply.
-Standard library only, so run it with the system `python3` — and no AWS
-credentials.
+Standard library only, so run it with the system `python3` — and no AWS creds.
 
 ```python
 #!/usr/bin/env python3
@@ -176,9 +200,9 @@ NaVILA endpoint healthy at 127.0.0.1:54321 (protocol_version=1)
 ```
 
 If instead it errors with `connection closed` or `connection refused`, the tunnel
-is up but the **NaVILA server isn't running** on the instance — that's an admin
-action, not something your access can fix. Ask your admin to start it, then
-retry.
+is up but **no GPU backend is healthy** behind the load balancer (nginx closes the
+connection when its pool is empty) — that's an admin action, not something your
+access can fix. Ping your admin to start a backend, then retry.
 
 **That's the core smoke test.** Step 6 is only if you want to confirm a real
 inference round trip.
@@ -188,7 +212,7 @@ inference round trip.
 ## 6. (Optional) Mock inference — Terminal B
 
 This goes beyond the health check: it sends 8 real frames and runs the model on
-the GPU. It needs the `pillow` library, so it's the one step that needs a package
+the GPU. It needs the `pillow` library, so it's the one place you need a package
 manager. [uv](https://docs.astral.sh/uv/) is the easiest — it reads the
 `# /// script` header and installs `pillow` automatically, no manual venv.
 
@@ -286,10 +310,11 @@ Ctrl-C **Terminal A** to close the tunnel. Nothing to clean up on the AWS side.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `AccessDeniedException` about expired/invalid credentials | Temporary credentials timed out (or pasted into the wrong terminal) | Redo step 3 — copy fresh env vars from the portal and paste them into Terminal A |
+| `AccessDeniedException` about expired/invalid credentials | Temporary creds timed out (or wrong terminal) | Redo step 3 — grab fresh env vars from the portal and paste into Terminal A |
+| Step 4 `INSTANCE_ID` prints empty, or `describe-stacks` is `AccessDenied` | Your role can't yet read the LB stack output | Admin action — the `NavilaEC2FleetSSMPortForward` permission set needs `cloudformation:DescribeStacks` on the LB stack |
 | `Unable to locate credentials` | No creds in this terminal | You're in the wrong terminal, or haven't pasted the step-3 block yet |
 | `AccessDeniedException` naming `SSM-SessionManagerRunShell` | You tried a plain shell session (no `--document-name`) | That's blocked by design — always pass the port-forward document as in step 4 |
-| Health check: `connection refused` / `connection closed` | NaVILA server not running on the instance | Ask admin to start it (you can't — port-forward-only access) |
+| Health check: `connection refused` / `connection closed` | No healthy GPU backend behind the LB (empty pool → nginx closes the connection) | Ask admin to start a backend (you can't — port-forward-only access) |
 | Health check: `connection refused` and the tunnel terminal is closed | Tunnel not running | Re-open Terminal A (steps 3–4) |
 | `Address already in use` when opening the tunnel | Local port 54321 taken by an old tunnel | Close the old one, or change the tunnel's `localPortNumber` **and** the `PORT` constant in both scripts to a free port |
 | `session-manager-plugin: command not found` | Plugin not installed | Redo step 2 |
@@ -315,7 +340,7 @@ SSO start URL [None]:            https://d-9667b91afb.awsapps.com/start
 SSO region [None]:               ap-northeast-1
 SSO registration scopes [sso:account:access]:   (press Enter)
 (choose account)   sn.devlabs (433129444392)
-(role)             NavilaPortForwardOnly
+(role)             NavilaEC2FleetSSMPortForward
 CLI default client Region [None]:   ap-northeast-1
 CLI default output format [None]:   json
 CLI profile name [...]:             navila
@@ -328,11 +353,19 @@ commands:
 aws sso login --profile navila
 aws sts get-caller-identity --profile navila
 
-aws ssm start-session \
-  --target i-0d3b20f83a073d940 \
-  --profile navila --region ap-northeast-1 \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+INSTANCE_ID=$(aws cloudformation describe-stacks \
+  --stack-name orca-vln-navila-nginx-lb --profile navila --region ap-northeast-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
+if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
+  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
+else
+  echo "LB box: $INSTANCE_ID"
+  aws ssm start-session \
+    --target "$INSTANCE_ID" \
+    --profile navila --region ap-northeast-1 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
+fi
 ```
 
 The health check and mock inference are unchanged — they never use AWS
