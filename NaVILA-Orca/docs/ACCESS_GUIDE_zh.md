@@ -1,21 +1,24 @@
-<p align="right"><sub><a href="ACCESS_GUIDE.md">English</a> · <strong>中文</strong></sub></p>
-
 # NaVILA 远程推理 — 访问与冒烟测试指南
 
-本文档面向**单个测试人员**，帮助你实际连上 NaVILA GPU 推理端点。该端点是位于
-GPU 集群前端的 **nginx 负载均衡器**：你向它建立端口转发，请求会被分发到当前
-运行的任意 GPU 副本。本文档专用于当前环境（单账号、东京区域——步骤 4 会自动
-查询负载均衡器实例 ID），并假定使用 **Linux** 客户端（以下命令基于
-Debian/Ubuntu）。本文档**不是**学生讲义，请配合现场讲解使用。
+本文档面向**单个测试人员**，帮助你实际连上 NaVILA GPU 推理端点。该端点是一台
+位于 GPU 集群前端的 **nginx 负载均衡器**：你向它建立端口转发，请求会被分发到
+当前运行的任意 GPU 副本。环境中有 **8 台等效的负载均衡器（“分片”）**，每台
+都连接到**同一个**集群；它们分布在两个培训场地——**SMU**（场地 A）有 4 台，
+**NTU**（场地 B）有 4 台。你需要连接**所在场地**的一台分片（按学员组轮询
+分配）；同一场地内的分片可互换使用。场地划分只是为了分散 SSM 会话负载——
+无论位于哪个场地，每台分片都能访问完整的 GPU 池。本文档专用于当前环境
+（单账号、东京区域——步骤 4 按场地写死了实例 ID），并假定使用 **Linux**
+客户端（以下命令基于 Debian/Ubuntu）。本文档**不是**学生讲义，请配合现场
+讲解使用。
 
-你的身份是 IAM Identity Center（SSO）用户，其权限严格限制为查询 NaVILA
-负载均衡器实例，以及向该实例建立 SSM 端口转发。没有 shell 权限，也没有
-通用 AWS 访问权限。隧道建立后，推理端点就表现为 `127.0.0.1:54321` 上的
-本地服务。
+你使用 **IAM 用户的访问密钥**（单独提供的访问密钥 ID 和私有访问密钥）进行
+身份验证，其权限只允许**做一件事：向 NaVILA 负载均衡器（分片）建立 SSM
+端口转发**。没有 shell 权限，也没有任何其他 AWS 访问权限。隧道建立后，
+推理端点就表现为 `127.0.0.1:54321` 上的本地服务。
 
-连接前只需安装**两个组件**（步骤 1–2）。认证只需从 AWS 访问门户复制粘贴
-一组临时凭据（步骤 3）。uv 是第三项**可选**安装，仅用于步骤 6 的模拟推理，
-health 检查不需要。
+连接前只需安装**两个组件**（步骤 1–2）。认证只需导出分配给你的两个访问密钥
+值（步骤 3）。uv 是第三项**可选**安装，仅用于步骤 6 的模拟推理，health 检查
+不需要。
 
 ## 本环境固定参数
 
@@ -23,21 +26,20 @@ health 检查不需要。
 |---|---|
 | AWS 账号 | `sn.devlabs` (`433129444392`) |
 | 区域 | `ap-northeast-1`（东京） |
-| 负载均衡器 CloudFormation 堆栈 | `orca-vln-navila-nginx-lb`（步骤 4 从其输出中读取实例 ID） |
-| 访问门户（SSO）URL | `https://d-9667b91afb.awsapps.com/start` |
-| 角色 | `NavilaEC2FleetSSMPortForward` |
+| 负载均衡器（分片） | 共 8 台，步骤 4 按场地写死——**SMU（A）** = 4 台，**NTU（B）** = 4 台 |
+| 你的分片 | 所在场地 4 台中的一台（按学员组轮询分配）；同一场地内任意一台均可使用 |
+| 凭据 | IAM 用户访问密钥（访问密钥 ID + 私有访问密钥），**单独提供**——参见步骤 3 |
 | 本地端口 | `54321` |
 
 > **有一件事不受你控制：** 负载均衡器后端至少必须有一个 **GPU 后端正在运行
 > 且状态健康**。你无法自行启动后端——按设计，你的权限只包含端口转发。如果
 > 步骤 5 的 health 检查无法连接后端，就需要管理员处理。
 
-> **负载均衡器如何工作：** 上文的**实例**是 nginx 主机，而不是 GPU。nginx
+> **负载均衡器如何工作：** 上文所说的**实例**是 nginx 主机，而不是 GPU。nginx
 > 在 TCP 层进行负载均衡，对 NaVILA 协议完全透明。因此从你的角度看，下文的
 > 隧道、health 检查和模拟推理，与直接连接单块 GPU 时的字节流完全一致。请求会
-> 被分发到池中的任意 GPU 副本；一个副本宕机后会自动故障转移。_（如果负载均衡器
-> 主机被重建，其实例 ID 可能会改变，因此步骤 4 会从负载均衡器堆栈输出中读取
-> 当前 ID，而不是将其写死。）_
+> 被分发到池中的任意 GPU 副本；一个副本宕机后会自动故障转移。_（这些分片主机
+> 会长期运行且不会被销毁，因此步骤 4 按场地写死了实例 ID，而不是动态查询。）_
 
 ## 最终运行方式
 
@@ -73,55 +75,60 @@ session-manager-plugin
 最后一条命令应输出一行 “successfully installed”。（RPM 系发行版使用同一
 S3 路径下 `linux_64bit/` 目录中的 `.rpm` 包。）
 
-## 3. 获取临时凭据 — 终端 A
+## 3. 设置访问密钥 — 终端 A
 
-1. 在浏览器中打开访问门户：**https://d-9667b91afb.awsapps.com/start**，
-   使用你的用户名和密码登录。
-2. 选择账号 **`sn.devlabs`**，再选择角色 **`NavilaEC2FleetSSMPortForward`**。
-3. 点击 **Access keys**。
-4. 在 **Option 1: Set AWS environment variables** 下方复制整段内容。它
-   长这样（你的会是真实值）：
+你会**另外收到一段访问密钥配置**（不在本指南中——凭据保存在组织者发放的
+文件里）。根据你的场地和学员组，配置内容如下所示（你收到的会包含真实值），
+并且**没有会话令牌**——这是 IAM 用户密钥，不是临时凭据：
 
-   ```bash
-   export AWS_ACCESS_KEY_ID="ASIA..."
-   export AWS_SECRET_ACCESS_KEY="..."
-   export AWS_SESSION_TOKEN="..."
-   ```
+```bash
+export AWS_ACCESS_KEY_ID="AKIA..."
+export AWS_SECRET_ACCESS_KEY="..."
+```
 
-5. 粘贴到**终端 A**。确认已生效——不需要 `--profile`：
+1. 将分配给**你的**配置粘贴到**终端 A**。
+2. 确认已生效——不需要 `--profile`：
 
    ```bash
    aws sts get-caller-identity
    ```
 
-   输出中应出现一段形如
-   `assumed-role/AWSReservedSSO_NavilaEC2FleetSSMPortForward_.../<你的用户名>` 的 ARN。
+   输出中应出现类似下面的**用户** ARN：
+   `arn:aws:iam::433129444392:user/navila-student/navila-student-...`。
 
-> 这些凭据是**临时的**，只存在于当前终端。过期后（或新开终端时），重复
-> 步骤 3 从门户获取新的一组。如果想用一条命令完成刷新，参见附录中基于
-> profile 的替代方案。
+> 这些是**长期有效**的密钥——不会在会话期间过期，而且新开终端后仍可使用
+> 同一配置（只需再次粘贴）。请勿向他人泄露；培训结束后这些密钥会被撤销。
+> 如果新终端提示找不到凭据，说明你还没有把配置粘贴到**该终端**。
 
 ---
 
 ## 4. 建立隧道 — 终端 A
 
-使用刚才粘贴的凭据，在同一个终端中，先查询负载均衡器堆栈以获取当前实例 ID
-（即使主机被重建，此方法仍然有效），然后向其建立隧道：
+在粘贴凭据的同一个终端中，从下表选择**你所在场地**的分片主机，并将
+`INSTANCE_ID` 设为对应值。同一场地的 4 台主机可互换使用——按学员组轮询分配
+（第 1 组 → 第 1 行，第 2 组 → 第 2 行，以此类推），以便均匀分散会话。
+
+| 场地 | 学员组 | 实例 ID |
+|---|---|---|
+| **SMU**（A） | 1 | `i-066515f762428ba55` |
+| **SMU**（A） | 2 | `i-07c7311b7db2a70b9` |
+| **SMU**（A） | 3 | `i-0d399fd6c5430ae74` |
+| **SMU**（A） | 4 | `i-025cf537751c328e8` |
+| **NTU**（B） | 5 | `i-01a6c1da2a41f1b36` |
+| **NTU**（B） | 6 | `i-00e69a7c2bd5ff0ec` |
+| **NTU**（B） | 7 | `i-0b304e822e0e09faa` |
+| **NTU**（B） | 8 | `i-0aaccf0863578108a` |
+
+然后建立隧道：
 
 ```bash
-INSTANCE_ID=$(aws cloudformation describe-stacks \
-  --stack-name orca-vln-navila-nginx-lb --region ap-northeast-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
-  echo "无法获取负载均衡器实例 ID（结果：${INSTANCE_ID:-<空>}）" >&2
-else
-  echo "LB box: $INSTANCE_ID"
-  aws ssm start-session \
-    --target "$INSTANCE_ID" \
-    --region ap-northeast-1 \
-    --document-name AWS-StartPortForwardingSession \
-    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
-fi
+INSTANCE_ID=i-066515f762428ba55    # <-- 改成你所在场地的分片主机（见上表）
+
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --region ap-northeast-1 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
 ```
 
 等待出现：
@@ -245,9 +252,10 @@ def recv_exact(sock, n):
 
 
 def make_frame():
-    # Random noise is fine — this is a plumbing/latency smoke test, not a
-    # correctness test of the navigation output.
-    img = Image.frombytes("RGB", (512, 512), os.urandom(512 * 512 * 3))
+    # 这是管线/延迟冒烟测试，而不是导航输出正确性测试，因此帧内容并不重要。
+    # 切换下面两行的注释，即可在随机噪声与单一纯色之间切换。
+    # img = Image.frombytes("RGB", (512, 512), os.urandom(512 * 512 * 3))  # 随机噪声
+    img = Image.new("RGB", (512, 512), (128, 128, 128))  # 单一纯色
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode("ascii")
@@ -285,7 +293,7 @@ latency : 2.68 s
 response: 'The next action is move forward 25 cm.'
 ```
 
-这次端到端往返——你的受限 SSO 身份 → SSM 隧道 → GPU 推理 → 返回动作——
+这次端到端往返——你的受限 IAM 身份 → SSM 隧道 → GPU 推理 → 返回动作——
 就完成了完整的测试。
 
 ---
@@ -298,8 +306,8 @@ response: 'The next action is move forward 25 cm.'
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| 报 `AccessDeniedException`，提示凭据过期或无效 | 临时凭据超时（或粘贴到了错误的终端） | 重做步骤 3——从门户获取新的环境变量并粘贴到终端 A |
-| 步骤 4 中 `INSTANCE_ID` 输出为空，或 `describe-stacks` 报 `AccessDenied` | 你的角色尚无权读取负载均衡器堆栈输出 | 需要管理员处理——为 `NavilaEC2FleetSSMPortForward` 权限集授予负载均衡器堆栈的 `cloudformation:DescribeStacks` 权限 |
+| `get-caller-identity` 报 `InvalidClientTokenId` / `SignatureDoesNotMatch` / `AccessDenied` | 密钥粘贴错误，或粘贴到了错误的终端 | 将发放的密钥文件中属于**你的**配置完整、准确地重新粘贴到终端 A（两行都要粘贴，不要带多余空格）。如果仍然失败，你的密钥可能已被撤销——请联系组织者 |
+| 建立隧道时报 `TargetNotConnected` / `InvalidInstanceId` | `INSTANCE_ID` 输入错误，或使用了不属于你所在场地的主机 | 从步骤 4 的表格中准确复制 ID，并确认它属于你所在场地的 4 行（SMU 为第 1–4 行，NTU 为第 5–8 行） |
 | `Unable to locate credentials` | 当前终端没有凭据 | 你开错了终端，或还没有粘贴步骤 3 的内容 |
 | 报 `AccessDeniedException` 且包含 `SSM-SessionManagerRunShell` | 你尝试了普通 shell 会话（未传 `--document-name`） | 这是设计上禁止的——始终像步骤 4 那样传入端口转发文档 |
 | Health 检查：`connection refused` / `connection closed` | 负载均衡器后端没有健康的 GPU 后端（后端池为空时 nginx 会关闭连接） | 请管理员启动后端（你无法操作——只有端口转发权限） |
@@ -310,49 +318,39 @@ response: 'The next action is move forward 25 cm.'
 
 ---
 
-## 附录 — 备选认证：持久 SSO profile
+## 附录 — 备选认证：持久命名 profile
 
-不想每次会话都复制粘贴临时环境变量（步骤 3），可以一次性配置命名
-profile，之后一条命令即可刷新。权衡在于：现在做一次向导配置，之后凭据
-过期时就不必再打开浏览器。
+如果不想在每个新终端中都导出环境变量（步骤 3），可以将密钥一次性保存到命名
+profile，之后使用 `--profile navila`。代价是密钥会保存在磁盘上的
+`~/.aws/credentials` 中，而不是只存在于 shell 里——个人电脑上通常没问题，
+共享电脑上则不建议这样做。
 
-一次性配置：
+一次性配置（根据提示粘贴发放配置中属于**你的**访问密钥 ID 和私有访问密钥；
+这里不会询问会话令牌，因为并不存在会话令牌）：
 
 ```bash
-aws configure sso
+aws configure --profile navila
 ```
 
 ```text
-SSO session name (Recommended): navila-sso
-SSO start URL [None]:            https://d-9667b91afb.awsapps.com/start
-SSO region [None]:               ap-northeast-1
-SSO registration scopes [sso:account:access]:   (press Enter)
-(choose account)   sn.devlabs (433129444392)
-(role)             NavilaEC2FleetSSMPortForward
-CLI default client Region [None]:   ap-northeast-1
-CLI default output format [None]:   json
-CLI profile name [...]:             navila
+AWS Access Key ID [None]:       AKIA...        （来自你的配置）
+AWS Secret Access Key [None]:   ...            （来自你的配置）
+Default region name [None]:     ap-northeast-1
+Default output format [None]:   json
 ```
 
-之后每次需要访问时，登录并在 AWS 命令中加上 `--profile navila`：
+之后每次需要访问时，在 AWS 命令中加上 `--profile navila`：
 
 ```bash
-aws sso login --profile navila
 aws sts get-caller-identity --profile navila
 
-INSTANCE_ID=$(aws cloudformation describe-stacks \
-  --stack-name orca-vln-navila-nginx-lb --profile navila --region ap-northeast-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
-  echo "无法获取负载均衡器实例 ID（结果：${INSTANCE_ID:-<空>}）" >&2
-else
-  echo "LB box: $INSTANCE_ID"
-  aws ssm start-session \
-    --target "$INSTANCE_ID" \
-    --profile navila --region ap-northeast-1 \
-    --document-name AWS-StartPortForwardingSession \
-    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
-fi
+INSTANCE_ID=i-066515f762428ba55    # <-- 改成你所在场地的分片主机（步骤 4 表格）
+
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --profile navila --region ap-northeast-1 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
 ```
 
 health 检查和模拟推理不变——它们从不使用 AWS 凭据。
