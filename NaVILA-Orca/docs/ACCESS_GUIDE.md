@@ -1,26 +1,27 @@
-<p align="right"><sub><strong>English</strong> · <a href="ACCESS_GUIDE_zh.md">中文</a></sub></p>
-
 # NaVILA remote inference — access & smoke-test guide
 
 A companion for a **single tester** getting hands-on access to the NaVILA GPU
-inference endpoint. The endpoint is the **nginx load balancer** that fronts the
+inference endpoint. The endpoint is an **nginx load balancer** that fronts the
 GPU fleet: you port-forward to it, and your requests are fanned across whatever
-GPU clones are currently running. It is intentionally tied to the current setup
-(one account, Tokyo — the LB box id is looked up automatically in step 4) and
-assumes a **Linux** client
-(Debian/Ubuntu commands shown). It is *not* the student handout — expect a live
-walkthrough alongside it.
+GPU clones are currently running. There are **8 equivalent LB boxes ("shards")**,
+each fronting the *same* fleet; they are split across the two training venues —
+**SMU** (venue A) gets 4 and **NTU** (venue B) gets 4. You connect to one of the
+shards **at your venue** (round-robin by cohort); within a venue the shards are
+interchangeable. The venue split is purely to spread the SSM session load — every
+shard reaches the full GPU pool regardless of venue. It is intentionally tied to
+the current setup (one account, Tokyo — the box ids are hardcoded per venue in
+step 4) and assumes a **Linux** client (Debian/Ubuntu commands shown). It is *not*
+the student handout — expect a live walkthrough alongside it.
 
-You authenticate as an IAM Identity Center (SSO) user whose permissions are
-narrowly limited to discovering the NaVILA load-balancer box and opening an SSM
-port-forward to it. There is no shell access or general AWS access. Once the
-tunnel is up, the inference endpoint looks like a local service on
-`127.0.0.1:54321`.
+You authenticate with an **IAM user's access keys** (a key id + secret, provided
+to you separately) whose permissions allow **exactly one thing: an SSM
+port-forward to a NaVILA load-balancer box (shard).** No shell, no other AWS
+access. Once the tunnel is up, the inference endpoint looks like a local service
+on `127.0.0.1:54321`.
 
 Only **two installs** are needed before you can connect (steps 1–2). Auth is just
-copy-pasting temporary credentials from the AWS access portal (step 3). uv is a
-third, **optional** install — only for the mock inference in step 6, not the
-health check.
+exporting the two access-key values you were given (step 3). uv is a third,
+**optional** install — only for the mock inference in step 6, not the health check.
 
 ## Fixed values for this setup
 
@@ -28,9 +29,9 @@ health check.
 |---|---|
 | AWS account | `sn.devlabs` (`433129444392`) |
 | Region | `ap-northeast-1` (Tokyo) |
-| LB CloudFormation stack | `orca-vln-navila-nginx-lb` (step 4 reads the box id from its output) |
-| Access portal (SSO) URL | `https://d-9667b91afb.awsapps.com/start` |
-| Role | `NavilaEC2FleetSSMPortForward` |
+| LB boxes (shards) | 8 total, hardcoded per venue in step 4 — **SMU (A)** = 4 boxes, **NTU (B)** = 4 boxes |
+| Your shard | one of the 4 boxes at **your venue** (round-robin by cohort); within a venue any of the 4 works |
+| Credentials | An IAM user's access keys (key id + secret), **provided to you separately** — see step 3 |
 | Local port | `54321` |
 
 > **One thing outside your control:** at least one **GPU backend must be running
@@ -43,8 +44,8 @@ health check.
 > so from your side everything below — the tunnel, the health check, the mock
 > inference — is byte-for-byte identical to talking to a single GPU. Your requests
 > are fanned across whatever GPU clones are in the pool, with automatic failover
-> if one dies. _(The LB box id can change if the box is ever recreated, so step 4
-> reads the current one from the LB stack's output rather than hardcoding it.)_
+> if one dies. _(The shard boxes are long-lived and not torn down, so step 4
+> hardcodes their instance ids per venue rather than looking them up.)_
 
 ## What you'll end up running
 
@@ -80,57 +81,63 @@ session-manager-plugin
 The last command should print a "successfully installed" line. (RPM-based
 distros use the `.rpm` from the same S3 path under `linux_64bit/`.)
 
-## 3. Get temporary credentials — Terminal A
+## 3. Set your access keys — Terminal A
 
-1. Open the access portal in a browser: **https://d-9667b91afb.awsapps.com/start**
-   and sign in with your username and password.
-2. Choose the account **`sn.devlabs`**, then the role **`NavilaEC2FleetSSMPortForward`**.
-3. Click **Access keys**.
-4. Under **Option 1: Set AWS environment variables**, copy the block. It looks
-   like this (yours will have real values):
+You'll be **given a block of access keys separately** (not in this guide — the
+credentials live in a file the organizers hand out). Your block, for your venue
+and cohort, looks like this (yours will have real values), with **no session
+token** — these are IAM-user keys, not temporary ones:
 
-   ```bash
-   export AWS_ACCESS_KEY_ID="ASIA..."
-   export AWS_SECRET_ACCESS_KEY="..."
-   export AWS_SESSION_TOKEN="..."
-   ```
+```bash
+export AWS_ACCESS_KEY_ID="AKIA..."
+export AWS_SECRET_ACCESS_KEY="..."
+```
 
-5. Paste it into **Terminal A**. Confirm it worked — no `--profile` needed:
+1. Paste **your** block into **Terminal A**.
+2. Confirm it worked — no `--profile` needed:
 
    ```bash
    aws sts get-caller-identity
    ```
 
-   You should see an ARN containing
-   `assumed-role/AWSReservedSSO_NavilaEC2FleetSSMPortForward_.../<you>`.
+   You should see a **user** ARN like
+   `arn:aws:iam::433129444392:user/navila-student/navila-student-...`.
 
-> These credentials are **temporary** and live only in this terminal. When they
-> expire (or if you open a new terminal), just repeat step 3 to grab a fresh set
-> from the portal. Prefer a one-command refresh instead? See the profile-based
-> alternative in the appendix.
+> These are **long-lived** keys — they don't expire mid-session, and the same
+> block works if you open a new terminal (just paste it again). Keep them to
+> yourself; they'll be revoked after training. If a new terminal can't find
+> credentials, you simply haven't pasted the block into *that* terminal yet.
 
 ---
 
 ## 4. Open the tunnel — Terminal A
 
-Same terminal, using the credentials you just pasted. First ask the LB stack for
-the current box id (so this keeps working even if the box is ever recreated),
-then open the tunnel to it:
+Same terminal, using the credentials you just pasted. Pick the shard box for
+**your venue** from the table below and set `INSTANCE_ID` to it. The 4 boxes at a
+venue are interchangeable — round-robin by cohort (cohort 1 → 1st row, cohort 2 →
+2nd row, …) so the sessions spread evenly across them.
+
+| Venue | Cohort | Instance ID |
+|---|---|---|
+| **SMU** (A) | 1 | `i-066515f762428ba55` |
+| **SMU** (A) | 2 | `i-07c7311b7db2a70b9` |
+| **SMU** (A) | 3 | `i-0d399fd6c5430ae74` |
+| **SMU** (A) | 4 | `i-025cf537751c328e8` |
+| **NTU** (B) | 5 | `i-01a6c1da2a41f1b36` |
+| **NTU** (B) | 6 | `i-00e69a7c2bd5ff0ec` |
+| **NTU** (B) | 7 | `i-0b304e822e0e09faa` |
+| **NTU** (B) | 8 | `i-0aaccf0863578108a` |
+
+Then open the tunnel:
 
 ```bash
-INSTANCE_ID=$(aws cloudformation describe-stacks \
-  --stack-name orca-vln-navila-nginx-lb --region ap-northeast-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
-  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
-else
-  echo "LB box: $INSTANCE_ID"
-  aws ssm start-session \
-    --target "$INSTANCE_ID" \
-    --region ap-northeast-1 \
-    --document-name AWS-StartPortForwardingSession \
-    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
-fi
+INSTANCE_ID=i-066515f762428ba55    # <-- set to YOUR venue's shard box (see table)
+
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --region ap-northeast-1 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
 ```
 
 Wait for:
@@ -257,9 +264,11 @@ def recv_exact(sock, n):
 
 
 def make_frame():
-    # Random noise is fine — this is a plumbing/latency smoke test, not a
-    # correctness test of the navigation output.
-    img = Image.frombytes("RGB", (512, 512), os.urandom(512 * 512 * 3))
+    # This is a plumbing/latency smoke test, not a correctness test of the
+    # navigation output — the frame content doesn't matter. Swap between the two
+    # lines below to switch random noise vs. a single solid colour.
+    # img = Image.frombytes("RGB", (512, 512), os.urandom(512 * 512 * 3))  # random noise
+    img = Image.new("RGB", (512, 512), (128, 128, 128))  # solid colour
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode("ascii")
@@ -297,7 +306,7 @@ latency : 2.68 s
 response: 'The next action is move forward 25 cm.'
 ```
 
-That end-to-end round trip — your locked-down SSO identity → SSM tunnel → GPU
+That end-to-end round trip — your locked-down IAM identity → SSM tunnel → GPU
 inference → action back — is the full test.
 
 ---
@@ -310,8 +319,8 @@ Ctrl-C **Terminal A** to close the tunnel. Nothing to clean up on the AWS side.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `AccessDeniedException` about expired/invalid credentials | Temporary creds timed out (or wrong terminal) | Redo step 3 — grab fresh env vars from the portal and paste into Terminal A |
-| Step 4 `INSTANCE_ID` prints empty, or `describe-stacks` is `AccessDenied` | Your role can't yet read the LB stack output | Admin action — the `NavilaEC2FleetSSMPortForward` permission set needs `cloudformation:DescribeStacks` on the LB stack |
+| `InvalidClientTokenId` / `SignatureDoesNotMatch` / `AccessDenied` on `get-caller-identity` | Keys pasted wrong, or into the wrong terminal | Re-paste **your** block from the provided keys file into Terminal A exactly (both lines, no stray spaces). If it still fails, your keys may have been revoked — ask the organizers |
+| `TargetNotConnected` / `InvalidInstanceId` when opening the tunnel | `INSTANCE_ID` typo'd, or you used a box that isn't your venue's | Copy the id exactly from the step-4 table and confirm it's one of your venue's 4 rows (SMU rows 1–4, NTU rows 5–8) |
 | `Unable to locate credentials` | No creds in this terminal | You're in the wrong terminal, or haven't pasted the step-3 block yet |
 | `AccessDeniedException` naming `SSM-SessionManagerRunShell` | You tried a plain shell session (no `--document-name`) | That's blocked by design — always pass the port-forward document as in step 4 |
 | Health check: `connection refused` / `connection closed` | No healthy GPU backend behind the LB (empty pool → nginx closes the connection) | Ask admin to start a backend (you can't — port-forward-only access) |
@@ -322,50 +331,39 @@ Ctrl-C **Terminal A** to close the tunnel. Nothing to clean up on the AWS side.
 
 ---
 
-## Appendix — alternative auth: a persistent SSO profile
+## Appendix — alternative auth: a persistent named profile
 
-Instead of copy-pasting temporary env vars each session (step 3), you can set up
-a named profile once and refresh it with a single command. Trade-off: a one-time
-wizard now, versus a browser round-trip each time the env-var creds expire.
+Instead of exporting the env vars in every new terminal (step 3), you can store
+your keys once in a named profile and pass `--profile navila` thereafter.
+Trade-off: the keys sit in `~/.aws/credentials` on disk instead of living only in
+a shell — fine on your own machine, less so on a shared one.
 
-One-time setup:
+One-time setup (paste **your** key id + secret from the provided block when asked;
+leave the session-token prompt — there isn't one — and skip it):
 
 ```bash
-aws configure sso
+aws configure --profile navila
 ```
 
 ```text
-SSO session name (Recommended): navila-sso
-SSO start URL [None]:            https://d-9667b91afb.awsapps.com/start
-SSO region [None]:               ap-northeast-1
-SSO registration scopes [sso:account:access]:   (press Enter)
-(choose account)   sn.devlabs (433129444392)
-(role)             NavilaEC2FleetSSMPortForward
-CLI default client Region [None]:   ap-northeast-1
-CLI default output format [None]:   json
-CLI profile name [...]:             navila
+AWS Access Key ID [None]:       AKIA...        (from your block)
+AWS Secret Access Key [None]:   ...            (from your block)
+Default region name [None]:     ap-northeast-1
+Default output format [None]:   json
 ```
 
-Then, whenever you need access, log in and add `--profile navila` to the AWS
-commands:
+Then, whenever you need access, add `--profile navila` to the AWS commands:
 
 ```bash
-aws sso login --profile navila
 aws sts get-caller-identity --profile navila
 
-INSTANCE_ID=$(aws cloudformation describe-stacks \
-  --stack-name orca-vln-navila-nginx-lb --profile navila --region ap-northeast-1 \
-  --query "Stacks[0].Outputs[?OutputKey=='NginxInstanceId'].OutputValue" --output text)
-if [[ ! "$INSTANCE_ID" =~ ^i-[0-9a-f]+$ ]]; then
-  echo "Could not resolve the LB instance id (got: ${INSTANCE_ID:-<empty>})" >&2
-else
-  echo "LB box: $INSTANCE_ID"
-  aws ssm start-session \
-    --target "$INSTANCE_ID" \
-    --profile navila --region ap-northeast-1 \
-    --document-name AWS-StartPortForwardingSession \
-    --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
-fi
+INSTANCE_ID=i-066515f762428ba55    # <-- set to YOUR venue's shard box (step-4 table)
+
+aws ssm start-session \
+  --target "$INSTANCE_ID" \
+  --profile navila --region ap-northeast-1 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["54321"],"localPortNumber":["54321"]}'
 ```
 
 The health check and mock inference are unchanged — they never use AWS
