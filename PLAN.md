@@ -74,28 +74,40 @@ flowchart TB
 
 | Stage | Goal | Why this order | Status |
 |---|---|---|---|
-| 1 | Per-step MCP tools + mock backend | Everything else plugs into this seam. Nothing else can start meaningfully without it. | Mock backend done (A). Per-step MCP tools not started (C). |
-| 2 | End-to-end loop on mocks + real Safety Watchdog | Proves the pipeline works before the hard part. | Safety Watchdog done (A). End-to-end loop wiring not started (C). |
-| 3 | Hazard Veto Agent + injection harness | The differentiator. Protect the most time here. | Done (A) — see below. |
-| 4 | Integration + demo rehearsal | Buffer day. No new features — only fixing and rehearsing the trigger. | Not started. |
+| 1 | Per-step MCP tools + mock backend | Everything else plugs into this seam. Nothing else can start meaningfully without it. | **Done + merged to `main`.** Mock backend (A) + per-step MCP tools (C). |
+| 2 | End-to-end loop on mocks + real Safety Watchdog | Proves the pipeline works before the hard part. | Safety Watchdog built (A). Loop wiring is the active task (C). |
+| 3 | Hazard Veto Agent + injection harness | The differentiator. Protect the most time here. | Components built + tested (A). Loop integration (gate + interrupt wiring) not started (C). |
+| 4 | Integration + demo rehearsal | Buffer day. No new features — only fixing and rehearsing the trigger. | Not started. Real (non-mock) path blocked on D's fork handoff. |
 
 ## Task delegation
 
 **C — MCP ↔ OrcaLab connection, has Claude Code**
 Owns the foundation and the final wiring — the two places that most need someone who already
 knows the MCP/OrcaLab connection cold.
-- Stage 1: Convert `navila_bridge.py` from one blocking tool into `navigate_step()`,
-  `get_status()`, `emergency_stop()`. Root-cause the `json.dumps` TypeError blocking this.
-  **Not started.**
-- Stage 2: Wire the Orchestrator's per-step loop against the new tools; get one full
-  navigate-to-goal cycle working end-to-end on the mock backend. **Not started.**
-- Stage 3: Integrate the Veto Agent and Safety Watchdog (built by A) into the loop — gate
-  `Move()` on VETO/CLEAR, wire the Watchdog's direct interrupt path. **Blocked on Stage 1/2;
-  A's pieces (`SafetyWatchdog`, `HazardVetoAgent`) are ready and tested — see CLAUDE.md, "A's
-  components".**
+- Stage 1: Convert `navila_bridge.py` from one blocking tool into per-step tools.
+  **Done + merged.** `navila_start_episode` / `navila_navigate_step` / `navila_get_status` /
+  `navila_emergency_stop` / `navila_reset_episode` / `navila_continue_episode`, backed by
+  `bridge_backends.py`. `json.dumps` TypeError root-caused + fixed (`_jsonable()` coercer).
+  20 tests in `test_navila_bridge.py`.
+- Stage 2: **Active task.** Compose `MockForceSensor` + `SafetyWatchdog` into the per-step
+  session; call `watchdog.tick()` inside `navila_navigate_step` (a trip sets `interrupted`,
+  which the step loop already checks and bails on); attach `DecisionLogbook`. Deliverable:
+  one navigate-to-goal cycle on mocks where a scripted force drop mid-run trips the e-stop
+  and `logbook.dump()` shows it. Add MCP tools `navila_inject_force_drop` + `navila_get_logbook`.
+- Stage 3: Gate the move in `navila_navigate_step` on `HazardVetoAgent.assess()` (VETO →
+  skip execution, `termination_reason="veto"`); test with `ScenarioInjector`-marked frames +
+  a stub `VetoVisionClient`. A's pieces are ready — see CLAUDE.md, "A's components" and
+  "Three backend seams".
 
 **D — OrcaLab environment and setup**
 Owns everything that lives inside the sim itself — plays directly to the existing specialty.
+
+**Handover so far:** `handover/` — `D_handover.md`, `D_street.json` (the 44-actor demo
+scene), `D_traffic_crossing.py` (waypoint prompts + nudge command). D's actual working fork
+(`--realtime-visual-sync` / `--rehearsal` / `--traffic-light-crossing` flags,
+`WAYPOINT_STOP_OVERRIDE` runner logic) is NOT in the repo and can't be pushed to origin —
+needs a `git bundle` / zip. See CLAUDE.md, "D's components / handover".
+
 - Stage 1: Make the OrcaLab scene reliably start/reset (needs to run multiple times for
   rehearsal + judges). Check whether the edit service (port 50151) supports writes/spawning
   objects, not just frame capture — needed for stage 3. **Edit-service writes confirmed
@@ -127,8 +139,10 @@ others if it moves slower some days.
   **Done this pass** — `CLAUDE.md` and this file now live in the repo (they previously only
   existed as chat attachments, not committed anywhere).
 - Everything A was assigned is now built and unit-tested (59/59 passing,
-  `cd NaVILA-Orca && PYTHONPATH=src python3 -m pytest tests/ -q`). Nothing left queued for A
-  except picking up integration work once C's per-step tools land, or helping D if D is stuck.
+  `cd NaVILA-Orca && PYTHONPATH=src python3 -m pytest tests/ -q`). C's per-step tools have
+  now landed, so A's next pickups: add `anthropic` to `NaVILA-Orca/pyproject.toml` and
+  smoke-test `AnthropicVetoVisionClient` on one real saved frame; help C wire the Stage 2
+  loop (A knows both `robot_backend` and the edit-service API).
 
 ## Stage 4 (everyone)
 
