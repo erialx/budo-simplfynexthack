@@ -124,6 +124,35 @@ the per-step session a `MockForceSensor` and construct
 `SafetyWatchdog(session.backend, force_reader=sensor.read, on_trip=logbook.record_watchdog_trip)`.
 Don't build a `RobotBackend`↔`StepBackend` bridge unless the real hardware path actually needs it.
 
+## Per-step bridge (C) — status
+
+`navila_bridge.py` + `bridge_backends.py`, all on `main`. Full task board in `docs/PLAN.md`.
+
+- **Stage 1 — done.** `navila_start_episode` / `navila_navigate_step` / `navila_get_status` /
+  `navila_emergency_stop` / `navila_reset_episode` / `navila_continue_episode`, over the
+  `StepBackend` / `StepVLM` seams. Backends: `mock` (planar), `mjlab` (real MJWarp).
+- **Stage 2 — done.** A's `SafetyWatchdog` + `MockForceSensor` + `DecisionLogbook` wired in
+  (`_build_safety_stack`): `watchdog.tick()` runs once per physics tick inside
+  `navila_navigate_step`; a trip calls `backend.emergency_stop()` and the step ends
+  `termination_reason="emergency_stop"`. New tools `navila_inject_force_drop`,
+  `navila_clear_force_drops`, `navila_clear_stop`, `navila_get_logbook`; `start_episode` gained
+  `watchdog` / `watchdog_debounce_ticks` / `force_low` / `force_high`. `MjlabGo2Backend` gained
+  `interrupted` + `emergency_stop()` so the watchdog attaches to it too. Verified headless;
+  23/23 `test_navila_bridge.py` pass.
+- **C1 — done.** `bridge_backends.OrcaLabMirrorBackend` wraps an inner backend and pushes the
+  robot's **root pose** into the running OrcaLab scene via `set_actor_transform_batch` after
+  every step. New backend kinds `orcalab` (mjlab inner) / `orcalab-mock` (mock inner, no GPU);
+  env `NAVILA_BRIDGE_ORCA_{EDIT_ADDRESS,ROBOT_ACTOR,INNER}`. Owns one event-loop thread (grpc.aio
+  channels bind to their creating loop); degrades to headless + one stderr line if the edit
+  service is unreachable. **Verified live** against a running OrcaLab — dog glides on
+  `navila_navigate_step`, freezes on a watchdog trip, `navila_clear_*` resumes from the freeze
+  point.
+  - **Limitation:** root-transform only → the dog *glides*, legs don't articulate. Real gait +
+    ego-camera frames need `OrcaLabRenderBridge` (full qpos push via OrcaGym `UpdateLocalEnv`) —
+    that's **C2**, owned by D (see `docs/PLAN.md`).
+  - `at_step` for `navila_inject_force_drop` counts *physics ticks*; one `navila_navigate_step`
+    burns 50–150, so use `at_step` ≈ 80–150 for a visible "walks then freezes" demo.
+
 ## D's components / handover
 
 D handed over `handover/` (3 files) plus context; D's actual working NaVILA-Orca fork is
@@ -307,31 +336,27 @@ engineering / AV sensor-fault testing), not a shortcut, and we say so openly in 
   through as a `float` subclass — hence the intermittency). `navila_bridge.py` has a
   duck-typed `_jsonable()` coercer at the MCP tool boundary + `_dumps()` for every debug
   print / status write — never call bare `json.dumps` in that module again.
-- ~~**Top priority (C)**: break the one blocking MCP tool into per-step tools.~~ **Landed +
-  merged to `main`.** `navila_bridge.py` exposes `navila_start_episode`, `navila_navigate_step`,
-  `navila_get_status`, `navila_emergency_stop`, `navila_reset_episode`, and
-  `navila_continue_episode` (continue from current pose, no reset), backed by
-  `bridge_backends.py`'s `StepBackend` / `StepVLM` seams (mock defaults; `mjlab` / `tcp` via
-  `NAVILA_BRIDGE_BACKEND` / `NAVILA_BRIDGE_VLM`). 20 tests in `test_navila_bridge.py`.
-  **Next (C, Stage 2/3):** compose `MockForceSensor` + `SafetyWatchdog` into the per-step
-  session and call `watchdog.tick()` inside `navila_navigate_step` (a trip sets `interrupted`,
-  which the step loop already checks and bails on); then gate the move on
-  `HazardVetoAgent.assess()`; attach `DecisionLogbook`.
+- ~~**Top priority (C)**: per-step tools + Stage 2 watchdog loop + C1 GUI mirror.~~ **All
+  done + on `main`** — see "Per-step bridge (C) — status" above. Remaining per-step work is
+  Stage 3 (veto gate, C) and C2 (real gait + ego frames, D).
+- **C2 — real gait + ego-camera frames (open, D).** `navila_navigate_step` still hands the VLM
+  `bridge_backends.placeholder_frame()` (8×8 black), and the OrcaLab mirror is root-pose only
+  (dog glides). Wiring `OrcaLabRenderBridge` (full qpos push via OrcaGym `UpdateLocalEnv` +
+  `capture()` for real RGB) into a `StepBackend` gets both. Needed before the real veto path
+  (`AnthropicVetoVisionClient` on real frames) and before the `tcp` NaVILA VLM can run in the
+  per-step loop. Needs GPU for the Go2 policy.
 - **D's NaVILA-Orca fork is not in this repo** — `--realtime-visual-sync` / `--rehearsal` /
-  `--traffic-light-crossing` and the `WAYPOINT_STOP_OVERRIDE` runner logic live only on D's
-  machine, which can't push to origin. Needs a `git bundle` / zip handoff. Blocks the real
-  end-to-end demo; the mock loop is unaffected.
-- **`WAYPOINT_STOP_OVERRIDE` vs. safety/veto precedence** — rule to implement when D's
-  `runner.py` lands: a `SafetyWatchdog` trip or a `VETO` sets a flag that suppresses the
-  forward nudge for that step, so a legitimate stop is never overridden into motion.
-- **`navila_navigate_step` camera capture is still `bridge_backends.placeholder_frame()`**
-  (8×8 black); the `tcp` VLM adapter refuses to run on it by design. Wiring real OrcaLab
-  camera capture into the per-step loop (render-sync + `orca_camera.py`) is still open —
-  needed before the real veto path (`AnthropicVetoVisionClient`) can run in-loop.
-- Per-step tools must call `set_actor_transform_batch` after each step to carry the robot's
-  pose forward on the real OrcaLab backend (see "Known technical facts") — without it,
-  consecutive steps each restart from the layout's baked-in pose. `navila_continue_episode`
-  handles this for the mock backend; the real-backend write-back is still to do.
+  `--traffic-light-crossing` / `--traffic-*-waypoint` and the `WAYPOINT_STOP_OVERRIDE` runner
+  logic live only on D's machine, which can't push to origin. Needs a `git bundle` / zip
+  handoff — or, now that D has an AI coding assistant, re-implement those flags directly in
+  this repo's `cli.py` / `runner.py`. Blocks the traffic-crossing demo specifically.
+- **`WAYPOINT_STOP_OVERRIDE` vs. safety/veto precedence** — rule to implement once D's
+  override lands: a `SafetyWatchdog` trip or a `VETO` sets a flag that suppresses the forward
+  nudge for that step, so a legitimate stop is never overridden into motion.
+- **Does OrcaLab run its own physics on the Go2 under "Play"? (open, D.)** C1's mirror
+  teleports the robot actor via `set_actor_transform_batch`; if OrcaLab is simulating the Go2
+  it may fight the teleport (jitter/ragdoll). Verified gliding cleanly in the current session;
+  confirm behaviour under Play and whether the scene needs the Go2 set externally-driven.
 - Whether `--waypoint-instruction-file`'s within-run staging could substitute for true per-step
   MCP tool calls in a time-crunch fallback — untested for how it interacts with the Veto Agent
   (veto needs to gate *before* a step executes, which a pre-baked waypoint file can't do; it's
