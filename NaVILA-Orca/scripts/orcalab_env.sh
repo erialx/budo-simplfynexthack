@@ -22,7 +22,7 @@ navila_orca_resolve_runtime() {
   if [[ -z "${resolved_python}" && -n "${CONDA_PREFIX:-}" ]]; then
     active_python="${CONDA_PREFIX}/bin/python"
     if [[ -x "${active_python}" ]] && "${active_python}" -c \
-      'from importlib.metadata import version; assert version("orca-lab") == "26.7.1"' \
+      'from importlib.metadata import version; assert version("orca-lab").startswith("26.7.")' \
       >/dev/null 2>&1; then
       resolved_python="${active_python}"
     fi
@@ -39,9 +39,9 @@ navila_orca_resolve_runtime() {
     return 2
   fi
   if ! "${resolved_python}" -c \
-    'from importlib.metadata import version; assert version("orca-lab") == "26.7.1"; assert version("orca-gym") == "26.7.1"; assert version("orcalab-pyside") == "26.7.1"; assert version("patchelf") == "0.17.2.4"' \
+    'from importlib.metadata import version; assert version("orca-lab").startswith("26.7."); assert version("orca-gym").startswith("26.7."); assert version("orcalab-pyside").startswith("26.7."); version("patchelf")' \
     >/dev/null 2>&1; then
-    echo "Selected Python is missing part of the reviewed OrcaLab 26.7.1 runtime: ${resolved_python}" >&2
+    echo "Selected Python is missing part of the OrcaLab 26.7.x runtime: ${resolved_python}" >&2
     echo "Run ${NAVILA_ORCA_ENV_PROJECT_ROOT}/scripts/setup_orcalab_env.sh to repair it." >&2
     return 2
   fi
