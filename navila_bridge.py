@@ -26,6 +26,7 @@ import math
 import os
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -275,6 +276,14 @@ def navila_run_instruction(instruction: str, timeout_s: int = DEFAULT_TIMEOUT_S)
 #   navila_get_status()      read pose/counters without advancing physics
 #   navila_emergency_stop()  latch zero velocity now (watchdog-style)
 #   navila_reset_episode()   re-arm with the same parameters
+#   navila_continue_episode(instruction)  new goal, keep current pose
+#
+# Stage 2 -- A's SafetyWatchdog + MockForceSensor + DecisionLogbook are wired
+# into start_episode / navigate_step (see _build_safety_stack). Extra tools:
+#   navila_inject_force_drop(at_step=)  schedule the harness-force fault
+#   navila_clear_force_drops()          harness back to nominal
+#   navila_clear_stop()                 un-latch an e-stop, resume from pose
+#   navila_get_logbook()                timestamped stop/veto log
 #
 # Backend + VLM come from bridge_backends.make_backend / make_vlm, selected by
 # env var (default: MockBackend + MockVLM, so this works with no tunnel/GPU).
@@ -307,6 +316,27 @@ def _load_perstep() -> dict:
         VelocityCommand=VelocityCommand,
         PhysicsStep=PhysicsStep,
     )
+    # A's safety stack (SafetyWatchdog + MockForceSensor + DecisionLogbook) is
+    # optional: if it fails to import, the core per-step tools still work, the
+    # watchdog is just unavailable. 'safety_error' records why.
+    try:
+        from navila_orca.decision_logbook import DecisionLogbook
+        from navila_orca.robot_backend.mock_force_sensor import MockForceSensor
+        from navila_orca.safety_watchdog import (
+            SafeForceBand,
+            SafetyWatchdog,
+            WatchdogEvent,
+        )
+
+        _PERSTEP.update(
+            SafetyWatchdog=SafetyWatchdog,
+            SafeForceBand=SafeForceBand,
+            WatchdogEvent=WatchdogEvent,
+            MockForceSensor=MockForceSensor,
+            DecisionLogbook=DecisionLogbook,
+        )
+    except Exception as exc:  # noqa: BLE001 -- watchdog optional, surface the reason
+        _PERSTEP["safety_error"] = f"safety stack unavailable: {exc!r}"
     return _PERSTEP
 
 
@@ -334,6 +364,12 @@ def _action_text(cmd) -> str:
     return f"move forward by {round(cmd.vx * cmd.duration_s * 100)} cm"
 
 
+def _logbook_sink(line: str) -> None:
+    """DecisionLogbook sink -> stderr. stdout is the MCP stdio transport, so the
+    logbook must never print there; stderr shows up in the server log instead."""
+    print(line, file=sys.stderr, flush=True)
+
+
 class _PerStepSession:
     """One navigation episode, advanced one decision per navila_navigate_step."""
 
@@ -357,6 +393,15 @@ class _PerStepSession:
         self._state = None
         self._frames = []
         self._start_kwargs = None
+        # Safety stack (rebuilt per episode). watchdog/logbook/sensor are None
+        # when the safety stack failed to import or was disabled for the episode.
+        self.watchdog = None
+        self.logbook = None
+        self._force_sensor = None
+        self._watchdog_ticks = 0
+        # Scheduled force-drop events survive close()/re-arm so a rehearsal loop
+        # can inject once and run repeatedly. Cleared only by navila_clear_force_drops.
+        self._force_events = getattr(self, "_force_events", [])
 
     # -- helpers --------------------------------------------------------------
     def _distance_to_goal(self):
@@ -366,7 +411,7 @@ class _PerStepSession:
         return math.hypot(self.goal_xy[0] - float(px), self.goal_xy[1] - float(py))
 
     def _snapshot(self) -> dict:
-        return {
+        snap = {
             "phase": self.phase,
             "done": self.phase in ("done", "stopped"),
             "instruction": self.instruction,
@@ -380,7 +425,18 @@ class _PerStepSession:
             "distance_to_goal": self._distance_to_goal(),
             "pose": _pose(self._state) if self._state is not None else None,
             "state": self._state,
+            "watchdog_enabled": self.watchdog is not None,
         }
+        if self.watchdog is not None:
+            snap["watchdog_tripped"] = bool(self.watchdog.tripped)
+            snap["watchdog_ticks"] = self._watchdog_ticks
+            try:
+                snap["harness_force"] = float(
+                    self._force_sensor.read(step=self._watchdog_ticks)
+                )
+            except Exception:  # noqa: BLE001
+                snap["harness_force"] = None
+        return snap
 
     # -- lifecycle ---------------------------------------------------------
     def close(self) -> None:
@@ -437,6 +493,8 @@ class _PerStepSession:
             self._reset_fields()
             return {"ok": False, "error": f"episode start failed: {exc!r}"}
 
+        self._build_safety_stack(deps, kw)
+
         self._frames = [deps["placeholder_frame"]()]
         self.phase = "running"
         return {
@@ -444,6 +502,40 @@ class _PerStepSession:
             **self._snapshot(),
             "note": "episode armed; call navila_navigate_step until done=true",
         }
+
+    def _build_safety_stack(self, deps: dict, kw: dict) -> None:
+        """Wire A's SafetyWatchdog + MockForceSensor + DecisionLogbook onto the
+        freshly-built backend. No-op (watchdog stays None) if the safety stack
+        didn't import, the backend can't be emergency-stopped, or watchdog=False
+        was passed to start_episode."""
+        self.watchdog = None
+        self.logbook = None
+        self._force_sensor = None
+        self._watchdog_ticks = 0
+
+        if not kw.get("watchdog", True):
+            return
+        if "SafetyWatchdog" not in deps:
+            return
+        if not hasattr(self.backend, "emergency_stop"):
+            return
+
+        self._force_sensor = deps["MockForceSensor"]()
+        for ev in self._force_events:
+            self._force_sensor.schedule_drop(**ev)
+        self.logbook = deps["DecisionLogbook"](sink=_logbook_sink)
+
+        band = None
+        lo, hi = kw.get("force_low"), kw.get("force_high")
+        if lo is not None and hi is not None:
+            band = deps["SafeForceBand"](low=float(lo), high=float(hi))
+        self.watchdog = deps["SafetyWatchdog"](
+            self.backend,
+            band=band,
+            debounce_ticks=int(kw.get("watchdog_debounce_ticks", 3)),
+            force_reader=self._force_sensor.read,
+            on_trip=self.logbook.record_watchdog_trip,
+        )
 
     def status(self) -> dict:
         if self.phase == "idle":
@@ -538,6 +630,15 @@ class _PerStepSession:
             if getattr(self.backend, "interrupted", False):
                 chunk_term = "emergency_stop"
                 break
+            # Reactive safety layer: poll harness force at physics cadence. A trip
+            # calls backend.emergency_stop() itself (latching interrupted), so we
+            # just re-check the flag and bail -- same path as an out-of-band stop.
+            if self.watchdog is not None:
+                self.watchdog.tick()
+                self._watchdog_ticks += 1
+                if getattr(self.backend, "interrupted", False):
+                    chunk_term = "emergency_stop"
+                    break
             raw_step = self.backend.step()
             ps = (
                 raw_step
@@ -608,6 +709,17 @@ class _PerStepSession:
         if self.phase == "running":
             self.phase = "stopped"
         self.termination_reason = self.termination_reason or "emergency_stop"
+        # Record orchestrator-initiated stops in the same log as watchdog trips,
+        # so navila_get_logbook is a complete account of every stop.
+        deps = _load_perstep()
+        if self.logbook is not None and "WatchdogEvent" in deps:
+            self.logbook.record_watchdog_trip(
+                deps["WatchdogEvent"](
+                    step=self._watchdog_ticks,
+                    force=-1.0,
+                    reason="orchestrator-initiated emergency stop (navila_emergency_stop)",
+                )
+            )
         return {"ok": True, **self._snapshot(), "stop_path": stop_path}
 
     def reset_episode(self) -> dict:
@@ -680,6 +792,93 @@ class _PerStepSession:
             "note": "continued from current pose; call navila_navigate_step until done=true",
         }
 
+    # -- safety layer ----------------------------------------------------------
+    def inject_force_drop(
+        self, at_step: int, duration_steps: int = 20, value: float = 0.0
+    ) -> dict:
+        """Schedule a harness-force drop for the Safety Watchdog to catch. Step
+        units are watchdog ticks (== physics steps once a step chunk is running),
+        counted from episode start. duration_steps must exceed the watchdog's
+        debounce (default 3) or the trip won't latch."""
+        try:
+            at_step = int(at_step)
+            duration_steps = int(duration_steps)
+            value = float(value)
+        except (TypeError, ValueError) as exc:
+            return {"ok": False, "error": f"bad argument: {exc}"}
+        if at_step < 0 or duration_steps < 1:
+            return {"ok": False, "error": "at_step >= 0 and duration_steps >= 1 required"}
+
+        ev = {"at_step": at_step, "duration_steps": duration_steps, "value": value}
+        self._force_events.append(ev)
+        applied = self._force_sensor is not None
+        if applied:
+            self._force_sensor.schedule_drop(**ev)
+        return {
+            "ok": True,
+            "scheduled": ev,
+            "applied_to_live_sensor": applied,
+            "all_scheduled": list(self._force_events),
+            "note": (
+                None if applied
+                else "no active episode; will apply on the next navila_start_episode"
+            ),
+        }
+
+    def clear_force_drops(self) -> dict:
+        """Forget every scheduled force drop, including on the live sensor -- the
+        harness reads nominal again from the next tick. Does not un-trip an
+        already-fired watchdog (use navila_clear_stop for that)."""
+        n = len(self._force_events)
+        self._force_events.clear()
+        live = self._force_sensor is not None
+        if live:
+            self._force_sensor._events.clear()
+        return {
+            "ok": True,
+            "cleared": n,
+            "applied_to_live_sensor": live,
+            **self._snapshot(),
+        }
+
+    def clear_stop(self) -> dict:
+        """Un-latch an emergency stop so the loop can resume from the current pose
+        (the 'hazard cleared, dog proceeds' demo beat). Does NOT teleport -- that's
+        navila_reset_episode."""
+        if self.backend is None:
+            return {"ok": False, "error": "no active episode"}
+        cleared = []
+        if getattr(self.backend, "interrupted", False):
+            try:
+                self.backend.interrupted = False
+                cleared.append("backend.interrupted")
+            except Exception as exc:  # noqa: BLE001
+                return {"ok": False, "error": f"backend interrupt not clearable: {exc!r}"}
+        if self.watchdog is not None and self.watchdog.tripped:
+            self.watchdog.reset()
+            cleared.append("watchdog latch")
+        if self.phase == "stopped":
+            self.phase = "running"
+            self.termination_reason = None
+            cleared.append("phase -> running")
+        return {"ok": True, "cleared": cleared, **self._snapshot()}
+
+    def get_logbook(self) -> dict:
+        """The merged Safety Watchdog + Hazard Veto decision log for this episode."""
+        if self.logbook is None:
+            reason = _load_perstep().get("safety_error") or "no active episode / watchdog disabled"
+            return {"ok": True, "entries": [], "text": "", "note": reason}
+        entries = [
+            {
+                "timestamp_s": e.timestamp_s,
+                "source": e.source,
+                "kind": e.kind,
+                "reason": e.reason,
+            }
+            for e in self.logbook.entries()
+        ]
+        return {"ok": True, "entries": entries, "text": self.logbook.dump()}
+
 
 _SESSION = _PerStepSession()
 
@@ -696,6 +895,10 @@ def navila_start_episode(
     vlm_kind: str | None = None,
     vlm_script: str | None = None,
     vlm_timeout_s: float | None = None,
+    watchdog: bool = True,
+    watchdog_debounce_ticks: int = 3,
+    force_low: float | None = None,
+    force_high: float | None = None,
 ) -> dict:
     """Arm a per-step navigation episode. After this, call navila_navigate_step
     repeatedly until it returns done=true.
@@ -713,6 +916,13 @@ def navila_start_episode(
         Ignored for vlm_kind='mock'. Any timeout/connection failure here
         degrades to a safe STOP (termination_reason='vlm_error'), never a hang
         or a crashed tool call.
+    watchdog: attach A's SafetyWatchdog (harness-force reactive e-stop). Polls a
+        MockForceSensor once per physics step; an out-of-band reading for
+        watchdog_debounce_ticks consecutive ticks trips backend.emergency_stop()
+        and ends the step with termination_reason 'emergency_stop'. Schedule the
+        fault with navila_inject_force_drop; read the outcome with navila_get_logbook.
+    force_low / force_high: safe harness-force band in newtons (default 20-80,
+        nominal mock reading is 45). Pass both to override.
     """
     return _jsonable(
         _SESSION.start_episode(
@@ -726,6 +936,10 @@ def navila_start_episode(
             vlm_kind=vlm_kind,
             vlm_script=vlm_script,
             vlm_timeout_s=vlm_timeout_s,
+            watchdog=watchdog,
+            watchdog_debounce_ticks=watchdog_debounce_ticks,
+            force_low=force_low,
+            force_high=force_high,
         )
     )
 
@@ -803,6 +1017,50 @@ def navila_continue_episode(
     if max_control_steps is not None:
         kw["max_control_steps"] = max_control_steps
     return _jsonable(_SESSION.continue_episode(instruction, **kw))
+
+
+@mcp.tool()
+def navila_inject_force_drop(
+    at_step: int, duration_steps: int = 20, value: float = 0.0
+) -> dict:
+    """Schedule a harness-force drop the Safety Watchdog will catch (the disclosed
+    'force drops to zero' fault-injection scenario).
+
+    at_step: watchdog tick to start the drop at -- ticks == physics steps, counted
+        from episode start. duration_steps: how long it lasts (must exceed the
+        watchdog debounce, default 3, or the trip won't latch). value: the reported
+        force during the window (0.0 = full harness-force loss).
+
+    Callable before or during an episode; scheduled drops persist across
+    navila_reset_episode until navila_clear_force_drops. When the drop fires the
+    running navila_navigate_step ends with termination_reason 'emergency_stop';
+    see navila_get_logbook for the timestamped reason.
+    """
+    return _jsonable(_SESSION.inject_force_drop(at_step, duration_steps, value))
+
+
+@mcp.tool()
+def navila_clear_force_drops() -> dict:
+    """Forget every scheduled harness-force drop, on the live sensor too -- the
+    harness reads nominal again from the next tick (the 'hazard cleared' beat).
+    Does not un-trip an already-fired watchdog; pair with navila_clear_stop."""
+    return _jsonable(_SESSION.clear_force_drops())
+
+
+@mcp.tool()
+def navila_clear_stop() -> dict:
+    """Un-latch an emergency stop (watchdog trip or navila_emergency_stop) so the
+    loop can resume from the current pose -- the 'hazard cleared, dog proceeds'
+    demo beat. Does NOT teleport the robot; that's navila_reset_episode."""
+    return _jsonable(_SESSION.clear_stop())
+
+
+@mcp.tool()
+def navila_get_logbook() -> dict:
+    """Return the merged Safety Watchdog + Hazard Veto decision log for the current
+    episode: a timestamped list of every emergency stop and (later) every veto.
+    This is the 'how do you know it's making good decisions' answer for Q&A."""
+    return _jsonable(_SESSION.get_logbook())
 
 
 if __name__ == "__main__":
