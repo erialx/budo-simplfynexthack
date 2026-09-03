@@ -286,7 +286,13 @@ def navila_run_instruction(instruction: str, timeout_s: int = DEFAULT_TIMEOUT_S)
 #   navila_get_logbook()                timestamped stop/veto log
 #
 # Backend + VLM come from bridge_backends.make_backend / make_vlm, selected by
-# env var (default: MockBackend + MockVLM, so this works with no tunnel/GPU).
+# env var or the start_episode backend_kind arg:
+#   mock         planar kinematics, no GPU, headless (default)
+#   mjlab        real MJWarp physics + Go2 policy, headless
+#   orcalab      mjlab physics, robot pose mirrored into the OrcaLab GUI
+#   orcalab-mock planar physics mirrored into the OrcaLab GUI (no GPU)
+# The two 'orcalab*' kinds push root pose only (dog glides, legs don't
+# articulate) and degrade to headless if the edit service isn't reachable.
 # ===========================================================================
 
 _PERSTEP: dict = {}
@@ -907,7 +913,10 @@ def navila_start_episode(
     goal_x / goal_y: optional world-frame target; when set, the episode ends with
         termination_reason 'goal_reached' once the robot is within goal_radius (m).
     max_decisions / max_control_steps: safety caps (0 = unlimited).
-    backend_kind: 'mock' (default) or 'mjlab'. vlm_kind: 'mock' (default) or 'tcp'.
+    backend_kind: 'mock' (default), 'mjlab', 'orcalab' (mjlab physics mirrored
+        into the OrcaLab GUI), or 'orcalab-mock' (planar physics mirrored into
+        the GUI, no GPU). The 'orcalab*' kinds fall back to headless if the edit
+        service on :50151 isn't reachable. vlm_kind: 'mock' (default) or 'tcp'.
     vlm_script: ';'-separated action phrases for the mock VLM, e.g.
         "move forward by 75 cm; turn left by 30 degrees; stop".
     vlm_timeout_s: per-decision socket timeout for vlm_kind='tcp' (default: the

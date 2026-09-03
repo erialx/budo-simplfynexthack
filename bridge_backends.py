@@ -188,6 +188,272 @@ class MockBackend:
 
 
 # ---------------------------------------------------------------------------
+# OrcaLab pose mirror -- makes the per-step loop visible in the OrcaLab GUI
+# ---------------------------------------------------------------------------
+
+def _load_orca_edit_runtime():
+    """Lazily import the three OrcaLab edit-service symbols the mirror needs.
+
+    Kept separate from navila_orca.render.orca_camera's fuller loader so this
+    module has no hard dependency on it (and so a plain import stays cheap).
+    """
+
+    import importlib
+
+    try:
+        transform_mod = importlib.import_module("orcalab.transform")
+    except ModuleNotFoundError:
+        transform_mod = importlib.import_module("orcalab.math")
+    path_mod = importlib.import_module("orcalab.path")
+    wrapper_mod = importlib.import_module("orcalab.protos.edit_service_wrapper")
+    return wrapper_mod.EditServiceWrapper, transform_mod.Transform, path_mod.Path
+
+
+class OrcaLabMirrorBackend:
+    """A ``StepBackend`` that runs physics in an inner backend and mirrors the
+    robot's world pose into a running OrcaLab scene after every step, so the
+    per-step MCP loop is visible in the OrcaLab GUI.
+
+    Pose-only: pushes root translation + wxyz orientation via the edit service's
+    ``set_actor_transform_batch`` (A's verified path). Leg joints are NOT
+    articulated -- the dog glides rather than walks. Real gait + ego-camera
+    frames need ``OrcaLabRenderBridge`` (Phase 2 / open item); this is the
+    minimal "see the dog move, see it freeze on an e-stop" bridge for the
+    Stage 2 demo.
+
+    OrcaLab is a passive viewer here: if the edit service is unreachable or the
+    actor path is wrong, mirroring disables itself (logged once to stderr) and
+    physics keeps running headless -- the loop and the watchdog are unaffected.
+
+    Config (env-overridable):
+      * ``NAVILA_BRIDGE_ORCA_EDIT_ADDRESS``  (default ``127.0.0.1:50151``)
+      * ``NAVILA_BRIDGE_ORCA_ROBOT_ACTOR``   (default ``quadruped_robot_1`` --
+        the Go2 actor name in D_street.json; check your scene outline)
+      * ``NAVILA_BRIDGE_ORCA_INNER``         (default ``mjlab``; ``mock`` for a
+        GPU-free GUI demo -- also selectable as backend kind ``orcalab-mock``)
+    """
+
+    def __init__(
+        self,
+        *,
+        inner: "StepBackend | None" = None,
+        inner_kind: str = "mjlab",
+        edit_address: str | None = None,
+        robot_actor_name: str | None = None,
+        **inner_kwargs: Any,
+    ) -> None:
+        self._inner = (
+            inner if inner is not None else make_backend(inner_kind, **inner_kwargs)
+        )
+        self._edit_address = edit_address or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_EDIT_ADDRESS", "127.0.0.1:50151"
+        )
+        self._robot_actor_name = robot_actor_name or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_ROBOT_ACTOR", "quadruped_robot_1"
+        )
+        self._runtime_transform = None
+        self._service = None
+        self._robot_path = None
+        self._loop = None
+        self._loop_thread = None
+        self._call = None
+        self._mirror_disabled = False
+        self._mirror_error: str | None = None
+        self._mirror_failures = 0
+
+    # -- StepBackend surface (delegate to inner) -------------------------------
+    @property
+    def control_dt(self) -> float:
+        return self._inner.control_dt
+
+    @property
+    def interrupted(self) -> bool:
+        return bool(getattr(self._inner, "interrupted", False))
+
+    @interrupted.setter
+    def interrupted(self, value: bool) -> None:
+        if hasattr(self._inner, "interrupted"):
+            self._inner.interrupted = bool(value)
+
+    def start(self) -> None:
+        self._inner.start()
+        self._connect()
+
+    def reset(self, episode: Any | None = None) -> RobotState:
+        state = self._inner.reset(episode)
+        self._mirror(state)
+        return state
+
+    def set_velocity_command(self, command: VelocityCommand) -> None:
+        self._inner.set_velocity_command(command)
+
+    def step(self) -> "RobotState | PhysicsStep":
+        result = self._inner.step()
+        self._mirror(getattr(result, "state", result))
+        return result
+
+    def emergency_stop(self) -> None:
+        if hasattr(self._inner, "emergency_stop"):
+            self._inner.emergency_stop()
+        else:
+            self._inner.set_velocity_command(
+                VelocityCommand(0.0, 0.0, 0.0, 0.0, stop=True)
+            )
+
+    def close(self) -> None:
+        try:
+            self._inner.close()
+        finally:
+            self._disconnect()
+
+    # -- OrcaLab mirror -----------------------------------------------------
+    # grpc.aio binds a channel to the loop that created it, and the MCP server
+    # runs sync tools on a rotating thread pool -- so the mirror owns one loop on
+    # its own thread and EVERY edit-service call (construction, init_grpc, aloha,
+    # transform push, destroy) runs on that loop via run_coroutine_threadsafe.
+    @staticmethod
+    async def _maybe_await(value: Any) -> Any:
+        import asyncio
+
+        if asyncio.iscoroutine(value):
+            return await value
+        return value
+
+    def _connect(self) -> None:
+        if self._mirror_disabled or self._service is not None:
+            return
+        try:
+            import asyncio
+            import threading
+
+            service_factory, transform_type, path_type = _load_orca_edit_runtime()
+
+            loop = asyncio.new_event_loop()
+            ready = threading.Event()
+
+            def _run_loop() -> None:
+                asyncio.set_event_loop(loop)
+                ready.set()
+                loop.run_forever()
+
+            thread = threading.Thread(
+                target=_run_loop, name="orcalab-mirror-loop", daemon=True
+            )
+            thread.start()
+            ready.wait(timeout=5.0)
+            self._loop = loop
+            self._loop_thread = thread
+            self._call = lambda coro: asyncio.run_coroutine_threadsafe(
+                coro, loop
+            ).result(timeout=15.0)
+
+            edit_address = self._edit_address
+            actor_name = self._robot_actor_name
+
+            async def _setup() -> Any:
+                service = service_factory()
+                await self._maybe_await(service.init_grpc(edit_address))
+                ok = await self._maybe_await(service.aloha())
+                if not ok:
+                    # Close the channel we just opened before bubbling up.
+                    if hasattr(service, "destroy_grpc"):
+                        try:
+                            await self._maybe_await(service.destroy_grpc())
+                        except Exception:  # noqa: BLE001
+                            pass
+                    raise RuntimeError(
+                        f"OrcaLab edit service not reachable at {edit_address}"
+                    )
+                return service
+
+            self._service = self._call(_setup())
+            self._runtime_transform = transform_type
+            self._robot_path = path_type(f"/{actor_name}")
+        except Exception as exc:  # noqa: BLE001 -- mirror is best-effort
+            self._mirror_disabled = True
+            self._mirror_error = f"{type(exc).__name__}: {exc}"
+            self._stop_loop()
+            self._service = None
+            print(
+                f"[orcalab-mirror] disabled -- {self._mirror_error}. "
+                "Physics runs headless; the OrcaLab GUI will not update.",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    def _mirror(self, state: Any) -> None:
+        if self._mirror_disabled or self._service is None or state is None:
+            return
+        try:
+            pos = np.asarray(state.root_pos_world, dtype=np.float64).reshape(3)
+            quat = np.asarray(state.root_quat_wxyz, dtype=np.float64).reshape(4)
+            transform = self._runtime_transform(
+                position=pos.copy(), rotation=quat.copy(), scale=1.0
+            )
+            service = self._service
+            path = self._robot_path
+
+            async def _push() -> None:
+                await self._maybe_await(
+                    service.set_actor_transform_batch([path], [transform])
+                )
+
+            self._call(_push())
+        except Exception as exc:  # noqa: BLE001 -- a render hiccup must not kill the loop
+            self._mirror_failures += 1
+            if self._mirror_failures == 1:
+                print(
+                    f"[orcalab-mirror] push failed ({type(exc).__name__}: {exc}); "
+                    "continuing headless, retrying each step.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+    def _stop_loop(self) -> None:
+        loop, thread = self._loop, self._loop_thread
+        self._loop = self._loop_thread = self._call = None
+        if loop is None:
+            return
+        try:
+            import asyncio
+
+            async def _drain() -> None:
+                pending = [
+                    t
+                    for t in asyncio.all_tasks(loop)
+                    if t is not asyncio.current_task()
+                ]
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
+
+            try:
+                asyncio.run_coroutine_threadsafe(_drain(), loop).result(timeout=2.0)
+            except Exception:  # noqa: BLE001
+                pass
+            loop.call_soon_threadsafe(loop.stop)
+            if thread is not None:
+                thread.join(timeout=2.0)
+            loop.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _disconnect(self) -> None:
+        service = self._service
+        try:
+            if service is not None and self._call is not None and hasattr(
+                service, "destroy_grpc"
+            ):
+                self._call(self._maybe_await(service.destroy_grpc()))
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            self._stop_loop()
+            self._service = self._robot_path = self._runtime_transform = None
+
+
+# ---------------------------------------------------------------------------
 # Mock VLM
 # ---------------------------------------------------------------------------
 
@@ -314,7 +580,19 @@ def make_backend(kind: str | None = None, **kwargs: Any) -> StepBackend:
         params = {"num_envs": 1, "device": os.environ.get("NAVILA_ORCA_DEVICE", "cpu")}
         params.update(kwargs)
         return MjlabGo2Backend(**params)
-    raise ValueError(f"unknown backend kind {kind!r} (expected 'mock' or 'mjlab')")
+    if kind in ("orcalab", "orcalab-mock"):
+        # 'orcalab'      -> real physics (mjlab inner) mirrored into the GUI
+        # 'orcalab-mock' -> planar physics (mock inner) mirrored into the GUI, no GPU
+        inner_kind = (
+            "mock"
+            if kind == "orcalab-mock"
+            else os.environ.get("NAVILA_BRIDGE_ORCA_INNER", "mjlab")
+        )
+        return OrcaLabMirrorBackend(inner_kind=inner_kind, **kwargs)
+    raise ValueError(
+        f"unknown backend kind {kind!r} "
+        "(expected 'mock', 'mjlab', 'orcalab', or 'orcalab-mock')"
+    )
 
 
 def make_vlm(kind: str | None = None, **kwargs: Any) -> StepVLM:
