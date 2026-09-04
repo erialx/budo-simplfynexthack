@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 
 import navila_bridge as bridge
 
@@ -352,6 +353,158 @@ def test_scripted_vlm_defaults_to_stop_once_script_is_exhausted():
     second = s.navigate_step()  # script exhausted -> MockVLM.next_action() -> "stop"
     assert second["action"] == "stop"
     assert second["termination_reason"] == "stop"
+
+
+# ---------------------------------------------------------------------------
+# 8. Hazard Veto Agent gate (Stage 3 differentiator)
+# ---------------------------------------------------------------------------
+
+def test_hazard_veto_blocks_motion_and_ends_episode():
+    s = _fresh()
+    s.clear_hazards()  # _hazard_events persists across _fresh() by design (like
+    # _force_events); start every test from a known-clean schedule.
+    r = s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    assert r["ok"] is True and r["veto_enabled"] is True
+    s.inject_hazard(at_step=1)
+
+    step = s.navigate_step()
+    assert step["done"] is True
+    assert step["termination_reason"] == "veto"
+    assert step["action"] == "stop"
+    assert "veto_reason" in step
+    assert step["control_steps"] == 0  # gated before any physics ran
+
+
+def test_hazard_veto_records_in_decision_logbook():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    s.inject_hazard(at_step=1)
+    s.navigate_step()
+
+    entries = s.get_logbook()["entries"]
+    assert any(e["kind"] == "VETO" and e["source"] == "hazard_veto" for e in entries)
+
+
+def test_no_hazard_injected_veto_enabled_runs_normally():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+
+    step = None
+    for _ in range(5):
+        step = s.navigate_step()
+        if step["done"]:
+            break
+    assert step["termination_reason"] == "stop"  # not a false-positive veto
+
+
+def test_veto_disabled_via_kwarg_ignores_injected_hazard():
+    s = _fresh()
+    s.clear_hazards()
+    r = s.start_episode(
+        "go", vlm_script="move forward by 75 cm; stop", max_decisions=5, veto=False
+    )
+    assert r["veto_enabled"] is False
+    s.inject_hazard(at_step=1)
+
+    step = s.navigate_step()
+    assert step["action"] == "move forward by 75 cm"
+    assert step["moved_m"] > 0
+    assert step["termination_reason"] != "veto"
+
+
+def test_veto_disabled_via_env_var():
+    s = _fresh()
+    s.clear_hazards()
+    os.environ["NAVILA_BRIDGE_VETO"] = "0"
+    try:
+        s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+        s.inject_hazard(at_step=1)
+        step = s.navigate_step()
+    finally:
+        del os.environ["NAVILA_BRIDGE_VETO"]
+
+    assert step["action"] == "move forward by 75 cm"
+    assert step["termination_reason"] != "veto"
+
+
+def test_inject_hazard_persists_across_reset_episode():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    s.inject_hazard(at_step=1)
+
+    first = s.navigate_step()
+    assert first["termination_reason"] == "veto"
+
+    s.reset_episode()
+    second = s.navigate_step()
+    assert second["termination_reason"] == "veto"
+
+
+def test_clear_hazards_removes_scheduled_injection():
+    s = _fresh()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    s.inject_hazard(at_step=1)
+    s.clear_hazards()
+
+    step = s.navigate_step()
+    assert step["termination_reason"] != "veto"
+    assert step["action"] == "move forward by 75 cm"
+
+
+# ---------------------------------------------------------------------------
+# 9. WAYPOINT_STOP_OVERRIDE precedence flag (docs/PLAN.md, "C" item 2)
+#
+# stop_override_suppressed has no consumer in this file yet -- it's a
+# ready-made check for a future port of D's runner.py forward-nudge reflex
+# into this per-step loop. These tests only pin down when the flag itself
+# gets set, not any override behavior (there is none here to suppress).
+# ---------------------------------------------------------------------------
+
+def test_stop_override_suppressed_after_veto():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    s.inject_hazard(at_step=1)
+
+    step = s.navigate_step()
+    assert step["termination_reason"] == "veto"
+    assert step["stop_override_suppressed"] is True
+
+
+def test_stop_override_suppressed_after_watchdog_interrupt():
+    s = _fresh()
+    s.start_episode("go far", vlm_script="move forward by 75 cm")
+    s.backend.interrupted = True  # simulate the Watchdog firing out of band
+
+    step = s.navigate_step()
+    assert step["termination_reason"] == "emergency_stop"
+    assert step["stop_override_suppressed"] is True
+
+
+def test_stop_override_not_suppressed_by_ordinary_vlm_stop():
+    """A plain VLM-issued stop ('reached the goal') is not a safety event --
+    it must NOT suppress a future forward-nudge reflex the way a watchdog trip
+    or a veto does."""
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="stop", max_decisions=5)
+
+    step = s.navigate_step()
+    assert step["termination_reason"] == "stop"
+    assert step["stop_override_suppressed"] is False
+
+
+def test_stop_override_not_suppressed_on_normal_motion_step():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+
+    step = s.navigate_step()
+    assert step["action"] == "move forward by 75 cm"
+    assert step["stop_override_suppressed"] is False
 
 
 if __name__ == "__main__":

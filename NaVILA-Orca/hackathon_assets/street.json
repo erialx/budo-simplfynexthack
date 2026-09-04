@@ -1,0 +1,1740 @@
+{
+    "version": "3.0",
+    "viewport_camera_transform": {
+        "position": [
+            -11.989136695861816,
+            23.099313735961914,
+            38.396705627441406
+        ],
+        "rotation": [
+            0.21080403561722907,
+            -0.1462938077401075,
+            0.5510498424309248,
+            -0.794042726521214
+        ]
+    },
+    "actors": [
+        {
+            "name": "Group",
+            "path": "/Group",
+            "type": "GroupActor",
+            "transform": {
+                "position": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "children": [
+                {
+                    "name": "Static",
+                    "path": "/Group/Static",
+                    "type": "GroupActor",
+                    "transform": {
+                        "position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "scale": 1.0
+                    },
+                    "children": [
+                        {
+                            "name": "FireExtinguisher",
+                            "path": "/Group/Static/FireExtinguisher",
+                            "type": "GroupActor",
+                            "transform": {
+                                "position": [
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "rotation": [
+                                    1.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "scale": 1.0
+                            }
+                        },
+                        {
+                            "name": "CoolingRib",
+                            "path": "/Group/Static/CoolingRib",
+                            "type": "GroupActor",
+                            "transform": {
+                                "position": [
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "rotation": [
+                                    1.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "scale": 1.0
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Interactive",
+                    "path": "/Group/Interactive",
+                    "type": "GroupActor",
+                    "transform": {
+                        "position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": [
+                            1.0,
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "scale": 1.0
+                    }
+                }
+            ]
+        },
+        {
+            "name": "quadruped_robot_1",
+            "path": "/quadruped_robot_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -0.23202192783355713,
+                    0.7222723960876465,
+                    -7.450580596923828e-09
+                ],
+                "rotation": [
+                    0.7301523205784841,
+                    0.0,
+                    0.0,
+                    0.683284412784204
+                ],
+                "scale": 2.092074155807495
+            },
+            "asset_path": "assets/e071469a36d3c8aa/unitree_robots/prefabs/go2_usda",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": -0.23202192783355713,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.7222723960876465,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.z",
+                                    "value": -7.450580596923828e-09,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 2.092074155807495,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.z",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FL_hip",
+                            "index": 5
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": 0.0,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FL_hip",
+                            "index": 5
+                        },
+                        {
+                            "name": "FL_thigh",
+                            "index": 3
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FL_hip",
+                            "index": 5
+                        },
+                        {
+                            "name": "FL_thigh",
+                            "index": 3
+                        },
+                        {
+                            "name": "FL_calf",
+                            "index": 1
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.z",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RL_hip",
+                            "index": 3
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": 0.0,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RL_hip",
+                            "index": 3
+                        },
+                        {
+                            "name": "RL_thigh",
+                            "index": 3
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RL_hip",
+                            "index": 3
+                        },
+                        {
+                            "name": "RL_thigh",
+                            "index": 3
+                        },
+                        {
+                            "name": "RL_calf",
+                            "index": 2
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.z",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FR_hip",
+                            "index": 1
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": 0.0,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FR_hip",
+                            "index": 1
+                        },
+                        {
+                            "name": "FR_thigh",
+                            "index": 1
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "FR_hip",
+                            "index": 1
+                        },
+                        {
+                            "name": "FR_thigh",
+                            "index": 1
+                        },
+                        {
+                            "name": "FR_calf",
+                            "index": 2
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.z",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RR_hip",
+                            "index": 0
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": 0.0,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RR_hip",
+                            "index": 0
+                        },
+                        {
+                            "name": "RR_thigh",
+                            "index": 3
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "mujoco_wrap",
+                            "index": 0
+                        },
+                        {
+                            "name": "rootPrim",
+                            "index": 2
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "base_link",
+                            "index": 0
+                        },
+                        {
+                            "name": "RR_hip",
+                            "index": 0
+                        },
+                        {
+                            "name": "RR_thigh",
+                            "index": 3
+                        },
+                        {
+                            "name": "RR_calf",
+                            "index": 0
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.z",
+                                    "value": 0.0,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "striped_anti_slip_mat_1",
+            "path": "/striped_anti_slip_mat_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -10.109477996826172,
+                    4.535459518432617,
+                    0.28147125244140625
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 18.351839065551758
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/asphalt_road_202608270155_usda"
+        },
+        {
+            "name": "traffic_light_1",
+            "path": "/traffic_light_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -7.338860511779785,
+                    7.296172142028809,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 3.0477755069732666
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda"
+        },
+        {
+            "name": "traffic_light_2",
+            "path": "/traffic_light_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -12.87096881866455,
+                    5.347698211669922,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 2.9937784671783447
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda"
+        },
+        {
+            "name": "young_male_character_1",
+            "path": "/young_male_character_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    0.6950275897979736,
+                    0.6084954738616943,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 0.3728843331336975
+            },
+            "asset_path": "assets/e071469a36d3c8aa/remy/prefabs/remy",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": 0.6950275897979736,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 0.3728843331336975,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "Remy",
+                            "index": 0
+                        },
+                        {
+                            "name": "Animation",
+                            "index": 0
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": -0.22902333736419678,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": -0.3879060745239258,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "rotate.z",
+                                    "value": 7.180535316467285,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 0.9999999403953552,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "green_wheeled_trash_bin_1",
+            "path": "/green_wheeled_trash_bin_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.136666297912598,
+                    0.47544896602630615,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9decf8fa3f788bd605928cc91128d11eabd5674d_usda"
+        },
+        {
+            "name": "green_wheeled_trash_bin_2",
+            "path": "/green_wheeled_trash_bin_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.233317852020264,
+                    1.1511887311935425,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9decf8fa3f788bd605928cc91128d11eabd5674d_usda"
+        },
+        {
+            "name": "green_wheeled_trash_bin_3",
+            "path": "/green_wheeled_trash_bin_3",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.302756309509277,
+                    2.0258450508117676,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9decf8fa3f788bd605928cc91128d11eabd5674d_usda"
+        },
+        {
+            "name": "green_wheeled_recycling_bin_1",
+            "path": "/green_wheeled_recycling_bin_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.404458999633789,
+                    3.324873208999634,
+                    0.0
+                ],
+                "rotation": [
+                    -0.7022311157958026,
+                    0.0,
+                    0.0,
+                    0.7119490571720578
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/aca5d18c00c3b4f402d46ca23421545514e606da_usda"
+        },
+        {
+            "name": "children_swing_set_1",
+            "path": "/children_swing_set_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.954024314880371,
+                    11.062711715698242,
+                    0.546320915222168
+                ],
+                "rotation": [
+                    0.6890305466854777,
+                    0.0,
+                    0.0,
+                    -0.7247322993590887
+                ],
+                "scale": 0.9879894256591797
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_03f10b35c7310988c0002289934c4b78f80950bd_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_1",
+            "path": "/vintage_commute_bicycle_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.572185039520264,
+                    4.854085922241211,
+                    0.1666412353515625
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_2",
+            "path": "/vintage_commute_bicycle_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.4695143699646,
+                    5.645493030548096,
+                    0.2003312110900879
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_3",
+            "path": "/vintage_commute_bicycle_3",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.692249298095703,
+                    6.732840538024902,
+                    0.32430028915405273
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_4",
+            "path": "/vintage_commute_bicycle_4",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.653527736663818,
+                    7.229904651641846,
+                    0.3163776397705078
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_5",
+            "path": "/vintage_commute_bicycle_5",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.445477485656738,
+                    6.212060451507568,
+                    0.0961771011352539
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_6",
+            "path": "/vintage_commute_bicycle_6",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.486987113952637,
+                    4.097286224365234,
+                    0.1384420394897461
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_7",
+            "path": "/vintage_commute_bicycle_7",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.339807033538818,
+                    3.315631866455078,
+                    0.2621278762817383
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_8",
+            "path": "/vintage_commute_bicycle_8",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    5.2830610275268555,
+                    2.567189931869507,
+                    0.16549253463745117
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda"
+        },
+        {
+            "name": "black_bronze_sitting_dog_statue_1",
+            "path": "/black_bronze_sitting_dog_statue_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -3.3293395042419434,
+                    3.2260982990264893,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.738860845565796
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5d0bb28c2f741e4bce46f20baacf120bbde71070_usda"
+        },
+        {
+            "name": "blue_hatchback_car_1",
+            "path": "/blue_hatchback_car_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -9.479670524597168,
+                    2.0835964679718018,
+                    0.13488055765628815
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/ccdac06a414e99b7c79e268bafb18f8c2efac07b_usda"
+        },
+        {
+            "name": "range_rover_suv_1",
+            "path": "/range_rover_suv_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -11.829793930053711,
+                    11.345221519470215,
+                    0.6916924715042114
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5cd043b511e3f7031892d1fa56fe309d2896128a_usda"
+        },
+        {
+            "name": "blue_flammable_liquid_drums_1",
+            "path": "/blue_flammable_liquid_drums_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.036927223205566,
+                    4.21730899810791,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/simple_case_0119/barrel_blue_01/barrel_blue_01"
+        },
+        {
+            "name": "blue_flammable_liquid_drums_2",
+            "path": "/blue_flammable_liquid_drums_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.355886459350586,
+                    4.52137565612793,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/simple_case_0119/barrel_blue_01/barrel_blue_01"
+        },
+        {
+            "name": "wooden_storage_box_1",
+            "path": "/wooden_storage_box_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    6.267057418823242,
+                    10.886285781860352,
+                    -0.24344444274902344
+                ],
+                "rotation": [
+                    0.6887044539882079,
+                    0.0,
+                    0.0,
+                    -0.7250421884668536
+                ],
+                "scale": 6.109355926513672
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_042badc0_128e_4abe_8ce8_5fe3e538b4fc_usda"
+        },
+        {
+            "name": "striped_anti_slip_mat_2",
+            "path": "/striped_anti_slip_mat_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -10.461462020874023,
+                    22.128711700439453,
+                    0.45597463846206665
+                ],
+                "rotation": [
+                    -0.013891296616877748,
+                    0.0,
+                    0.0,
+                    -0.9999035112841148
+                ],
+                "scale": 17.527313232421875
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/asphalt_road_202608270155_usda"
+        },
+        {
+            "name": "female_pedestrian_model_1",
+            "path": "/female_pedestrian_model_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -2.9085323810577393,
+                    3.2130789756774902,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_051d99b3_bce3_42a3_be64_bad56435be1a_usda",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 3.2130789756774902,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "supine_human_model_1",
+            "path": "/supine_human_model_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -0.2868967056274414,
+                    4.847005367279053,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/remy_liedown/remy_liedown"
+        },
+        {
+            "name": "female_pedestrian_model_2",
+            "path": "/female_pedestrian_model_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    0.31345805525779724,
+                    9.308911323547363,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_051d99b3_bce3_42a3_be64_bad56435be1a_usda"
+        },
+        {
+            "name": "female_pedestrian_model_3",
+            "path": "/female_pedestrian_model_3",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -3.00972056388855,
+                    12.088937759399414,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_051d99b3_bce3_42a3_be64_bad56435be1a_usda"
+        },
+        {
+            "name": "female_pedestrian_model_4",
+            "path": "/female_pedestrian_model_4",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    0.9056752920150757,
+                    9.255913734436035,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_051d99b3_bce3_42a3_be64_bad56435be1a_usda"
+        },
+        {
+            "name": "young_male_character_2",
+            "path": "/young_male_character_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    3.315629720687866,
+                    5.900065898895264,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 0.4165515899658203
+            },
+            "asset_path": "assets/e071469a36d3c8aa/remy/prefabs/remy",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "uniformScale",
+                                    "value": 0.4165515899658203,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "entity_path": [
+                        {
+                            "name": "Remy",
+                            "index": 0
+                        },
+                        {
+                            "name": "Animation",
+                            "index": 0
+                        }
+                    ],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": -0.22833967208862305,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "translate.y",
+                                    "value": -0.38335132598876953,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "rotate.z",
+                                    "value": 6.853736877441406,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 0.9999998807907104,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "wooden_toy_car_1",
+            "path": "/wooden_toy_car_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    3.5430908203125,
+                    13.676094055175781,
+                    0.0
+                ],
+                "rotation": [
+                    0.8850798192093462,
+                    0.0,
+                    0.0,
+                    -0.46543926953830517
+                ],
+                "scale": 5.10057258605957
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_058da4d29b93d3a449328339faac5917d69bac84_usda"
+        },
+        {
+            "name": "soccer_ball_1",
+            "path": "/soccer_ball_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    4.309939861297607,
+                    12.86601734161377,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5063b5239fc589cc5c7da36e87f921901827bcbf_usda"
+        },
+        {
+            "name": "soccer_ball_2",
+            "path": "/soccer_ball_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.399541854858398,
+                    6.618988037109375,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5063b5239fc589cc5c7da36e87f921901827bcbf_usda",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 6.618988037109375,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "abstract_pattern_rug_1",
+            "path": "/abstract_pattern_rug_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    6.624215126037598,
+                    14.966418266296387,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 2.9035277366638184
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0b1a4b307cda6395d06d5aa9da58c7969287ea3f_usda"
+        },
+        {
+            "name": "dark_gray_rectangular_rug_11",
+            "path": "/dark_gray_rectangular_rug_11",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    1.1934456825256348,
+                    4.692654609680176,
+                    -0.06477737426757812
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 6.604931831359863
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_044b39afb53c1f71165d8fcf393d7a8856b3f327_usda"
+        },
+        {
+            "name": "dark_gray_rectangular_rug_1",
+            "path": "/dark_gray_rectangular_rug_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -0.27516746520996094,
+                    29.439449310302734,
+                    0.11128616333007812
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 7.598371505737305
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_044b39afb53c1f71165d8fcf393d7a8856b3f327_usda"
+        },
+        {
+            "name": "dark_gray_rectangular_rug_2",
+            "path": "/dark_gray_rectangular_rug_2",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -20.228805541992188,
+                    9.371875762939453,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 9.123927116394043
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_044b39afb53c1f71165d8fcf393d7a8856b3f327_usda"
+        },
+        {
+            "name": "dark_gray_rectangular_rug_3",
+            "path": "/dark_gray_rectangular_rug_3",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -21.523069381713867,
+                    28.370792388916016,
+                    0.0
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 8.190824508666992
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_044b39afb53c1f71165d8fcf393d7a8856b3f327_usda"
+        },
+        {
+            "name": "standard_cardboard_box_1",
+            "path": "/standard_cardboard_box_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -30.832504272460938,
+                    16.833866119384766,
+                    0.18247853219509125
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/waic/prop/cardbox/cardbox_02_static"
+        },
+        {
+            "name": "traffic_light_3",
+            "path": "/traffic_light_3",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -7.209125518798828,
+                    19.239517211914062,
+                    0.9613419771194458
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 2.9067654609680176
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda"
+        },
+        {
+            "name": "traffic_light_4",
+            "path": "/traffic_light_4",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -12.596029281616211,
+                    20.902191162109375,
+                    0.9489202499389648
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 2.3896536827087402
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda"
+        },
+        {
+            "name": "vintage_commute_bicycle_9",
+            "path": "/vintage_commute_bicycle_9",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -6.446311950683594,
+                    20.486631393432617,
+                    0.2632535696029663
+                ],
+                "rotation": [
+                    0.7438343465511297,
+                    0.0,
+                    0.0,
+                    -0.6683640212420578
+                ],
+                "scale": 1.1695082187652588
+            },
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9a30c6cd_408e_4d05_be43_0b40addbe29b_usda",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.x",
+                                    "value": -6.446311950683594,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "rotate.z",
+                                    "value": -83.88185119628906,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 1.1695082187652588,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

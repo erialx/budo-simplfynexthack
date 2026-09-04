@@ -149,46 +149,83 @@ Don't build a `RobotBackend`↔`StepBackend` bridge unless the real hardware pat
   point.
   - **Limitation:** root-transform only → the dog *glides*, legs don't articulate. Real gait +
     ego-camera frames need `OrcaLabRenderBridge` (full qpos push via OrcaGym `UpdateLocalEnv`) —
-    that's **C2**, owned by D (see `docs/PLAN.md`).
+    that's **C2**, split this session: real-gait physics → **D** (has GPU, already wrote the
+    `cli.py` render pattern this mirrors), real camera-capture-only fallback → **C** (no GPU
+    needed, plugs into code C already owns); see `docs/PLAN.md`.
   - `at_step` for `navila_inject_force_drop` counts *physics ticks*; one `navila_navigate_step`
     burns 50–150, so use `at_step` ≈ 80–150 for a visible "walks then freezes" demo.
+- **Stage 3 — done, not yet committed.** `_build_veto_stack` wires `HazardVetoAgent` +
+  `ScenarioInjector` into every episode (reuses the watchdog's `DecisionLogbook` if one exists,
+  builds its own otherwise — `_build_veto_stack` must run after `_build_safety_stack`, which
+  unconditionally resets `self.logbook` at its own top). `navigate_step` gates every non-stop
+  decision through one vision check (matches the "~1Hz tactical" cadence, not the watchdog's
+  "~20Hz reactive" one) right before the motion chunk; a VETO ends the step with
+  `termination_reason="veto"` and zero physics. Detection is a self-contained
+  `_RedBarStubVetoClient` (checks pixel `(0,0)` against `ScenarioInjector`'s hazard-bar color
+  `(220,20,20)` — no API key needed); swapping in `AnthropicVetoVisionClient` later is a
+  one-line change to `_make_veto_vision_client`. New: `NAVILA_BRIDGE_VETO` env toggle,
+  `veto`/`veto_client_kind` params on `navila_start_episode`, tools
+  `navila_inject_hazard`/`navila_clear_hazards` (hazard `at_step` counts *decisions*, not
+  physics ticks — a different unit from `navila_inject_force_drop` on purpose). Also shipped:
+  `session.stop_override_suppressed` — the `WAYPOINT_STOP_OVERRIDE` precedence flag, reset
+  `False` every `navigate_step` call, set `True` by a watchdog trip or a veto (never by an
+  ordinary VLM stop). It's deliberately inert here — see "D's components" below for why. 11
+  new tests, 34/34 pass; verified live against a running OrcaLab GUI — see
+  `docs/STAGE3_TESTING.md` for the full test log.
 
 ## D's components / handover
 
-D handed over `handover/` (3 files) plus context; D's actual working NaVILA-Orca fork is
-**not in this repo** and can't be pushed to origin — get it as a `git bundle` / zip.
+D's actual working NaVILA-Orca fork (branch `daphne-demo-ready`) is **now merged into `main`**
+(2-parent merge commit, `traffic_crossing.py` + `cli.py`/`runner.py` flags all in-repo). The
+original 3-file `handover/` (below) is superseded but left in place as a historical reference.
 
-- **`handover/D_street.json`** — the OrcaLab authored demo scene (v3.0, 44 actors), loads on
-  the OrcaLab side, not by Python. Already contains the full hazard cast: `traffic_light_1..4`,
+- **`handover/D_street.json`** (superseded — see "New" below) — the original OrcaLab authored
+  demo scene (v3.0, 44 actors). Already contained the full hazard cast: `traffic_light_1..4`,
   `blue_hatchback_car_1`, `range_rover_suv_1`, `young_male_character_1/2`,
   `female_pedestrian_model_1..4`, `supine_human_model_1` (person lying in the path),
   `blue_flammable_liquid_drums_1/2`, `soccer_ball_1/2`, with `standard_cardboard_box_1` as the
-  navigation target and `striped_anti_slip_mat_1/2` as the zebra crossing. Canonical demo
-  scene — most Stage-3 hazards just need staging + camera movement, not runtime spawning.
-- **`handover/D_traffic_crossing.py`** — belongs at `src/navila_orca/traffic_crossing.py`
-  (imports `from .contracts import VelocityCommand`). `traffic_light_crossing_waypoints()`
-  returns a 3-tuple of staged VLM instructions (wait / center / exit), each repeating a 2 m
-  vehicle-clearance invariant; `premature_stop_recovery_command()` returns one forward nudge
-  (`vx=0.5, 0.5s`). This is only the command builder — the runner call-site is in D's
-  un-pushed `runner.py`.
-- **D's fork has CLI features this repo's `cli.py` does NOT have**: `--realtime-visual-sync`
+  navigation target and `striped_anti_slip_mat_1/2` as the zebra crossing.
+- **`handover/D_traffic_crossing.py`** (superseded) — this is now the real, in-repo
+  `NaVILA-Orca/src/navila_orca/traffic_crossing.py`, wired into `cli.py`/`runner.py`.
+- **New — `NaVILA-Orca/hackathon_assets.zip`**: D's actual scene bundle, merged this session.
+  Unzip it and its `street.json` is the current canonical demo scene (same hazard cast as
+  `D_street.json` above, confirmed by inspection — `blue_hatchback_car_1`, `traffic_light_1-4`,
+  `female_pedestrian_model_1-4`, `standard_cardboard_box_1`, etc. all present, plus
+  `quadruped_robot_1` for the Go2, matching `NAVILA_BRIDGE_ORCA_ROBOT_ACTOR`'s default — no env
+  override needed). **Known issue, root-caused**: loading it into a live OrcaLab GUI renders
+  most actors as missing/placeholder. `street.json` only contains the scene graph
+  (transforms + `asset_path` references into OrcaStudio's managed asset service), not the
+  actual USD geometry/texture payloads — the zip bundles only 3 preview `.apng` images against
+  20 actual `asset_path` references (see `ASSET_MANIFEST.md` inside, which partially warns
+  about this). The Go2 prefab itself should be fine (bundled with every install of this fork);
+  most of the rest — especially the 2 `simplifynext_hackathon/prefabs/...` assets (asphalt
+  road, traffic light) — are private to D's own OrcaStudio project. No code fix possible; needs
+  D to export the payloads or grant asset-project sync access. See `docs/PLAN.md`'s D list.
+- **D's fork's CLI features are now in this repo's `cli.py`/`runner.py`**: `--realtime-visual-sync`
   (physics/renderer frame-lock, fixes "ghost dog"), `--rehearsal` (the "READY FOR DEMO"
   prompt), `--traffic-light-crossing` + `--traffic-wait-waypoint` / `--traffic-center-waypoint`
-  / `--traffic-exit-waypoint`. The "verified working" command in "Windows-specific" plus these
-  flags is D's demo command — **it will not run against this repo's `cli.py` as-is.** Real
-  end-to-end demo is blocked until the fork is handed over.
-- **`WAYPOINT_STOP_OVERRIDE`** (D's term) — a runner-level reflex: on a predicted premature
-  stop, physically force `vx=0.5` for 0.5s to change the camera view and break the "frozen
-  frame → VLM says stop forever" visual deadlock. Stronger than this repo's existing
-  `WAYPOINT_STOP_REJECTED` (`runner.py` ~line 290), which only re-prompts the VLM with the
-  same frame — D found that insufficient. **Precedence conflict** (see "Open"): a
-  `SafetyWatchdog` trip or a veto `VETO` is also a no-motion stop and must NOT trigger the
-  forward nudge.
+  / `--traffic-exit-waypoint`. D's demo command (see "Windows-specific" below) now runs against
+  this repo's `cli.py` as merged.
+- **`WAYPOINT_STOP_OVERRIDE`** (D's term) — a runner-level reflex in `NavigationRunner`: on a
+  predicted premature stop, physically force `vx=0.5` for 0.5s to change the camera view and
+  break the "frozen frame → VLM says stop forever" visual deadlock. Stronger than the repo's
+  older `WAYPOINT_STOP_REJECTED`, which only re-prompts the VLM with the same frame — D found
+  that insufficient. **Precedence conflict — open, assigned to A.** `NavigationRunner` (the CLI
+  loop this reflex lives in) has zero watchdog/veto wiring, so nothing there currently
+  suppresses the forward nudge on a real safety stop. `navila_bridge.py`'s per-step MCP loop
+  (the separate loop Claude Code drives) got `session.stop_override_suppressed` this session as
+  a ready-made suppression check, but it has no consumer yet since that loop has no
+  forward-nudge logic of its own — see `docs/PLAN.md`'s A item 3 for the current state of this
+  gap.
 - **Prompting finding**: positive spatial constraints beat negative ones. "Maintain a strict
   1-meter safety boundary" got the robot to navigate 3.4+ m and brake smoothly before a
   hazard. Use positive-boundary phrasing in generated instructions.
-- D's machine is **CPU-only** (`--device cpu`, local CUDA constraints) — a different box from
-  A's GPU machine. Per-decision NaVILA latency there is high; factor into per-step timeout tuning.
+- **Correction**: D's machine was earlier assumed CPU-only (`--device cpu` in her demo command,
+  local CUDA constraints at the time). The user has since confirmed D does have GPU access —
+  don't treat `--device cpu` in her handover command as proof of no GPU; it may just reflect
+  the constraint at the time she wrote it. This reopens D as a viable owner for GPU-dependent
+  work like C2's real-gait physics — see `docs/PLAN.md`'s task delegation for current
+  ownership.
 
 ## Fault injection (for testing AND the live demo)
 
@@ -240,8 +277,9 @@ engineering / AV sensor-fault testing), not a shortcut, and we say so openly in 
   config value). Confirmed empirically: manually dragging the Go2 in the editor between runs
   changes where the next run starts. This means: (a) per-step `navigate_step()` tools MUST
   write the robot's final transform back via `set_actor_transform_batch` after each step, or
-  consecutive steps will not compose into a route; (b) this is also the mechanism for Stage-1
-  scene reset (D's task) — write the layout's original transform back to reset.
+  consecutive steps will not compose into a route; (b) this is also the mechanism for scene
+  reset (reassigned to C this session, see `docs/PLAN.md` — plain `EditServiceWrapper` work,
+  no OrcaLab-account dependency) — write the layout's original transform back to reset.
 - `--waypoint-instruction-file` exists on the CLI (`navila-orca run`) — one staged instruction
   per non-empty line, executed in sequence **within a single run**, no reset between stages.
   This is a useful reference for how the fork's own author intended multi-leg sequencing, and
@@ -257,6 +295,18 @@ engineering / AV sensor-fault testing), not a shortcut, and we say so openly in 
 - NaVILA responds to instruction content, not just executing a fixed forward gait — confirmed
   by observing turn commands (`turn left`/`turn right`, non-zero `wz`) appear in
   `vlm_outputs` when the prompt and scene geometry call for a turn, not only `move forward`.
+- **OrcaLab does NOT run its own physics on the Go2 under "Play"** (confirmed by the user).
+  C1's mirror (`OrcaLabMirrorBackend`) teleports the robot actor's transform via
+  `set_actor_transform_batch` every step; since the Go2 actor isn't independently
+  physics-simulated by OrcaLab, there's no second authority fighting that teleport (no
+  jitter/ragdoll risk from two physics engines disagreeing). No scene change needed — the Go2
+  does not need to be explicitly marked externally-driven/kinematic, it already behaves that
+  way. This closes the open question that was blocking full confidence in the C1 pose-mirror
+  approach.
+- `hackathon_assets.zip`'s `street.json` loads into OrcaLab but renders most actors as
+  missing/placeholder — it's a scene graph (transforms + asset-service references), not a
+  portable asset bundle. Root cause + full detail under "D's components / handover" above;
+  don't re-derive this, go straight to telling D what needs exporting.
 
 ## Windows-specific (this fork, this session)
 
@@ -337,26 +387,29 @@ engineering / AV sensor-fault testing), not a shortcut, and we say so openly in 
   duck-typed `_jsonable()` coercer at the MCP tool boundary + `_dumps()` for every debug
   print / status write — never call bare `json.dumps` in that module again.
 - ~~**Top priority (C)**: per-step tools + Stage 2 watchdog loop + C1 GUI mirror.~~ **All
-  done + on `main`** — see "Per-step bridge (C) — status" above. Remaining per-step work is
-  Stage 3 (veto gate, C) and C2 (real gait + ego frames, D).
-- **C2 — real gait + ego-camera frames (open, D).** `navila_navigate_step` still hands the VLM
-  `bridge_backends.placeholder_frame()` (8×8 black), and the OrcaLab mirror is root-pose only
-  (dog glides). Wiring `OrcaLabRenderBridge` (full qpos push via OrcaGym `UpdateLocalEnv` +
-  `capture()` for real RGB) into a `StepBackend` gets both. Needed before the real veto path
-  (`AnthropicVetoVisionClient` on real frames) and before the `tcp` NaVILA VLM can run in the
-  per-step loop. Needs GPU for the Go2 policy.
-- **D's NaVILA-Orca fork is not in this repo** — `--realtime-visual-sync` / `--rehearsal` /
-  `--traffic-light-crossing` / `--traffic-*-waypoint` and the `WAYPOINT_STOP_OVERRIDE` runner
-  logic live only on D's machine, which can't push to origin. Needs a `git bundle` / zip
-  handoff — or, now that D has an AI coding assistant, re-implement those flags directly in
-  this repo's `cli.py` / `runner.py`. Blocks the traffic-crossing demo specifically.
-- **`WAYPOINT_STOP_OVERRIDE` vs. safety/veto precedence** — rule to implement once D's
-  override lands: a `SafetyWatchdog` trip or a `VETO` sets a flag that suppresses the forward
-  nudge for that step, so a legitimate stop is never overridden into motion.
-- **Does OrcaLab run its own physics on the Go2 under "Play"? (open, D.)** C1's mirror
-  teleports the robot actor via `set_actor_transform_batch`; if OrcaLab is simulating the Go2
-  it may fight the teleport (jitter/ragdoll). Verified gliding cleanly in the current session;
-  confirm behaviour under Play and whether the scene needs the Go2 set externally-driven.
+  done + on `main`** — see "Per-step bridge (C) — status" above.
+- ~~**Stage 3 — veto gate (C).**~~ **Done, uncommitted** — see "Per-step bridge (C) — status"
+  above and `docs/STAGE3_TESTING.md`.
+- **C2 — real gait + ego-camera frames (open, split D/C this session).** `navila_navigate_step`
+  still hands the VLM `bridge_backends.placeholder_frame()` (8×8 black), and the OrcaLab mirror
+  is root-pose only (dog glides). Wiring `OrcaLabRenderBridge` (full qpos push via OrcaGym
+  `UpdateLocalEnv` + `capture()` for real RGB) into a `StepBackend` gets both. Needed before the
+  real veto path (`AnthropicVetoVisionClient` on real frames) and before the `tcp` NaVILA VLM
+  can run in the per-step loop. Split by GPU dependency: real-gait physics (needs GPU, D has
+  one — see the CPU-only correction above) → D; real camera-capture-only fallback (no GPU
+  needed) → C, who owns the `StepBackend` it plugs into. This is now the **only** remaining
+  Stage-3 gap in the per-step loop — the gate itself is done and running against placeholders.
+- ~~**D's NaVILA-Orca fork is not in this repo.**~~ **Merged.** See "D's components /
+  handover" above.
+- **`WAYPOINT_STOP_OVERRIDE` vs. safety/veto precedence — open, assigned to A.** C's
+  `session.stop_override_suppressed` (see "Per-step bridge (C) — status") is a suppression
+  flag ready to be checked, but nothing checks it yet: D's actual override reflex lives in
+  `NavigationRunner` (the separate CLI-driven loop, not the per-step bridge this flag was
+  added to), and that loop has no watchdog/veto wiring of its own at all. So today, D's live
+  demo command (`--rehearsal --traffic-light-crossing` etc.) runs with **no safety gate** —
+  a watchdog trip or veto in that loop would do nothing, because neither exists there. A owns
+  `SafetyWatchdog`/`HazardVetoAgent` already, so porting them into `NavigationRunner` and
+  gating the reflex on a trip/veto is now A's task; see `docs/PLAN.md`'s A item 3.
 - Whether `--waypoint-instruction-file`'s within-run staging could substitute for true per-step
   MCP tool calls in a time-crunch fallback — untested for how it interacts with the Veto Agent
   (veto needs to gate *before* a step executes, which a pre-baked waypoint file can't do; it's
