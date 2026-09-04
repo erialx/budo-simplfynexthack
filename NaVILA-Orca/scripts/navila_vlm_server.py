@@ -153,7 +153,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=54321)
     parser.add_argument("--model_path", required=True)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cpu")
     parser.add_argument("--conv_mode", default="llama_3")
     parser.add_argument("--num_video_frames", type=int, default=8)
     return parser.parse_args()

@@ -341,7 +341,7 @@ def test_scene_launcher_preserves_original_navila_camera_defaults() -> None:
     assert "--stabilize-camera-horizon" not in launcher
 
 
-def test_scene_launcher_uses_editable_prompt_file_unless_overridden(
+def test_scene_launcher_uses_traffic_state_machine_unless_overridden(
     tmp_path: Path,
 ) -> None:
     fake_python = tmp_path / "python"
@@ -368,10 +368,9 @@ def test_scene_launcher_uses_editable_prompt_file_unless_overridden(
         env=env,
     )
     default_args = default_run.stdout.splitlines()
-    instruction_index = default_args.index("--instruction-file")
-    assert default_args[instruction_index + 1] == str(
-        PROJECT_ROOT / "prompts/orcalab_scene_locomotion.txt"
-    )
+    assert "--traffic-light-crossing" in default_args
+    assert "--realtime-visual-sync" in default_args
+    assert "--instruction-file" not in default_args
 
     override_run = subprocess.run(
         [launcher, "--instruction", "Turn left."],

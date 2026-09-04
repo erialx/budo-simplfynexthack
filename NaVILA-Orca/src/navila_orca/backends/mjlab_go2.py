@@ -98,7 +98,7 @@ class MjlabGo2Backend:
         *,
         task_id: str = "Unitree-Go2-Flat",
         checkpoint: str | Path = DEFAULT_CHECKPOINT,
-        device: str = "cuda:0",
+        device: str = "cpu",
         num_envs: int = 1,
         deterministic_play: bool = True,
         warmup_steps: int = 100,
@@ -310,10 +310,13 @@ class MjlabGo2Backend:
         del episode
         self._ensure_started()
         self.interrupted = False
-        self._obs, _ = self._env.reset()
-        self._step_id = 0
-        self._run_zero_velocity_warmup()
-        return self._state()
+        # Policy steps create inference tensors. Keep reset and warm-up in the
+        # same mode so MJLab can update those persistent buffers on later runs.
+        with self._torch.inference_mode():
+            self._obs, _ = self._env.reset()
+            self._step_id = 0
+            self._run_zero_velocity_warmup()
+            return self._state()
 
     def _run_zero_velocity_warmup(self) -> None:
         """Settle Go2 after reset using the original NaVILA warm-up protocol.
