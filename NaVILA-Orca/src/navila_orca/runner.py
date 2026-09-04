@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Callable, Sequence
 
 import numpy as np
@@ -104,6 +105,10 @@ class NavigationRunner:
         action_parser: Callable[[str], VelocityCommand] = parse_velocity_command,
         waypoint_instructions: Sequence[str] | None = None,
         instruction_provider: Callable[[], str] | None = None,
+        min_waypoint_forward_decisions: int = 1,
+        premature_stop_recovery_command: VelocityCommand | None = None,
+        realtime_visual_sync: bool = False,
+        sleep_fn: Callable[[float], None] = time.sleep,
     ) -> None:
         self.physics = physics
         self.renderer = renderer
@@ -121,9 +126,25 @@ class NavigationRunner:
         self.monitor = monitor
         self.monitor_interval_s = float(monitor_interval_s)
         self.action_parser = action_parser
+        self.realtime_visual_sync = bool(realtime_visual_sync)
+        if not callable(sleep_fn):
+            raise TypeError("sleep_fn must be callable")
+        self.sleep_fn = sleep_fn
         if instruction_provider is not None and not callable(instruction_provider):
             raise TypeError("instruction_provider must be callable")
         self.instruction_provider = instruction_provider
+        self.min_waypoint_forward_decisions = int(min_waypoint_forward_decisions)
+        if self.min_waypoint_forward_decisions < 1:
+            raise ValueError("min_waypoint_forward_decisions must be positive")
+        if premature_stop_recovery_command is not None and (
+            premature_stop_recovery_command.stop
+            or premature_stop_recovery_command.vx <= 0.0
+            or premature_stop_recovery_command.duration_s <= 0.0
+        ):
+            raise ValueError(
+                "premature_stop_recovery_command must be a positive forward motion"
+            )
+        self.premature_stop_recovery_command = premature_stop_recovery_command
         if not waypoint_instructions:
             self.waypoint_instructions: tuple[str, ...] = ()
         else:
@@ -218,7 +239,7 @@ class NavigationRunner:
         waypoint_count = len(self.waypoint_instructions)
         waypoints_completed = 0
         waypoint_stop_rejections = 0
-        waypoint_motion_chunks = 0
+        waypoint_forward_decisions = 0
         waypoint_stop_rejected = False
 
         def active_instruction() -> str:
@@ -236,11 +257,28 @@ class NavigationRunner:
                 f"Waypoint {waypoint_index + 1} of {waypoint_count}. "
                 f"{self.waypoint_instructions[waypoint_index]}"
             )
-            if waypoint_stop_rejected:
+            if self.min_waypoint_forward_decisions > 1:
                 instruction += (
-                    " The previous stop was rejected because no new motion has "
-                    "been executed for this waypoint. Do not output stop yet; "
-                    "choose a turn or forward action toward this waypoint."
+                    " Stage progress: "
+                    f"{waypoint_forward_decisions} of "
+                    f"{self.min_waypoint_forward_decisions} required forward "
+                    "motion decisions are complete. Evaluate waypoint completion "
+                    "after the required forward decisions are complete."
+                )
+            if waypoint_stop_rejected:
+                remaining = max(
+                    0,
+                    self.min_waypoint_forward_decisions
+                    - waypoint_forward_decisions,
+                )
+                decision_word = "decision" if remaining == 1 else "decisions"
+                instruction += (
+                    " The previous stop was rejected because this waypoint has "
+                    f"{waypoint_forward_decisions} of "
+                    f"{self.min_waypoint_forward_decisions} required forward "
+                    f"motion decisions. Complete {remaining} more forward motion "
+                    f"{decision_word} toward the waypoint; stop becomes available "
+                    "afterward."
                 )
             return instruction
 
@@ -289,20 +327,30 @@ class NavigationRunner:
             monitor_command = self._command_text(command)
 
             if command.stop:
-                if waypoint_count and waypoint_motion_chunks == 0:
+                if (
+                    waypoint_count
+                    and waypoint_forward_decisions
+                    < self.min_waypoint_forward_decisions
+                ):
                     waypoint_stop_rejections += 1
                     waypoint_stop_rejected = True
+                    remaining = (
+                        self.min_waypoint_forward_decisions
+                        - waypoint_forward_decisions
+                    )
                     monitor_output = (
                         f"Ignored premature stop for waypoint "
-                        f"{waypoint_index + 1}/{waypoint_count}: no new motion "
-                        "has been executed for this waypoint"
+                        f"{waypoint_index + 1}/{waypoint_count}: "
+                        f"{remaining} required forward motion decisions remain"
                     )
-                    monitor_command = "stop rejected; request a motion action"
+                    monitor_command = "stop deferred; continue forward progression"
                     current_instruction = active_instruction()
                     print(
                         "WAYPOINT_STOP_REJECTED "
                         f"waypoint={waypoint_index + 1}/{waypoint_count} "
-                        "reason=no_motion_since_stage_start",
+                        "reason=insufficient_forward_motion "
+                        f"completed={waypoint_forward_decisions} "
+                        f"required={self.min_waypoint_forward_decisions}",
                         flush=True,
                     )
                     if self.monitor is not None:
@@ -315,50 +363,61 @@ class NavigationRunner:
                             decision=decisions,
                             chunk_result=monitor_chunk_result,
                         )
-                    continue
-                if waypoint_count and waypoint_index + 1 < waypoint_count:
-                    waypoints_completed = waypoint_index + 1
-                    waypoint_index += 1
-                    waypoint_motion_chunks = 0
-                    waypoint_stop_rejected = False
-                    if self._velocity_facade:
-                        self.physics.set_velocity_command(
-                            VelocityCommand(0.0, 0.0, 0.0, 0.0)
-                        )
-                    # Start the next visual subgoal from the confirmed waypoint
-                    # instead of carrying an image history biased toward the old one.
-                    frame_history = [last_frame]
-                    monitor_output = (
-                        f"Waypoint {waypoints_completed}/{waypoint_count} completed"
+                    if self.premature_stop_recovery_command is None:
+                        continue
+                    command = self.premature_stop_recovery_command
+                    monitor_command = self._command_text(command)
+                    print(
+                        "WAYPOINT_STOP_OVERRIDE "
+                        f"waypoint={waypoint_index + 1}/{waypoint_count} "
+                        f"vx={command.vx:+.3f}m/s "
+                        f"duration={command.duration_s:.3f}s",
+                        flush=True,
                     )
-                    monitor_command = "advance to next waypoint"
-                    current_instruction = active_instruction()
+                if command.stop:
+                    if waypoint_count and waypoint_index + 1 < waypoint_count:
+                        waypoints_completed = waypoint_index + 1
+                        waypoint_index += 1
+                        waypoint_forward_decisions = 0
+                        waypoint_stop_rejected = False
+                        if self._velocity_facade:
+                            self.physics.set_velocity_command(
+                                VelocityCommand(0.0, 0.0, 0.0, 0.0)
+                            )
+                        # Start the next visual subgoal from the confirmed waypoint
+                        # instead of carrying an image history biased toward the old one.
+                        frame_history = [last_frame]
+                        monitor_output = (
+                            f"Waypoint {waypoints_completed}/{waypoint_count} completed"
+                        )
+                        monitor_command = "advance to next waypoint"
+                        current_instruction = active_instruction()
+                        if self.monitor is not None:
+                            self.monitor.update(
+                                last_frame,
+                                instruction=current_instruction,
+                                vlm_output=monitor_output,
+                                command=monitor_command,
+                                status="intermediate waypoint confirmed",
+                                decision=decisions,
+                                chunk_result=monitor_chunk_result,
+                            )
+                        continue
+                    if waypoint_count:
+                        waypoints_completed = waypoint_count
+                    metrics.update(state.root_pos_world, stop_called=True)
+                    termination_reason = "stop"
                     if self.monitor is not None:
                         self.monitor.update(
                             last_frame,
                             instruction=current_instruction,
                             vlm_output=monitor_output,
                             command=monitor_command,
-                            status="intermediate waypoint confirmed",
+                            status="VLM requested stop",
                             decision=decisions,
                             chunk_result=monitor_chunk_result,
                         )
-                    continue
-                if waypoint_count:
-                    waypoints_completed = waypoint_count
-                metrics.update(state.root_pos_world, stop_called=True)
-                termination_reason = "stop"
-                if self.monitor is not None:
-                    self.monitor.update(
-                        last_frame,
-                        instruction=current_instruction,
-                        vlm_output=monitor_output,
-                        command=monitor_command,
-                        status="VLM requested stop",
-                        decision=decisions,
-                        chunk_result=monitor_chunk_result,
-                    )
-                break
+                    break
 
             if self.monitor is not None:
                 self.monitor.update(
@@ -420,6 +479,10 @@ class NavigationRunner:
                 state = step.state
                 control_steps += 1
                 executed_ticks += 1
+                if self.realtime_visual_sync:
+                    # OrcaStudio coalesces a fast burst of UpdateLocalEnv RPCs.
+                    # Pace physics ticks so each streamed pose can be displayed.
+                    self.sleep_fn(control_dt)
                 auto_reset_state = bool(step.info.get("auto_reset_state", False))
                 if not ((step.terminated or step.truncated) and auto_reset_state):
                     chunk_measured_state = state
@@ -458,7 +521,8 @@ class NavigationRunner:
 
             if executed_ticks:
                 if waypoint_count:
-                    waypoint_motion_chunks += 1
+                    if command.vx > 0.0:
+                        waypoint_forward_decisions += 1
                     waypoint_stop_rejected = False
                 report = self._motion_chunk_report(
                     decision=decisions,

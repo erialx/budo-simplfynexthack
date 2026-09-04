@@ -20,7 +20,7 @@ from .backends.mjlab_go2 import (
     DEFAULT_CHECKPOINT,
     MjlabGo2Backend,
 )
-from .contracts import RenderFrame, RobotState
+from .contracts import RenderFrame, RobotState, VelocityCommand
 from .episodes import DEFAULT_SCENARIO, load_episode
 from .live_monitor import LiveNavigationMonitor
 from .paths import BUNDLED_GO2_XML, DEFAULT_GLOBAL_SETTINGS
@@ -40,6 +40,10 @@ from .training import (
     COMPATIBLE_VERSION_SPECS,
     compatibility_errors,
     current_installed_versions,
+)
+from .traffic_crossing import (
+    premature_stop_recovery_command,
+    traffic_light_crossing_waypoints,
 )
 from .vlm_client import LengthPrefixedJsonVLMClient
 
@@ -291,6 +295,32 @@ def _make_renderer(
     )
 
 
+def _episode_starts(
+    rehearsal: bool,
+    *,
+    input_fn: Callable[[str], str] = input,
+):
+    """Yield one-based run numbers, pausing between rehearsal episodes."""
+
+    if not rehearsal:
+        yield 1
+        return
+
+    run_number = 1
+    while True:
+        print(
+            "\n🟢 READY FOR DEMO. Press ENTER to start the dog, "
+            "or type 'q' to quit."
+        )
+        user_input = input_fn("========================================\n> ")
+        if user_input.strip().lower() == "q":
+            return
+        print("🔄 Resetting environment to starting position...")
+        yield run_number
+        print("🏁 Demo run complete!")
+        run_number += 1
+
+
 def _run(args: argparse.Namespace) -> int:
     if args.scene_ready:
         raise ValueError(
@@ -299,6 +329,11 @@ def _run(args: argparse.Namespace) -> int:
         )
     episode = load_episode(args.scenario)
     waypoint_instructions = _resolve_waypoint_instructions(args)
+    max_control_steps, max_decisions = _resolve_runner_limits(args)
+    min_waypoint_forward_decisions = (
+        5 if bool(args.traffic_light_crossing) else 1
+    )
+    stop_recovery_command = _resolve_premature_stop_recovery_command(args)
     instruction_provider = _make_instruction_provider(args)
     episode = replace(
         episode,
@@ -345,14 +380,38 @@ def _run(args: argparse.Namespace) -> int:
             scene_fidelity=scene_fidelity,
             image_interval_s=args.image_interval,
             state_stream_interval_s=args.state_stream_interval,
-            max_control_steps=args.max_control_steps,
-            max_decisions=args.max_decisions,
+            max_control_steps=max_control_steps,
+            max_decisions=max_decisions,
             monitor=live_monitor,
             monitor_interval_s=args.monitor_interval,
             waypoint_instructions=waypoint_instructions,
             instruction_provider=instruction_provider,
+            min_waypoint_forward_decisions=min_waypoint_forward_decisions,
+            premature_stop_recovery_command=stop_recovery_command,
+            realtime_visual_sync=args.realtime_visual_sync,
         )
-        result = runner.run(episode)
+        if args.rehearsal:
+            result = None
+            for run_number in _episode_starts(True):
+                renderer.frames.clear()
+                renderer.pose_pushes = 0
+                if args.vlm_backend == "scripted":
+                    runner.vlm_client = _make_vlm(args)
+                if (
+                    run_number > 1
+                    and args.render_backend == "orcalab"
+                    and not bool(args.publish_scene)
+                ):
+                    print(
+                        "SCENE_REUSE_OK: preserved current OrcaLab layout; "
+                        "reusing the live renderer for episode reset",
+                        flush=True,
+                    )
+                result = runner.run(episode)
+            if result is None:
+                return 0
+        else:
+            result = runner.run(episode)
         artifact_id = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         frames_dir = output_dir / "frames" / artifact_id
         saved_frames = _save_frames(renderer.frames, frames_dir)
@@ -432,10 +491,12 @@ def _run(args: argparse.Namespace) -> int:
                 "warmup_steps": args.warmup_steps,
                 "state_stream_interval": args.state_stream_interval,
                 "image_interval": args.image_interval,
-                "max_control_steps": args.max_control_steps,
-                "max_decisions": args.max_decisions,
+                "max_control_steps": max_control_steps,
+                "max_decisions": max_decisions,
+                "min_waypoint_forward_decisions": min_waypoint_forward_decisions,
                 "live_monitor": args.live_monitor,
                 "monitor_interval": args.monitor_interval,
+                "realtime_visual_sync": args.realtime_visual_sync,
                 "render_backend": args.render_backend,
                 "vlm_backend": args.vlm_backend,
                 "render": render_details,
@@ -498,7 +559,36 @@ def _resolve_output_dir(value: str | None) -> Path:
     return (Path.cwd() / "outputs" / run_id).resolve()
 
 
+def _resolve_runner_limits(args: argparse.Namespace) -> tuple[int, int]:
+    """Use crossing-sized defaults while preserving explicit CLI limits."""
+
+    traffic_mode = bool(getattr(args, "traffic_light_crossing", False))
+    control_steps = getattr(args, "max_control_steps", None)
+    decisions = getattr(args, "max_decisions", None)
+    if control_steps is None:
+        control_steps = 3_000 if traffic_mode else 500
+    if decisions is None:
+        decisions = 64 if traffic_mode else 8
+    return int(control_steps), int(decisions)
+
+
+def _resolve_premature_stop_recovery_command(
+    args: argparse.Namespace,
+) -> VelocityCommand | None:
+    """Enable visual-deadlock recovery only for traffic-crossing mode."""
+
+    if not bool(getattr(args, "traffic_light_crossing", False)):
+        return None
+    return premature_stop_recovery_command()
+
+
 def _resolve_waypoint_instructions(args: argparse.Namespace) -> tuple[str, ...]:
+    if bool(getattr(args, "traffic_light_crossing", False)):
+        return traffic_light_crossing_waypoints(
+            wait_waypoint=args.traffic_wait_waypoint,
+            center_waypoint=args.traffic_center_waypoint,
+            exit_waypoint=args.traffic_exit_waypoint,
+        )
     value = getattr(args, "waypoint_instruction_file", None)
     if value is None:
         return ()
@@ -631,7 +721,27 @@ def _build_parser() -> argparse.ArgumentParser:
         "--waypoint-instruction-file",
         help="UTF-8 file with one staged waypoint instruction per non-empty line",
     )
-    run.add_argument("--device", default="cuda:0")
+    instruction_group.add_argument(
+        "--traffic-light-crossing",
+        action="store_true",
+        help="use the built-in three-state traffic-light crossing controller",
+    )
+    run.add_argument(
+        "--traffic-wait-waypoint",
+        default="curb-side waiting waypoint",
+        help="visual label for the pre-crossing stop waypoint",
+    )
+    run.add_argument(
+        "--traffic-center-waypoint",
+        default="center of the zebra crossing",
+        help="visual label for the zebra-crossing center waypoint",
+    )
+    run.add_argument(
+        "--traffic-exit-waypoint",
+        default="far-side exit waypoint",
+        help="visual label for the completed-crossing waypoint",
+    )
+    run.add_argument("--device", default="cpu")
     run.add_argument("--checkpoint", default=str(DEFAULT_CHECKPOINT))
     run.add_argument(
         "--render-backend",
@@ -732,6 +842,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="retain MJLab reset/domain randomization instead of the deterministic scene test profile",
     )
     run.add_argument(
+        "--rehearsal",
+        action="store_true",
+        help="keep OrcaLab open and prompt to reset/run the episode repeatedly",
+    )
+    run.add_argument(
         "--warmup-steps",
         type=int,
         default=100,
@@ -760,6 +875,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="simulated seconds between pose pushes (0.04 = 25 Hz at 50 Hz control)",
     )
     run.add_argument(
+        "--realtime-visual-sync",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="pace control ticks in wall time so OrcaStudio displays each pose update",
+    )
+    run.add_argument(
         "--live-monitor",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -774,14 +895,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--max-control-steps",
         type=int,
-        default=500,
-        help="total control-step limit; use 0 for unlimited",
+        default=None,
+        help="total control-step limit; defaults to 3000 for traffic crossing, otherwise 500; use 0 for unlimited",
     )
     run.add_argument(
         "--max-decisions",
         type=int,
-        default=8,
-        help="VLM decision limit; use 0 for unlimited",
+        default=None,
+        help="VLM decision limit; defaults to 64 for traffic crossing, otherwise 8; use 0 for unlimited",
     )
     run.add_argument("--output")
     run.set_defaults(func=_run)

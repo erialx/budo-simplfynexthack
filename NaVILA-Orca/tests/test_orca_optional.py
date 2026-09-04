@@ -96,6 +96,37 @@ def test_reset_warmup_runs_zero_command_and_restores_queued_command() -> None:
     np.testing.assert_allclose(apply_calls[-1][1], [0.3, -0.1, 0.2])
 
 
+def test_repeat_reset_runs_inside_torch_inference_mode() -> None:
+    mode = SimpleNamespace(active=False)
+
+    class _InferenceMode:
+        def __enter__(self):
+            mode.active = True
+
+        def __exit__(self, *_exc):
+            mode.active = False
+
+    class _Env:
+        def reset(self):
+            if not mode.active:
+                raise RuntimeError(
+                    "Inplace update to inference tensor outside InferenceMode is not allowed"
+                )
+            return "reset-observation", {}
+
+    backend = MjlabGo2Backend(
+        checkpoint="/does/not/need/to/exist/yet.pt", warmup_steps=0
+    )
+    backend._env = _Env()
+    backend._torch = SimpleNamespace(inference_mode=_InferenceMode)
+    backend._apply_velocity_command = lambda *, refresh_observation: None
+    backend._state = lambda: "robot-state"
+
+    assert backend.reset() == "robot-state"
+    assert backend._obs == "reset-observation"
+    assert mode.active is False
+
+
 def test_deterministic_play_removes_training_randomization() -> None:
     events = {
         "reset_base": SimpleNamespace(

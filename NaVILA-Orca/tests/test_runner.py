@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 
+import navila_orca.traffic_crossing as traffic_crossing
 from navila_orca.contracts import EpisodeSpec, PhysicsStep, RenderFrame, RobotState
 from navila_orca.runner import NavigationRunner, TimingError, duration_to_ticks
+from navila_orca.traffic_crossing import traffic_light_crossing_waypoints
 
 
 def _state(step_id: int, time_s: float, position) -> RobotState:
@@ -259,6 +261,40 @@ def test_runner_rejects_consecutive_stop_after_waypoint_switch():
     assert "previous stop was rejected" in rejected_retry_instruction
 
 
+def test_waypoint_requires_five_forward_decisions_before_accepting_stop():
+    vlm = ScriptedVLM(
+        [
+            "move forward 25 cm",
+            "move forward 25 cm",
+            "stop",
+            "move forward 25 cm",
+            "turn left 15 degrees",
+            "stop",
+            "move forward 25 cm",
+            "move forward 25 cm",
+            "stop",
+        ]
+    )
+    result = NavigationRunner(
+        FakePhysics(),
+        FakeRenderer(),
+        vlm,
+        scene_fidelity=False,
+        waypoint_instructions=("Reach the crossing center.",),
+        min_waypoint_forward_decisions=5,
+        max_decisions=20,
+    ).run(_episode())
+
+    assert result.termination_reason == "stop"
+    assert result.waypoints_completed == 1
+    assert result.waypoint_stop_rejections == 2
+    assert result.decisions == 9
+    assert len(result.motion_chunks) == 6
+    assert "0 of 5 required forward motion decisions" in vlm.requests[0][1]
+    assert "3 more forward motion decisions" in vlm.requests[3][1]
+    assert "2 more forward motion decisions" in vlm.requests[6][1]
+
+
 def test_duration_conversion_rejects_fractional_control_ticks():
     assert duration_to_ticks(1.5, 0.02) == 75
     with pytest.raises(TimingError):
@@ -299,6 +335,98 @@ def test_split_renderer_streams_pose_faster_than_vlm_capture():
     assert result.control_steps == 25
     assert renderer.captures == [0, 25]
     assert renderer.pushes == [0, *range(2, 25, 2), 25]
+
+
+def test_realtime_visual_sync_paces_every_control_tick():
+    sleeps = []
+
+    result = NavigationRunner(
+        FakePhysics(),
+        FakeRenderer(),
+        ScriptedVLM(["move forward 25 cm", "stop"]),
+        scene_fidelity=False,
+        realtime_visual_sync=True,
+        sleep_fn=sleeps.append,
+    ).run(_episode())
+
+    assert result.control_steps == 25
+    assert sleeps == [pytest.approx(0.02)] * 25
+
+
+def test_traffic_crossing_recovery_command_moves_forward():
+    command = traffic_crossing.premature_stop_recovery_command()
+
+    assert command.vx == pytest.approx(0.5)
+    assert command.vy == pytest.approx(0.0)
+    assert command.wz == pytest.approx(0.0)
+    assert command.duration_s == pytest.approx(0.5)
+    assert command.stop is False
+
+
+def test_rejected_traffic_stop_executes_forward_recovery():
+    physics = FakePhysics()
+    result = NavigationRunner(
+        physics,
+        FakeRenderer(),
+        ScriptedVLM(["stop", "stop", "stop"]),
+        scene_fidelity=False,
+        waypoint_instructions=("Reach the crossing center.",),
+        min_waypoint_forward_decisions=2,
+        premature_stop_recovery_command=(
+            traffic_crossing.premature_stop_recovery_command()
+        ),
+        max_decisions=3,
+    ).run(_episode())
+
+    assert result.termination_reason == "stop"
+    assert result.waypoint_stop_rejections == 2
+    assert result.waypoints_completed == 1
+    assert result.control_steps == 50
+    assert len(result.motion_chunks) == 2
+    assert all(chunk.target_forward_velocity_mps == 0.5 for chunk in result.motion_chunks)
+    assert physics.state.root_pos_world[0] == pytest.approx(0.5)
+
+
+def test_traffic_crossing_waypoints_advance_as_positive_spatial_states():
+    waypoints = traffic_light_crossing_waypoints(
+        wait_waypoint="curb marker A",
+        center_waypoint="zebra center marker B",
+        exit_waypoint="far-side marker C",
+    )
+    vlm = ScriptedVLM(
+        [
+            "move forward 25 cm",
+            "stop",
+            "move forward 25 cm",
+            "stop",
+            "move forward 25 cm",
+            "stop",
+        ]
+    )
+
+    result = NavigationRunner(
+        FakePhysics(),
+        FakeRenderer(),
+        vlm,
+        scene_fidelity=False,
+        waypoint_instructions=waypoints,
+    ).run(_episode())
+
+    assert result.waypoints_completed == 3
+    assert result.waypoint_count == 3
+    assert "curb marker A" in vlm.requests[0][1]
+    assert "zebra center marker B" in vlm.requests[2][1]
+    assert "far-side marker C" in vlm.requests[4][1]
+    assert all("at least 2 meters" in prompt for prompt in waypoints)
+    assert "two traffic-light poles" in waypoints[0]
+    assert "white zebra-stripe corridor" in waypoints[1]
+    assert "white zebra-stripe corridor" in waypoints[2]
+    negative_phrases = ("do not", "don't", "avoid", "never", "must not")
+    assert all(
+        phrase not in prompt.lower()
+        for prompt in waypoints
+        for phrase in negative_phrases
+    )
 
 
 def test_auto_reset_terminal_state_does_not_add_reset_teleport_to_metrics():

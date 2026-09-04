@@ -3,9 +3,12 @@ import numpy as np
 from navila_orca.cli import (
     ScriptedVLMClient,
     _build_parser,
+    _episode_starts,
     _make_instruction_provider,
     _procedural_rgb,
     _resolve_instruction,
+    _resolve_premature_stop_recovery_command,
+    _resolve_runner_limits,
     _resolve_waypoint_instructions,
     main,
 )
@@ -56,6 +59,96 @@ def test_orcalab_run_defaults_preserve_and_align_existing_scene():
 def test_go2_warmup_steps_can_be_overridden():
     args = _build_parser().parse_args(["run", "--warmup-steps", "0"])
     assert args.warmup_steps == 0
+
+
+def test_rehearsal_mode_repeats_until_q(capsys):
+    responses = iter(["", "", "q"])
+
+    starts = list(_episode_starts(True, input_fn=lambda _prompt: next(responses)))
+
+    assert starts == [1, 2]
+    output = capsys.readouterr().out
+    assert output.count("READY FOR DEMO") == 3
+    assert output.count("Resetting environment to starting position") == 2
+    assert output.count("Demo run complete") == 2
+
+
+def test_non_rehearsal_mode_starts_once_without_prompt():
+    starts = list(
+        _episode_starts(
+            False,
+            input_fn=lambda _prompt: (_ for _ in ()).throw(AssertionError("prompted")),
+        )
+    )
+
+    assert starts == [1]
+
+
+def test_rehearsal_flag_is_opt_in():
+    normal = _build_parser().parse_args(["run"])
+    rehearsal = _build_parser().parse_args(["run", "--rehearsal"])
+
+    assert normal.rehearsal is False
+    assert rehearsal.rehearsal is True
+
+
+def test_traffic_crossing_mode_builds_three_named_states():
+    args = _build_parser().parse_args(
+        [
+            "run",
+            "--traffic-light-crossing",
+            "--traffic-wait-waypoint",
+            "curb A",
+            "--traffic-center-waypoint",
+            "center B",
+            "--traffic-exit-waypoint",
+            "exit C",
+        ]
+    )
+
+    stages = _resolve_waypoint_instructions(args)
+
+    assert len(stages) == 3
+    assert "curb A" in stages[0]
+    assert "center B" in stages[1]
+    assert "exit C" in stages[2]
+
+
+def test_realtime_visual_sync_flag_is_opt_in():
+    normal = _build_parser().parse_args(["run"])
+    realtime = _build_parser().parse_args(["run", "--realtime-visual-sync"])
+
+    assert normal.realtime_visual_sync is False
+    assert realtime.realtime_visual_sync is True
+
+
+def test_traffic_crossing_uses_expanded_default_episode_limits():
+    traffic = _build_parser().parse_args(["run", "--traffic-light-crossing"])
+    normal = _build_parser().parse_args(["run"])
+    unlimited = _build_parser().parse_args(
+        [
+            "run",
+            "--traffic-light-crossing",
+            "--max-control-steps",
+            "0",
+            "--max-decisions",
+            "0",
+        ]
+    )
+
+    assert _resolve_runner_limits(traffic) == (3_000, 64)
+    assert _resolve_runner_limits(normal) == (500, 8)
+    assert _resolve_runner_limits(unlimited) == (0, 0)
+
+
+def test_traffic_crossing_enables_premature_stop_recovery():
+    traffic = _build_parser().parse_args(["run", "--traffic-light-crossing"])
+    normal = _build_parser().parse_args(["run"])
+
+    command = _resolve_premature_stop_recovery_command(traffic)
+    assert command.vx == 0.5
+    assert command.duration_s == 0.5
+    assert _resolve_premature_stop_recovery_command(normal) is None
 
 
 def test_instruction_file_overrides_dataset_prompt(tmp_path):

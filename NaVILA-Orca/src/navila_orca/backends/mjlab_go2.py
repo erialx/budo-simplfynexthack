@@ -98,7 +98,7 @@ class MjlabGo2Backend:
         *,
         task_id: str = "Unitree-Go2-Flat",
         checkpoint: str | Path = DEFAULT_CHECKPOINT,
-        device: str = "cuda:0",
+        device: str = "cpu",
         num_envs: int = 1,
         deterministic_play: bool = True,
         warmup_steps: int = 100,
@@ -121,10 +121,6 @@ class MjlabGo2Backend:
         self._torch: Any | None = None
         self._step_id = 0
         self._velocity_command = np.zeros(3, dtype=np.float32)
-        # Safety-watchdog seam (see emergency_stop). getattr-checked by the
-        # per-step bridge, so absence is tolerated -- but a real backend should
-        # expose it so a trip actually preempts the step loop.
-        self.interrupted = False
 
     @property
     def started(self) -> bool:
@@ -309,11 +305,13 @@ class MjlabGo2Backend:
         # already satisfies the core runner contract.
         del episode
         self._ensure_started()
-        self.interrupted = False
-        self._obs, _ = self._env.reset()
-        self._step_id = 0
-        self._run_zero_velocity_warmup()
-        return self._state()
+        # Policy steps create inference tensors. Keep reset and warm-up in the
+        # same mode so MJLab can update those persistent buffers on later runs.
+        with self._torch.inference_mode():
+            self._obs, _ = self._env.reset()
+            self._step_id = 0
+            self._run_zero_velocity_warmup()
+            return self._state()
 
     def _run_zero_velocity_warmup(self) -> None:
         """Settle Go2 after reset using the original NaVILA warm-up protocol.
@@ -404,20 +402,6 @@ class MjlabGo2Backend:
         )
 
     policy_step = step
-
-    def emergency_stop(self) -> None:
-        """Safety-watchdog seam: latch a hard stop.
-
-        Sets :attr:`interrupted` (the per-step bridge checks it and stops
-        issuing :meth:`step` calls) and zeroes the standing velocity command so
-        the frozen policy holds position instead of coasting on the last
-        command. Cleared by :meth:`reset`.
-        """
-
-        self.interrupted = True
-        self._velocity_command = np.zeros(3, dtype=np.float32)
-        if self.started:
-            self._apply_velocity_command(refresh_observation=True)
 
     @staticmethod
     def _apply_deterministic_play_overrides(env_cfg: Any) -> None:
