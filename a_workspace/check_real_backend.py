@@ -128,7 +128,15 @@ def scenario(name: str, *, device: str, warmup: int, drop_at: int | None, verdic
     result = runner.run(episode())
     x = float(result.final_state.root_pos_world[0])
     y = float(result.final_state.root_pos_world[1])
-    dist = float(np.hypot(x, y))
+
+    # Measure travel with NavigationMetrics' own path_length, NOT distance from
+    # the world origin. MjlabGo2Backend.reset() runs a zero-velocity warmup of
+    # real physics steps to settle the dog on its feet ("outside the public
+    # navigation clock"), and its reset events randomize the base pose, so the
+    # robot is already a centimetre or so off origin before decision 1. Only
+    # path_length measures distance actually travelled during the episode,
+    # starting from the post-reset pose.
+    dist = float(result.metrics.get("path_length", float("nan")))
 
     print(f"\n--- {name} ---")
     print(f"  termination_reason : {result.termination_reason}")
@@ -136,7 +144,9 @@ def scenario(name: str, *, device: str, warmup: int, drop_at: int | None, verdic
     print(f"  control_steps      : {result.control_steps}")
     print(f"  watchdog tripped   : {watchdog.tripped}")
     print(f"  veto calls made    : {veto_client.calls}")
-    print(f"  final position     : x={x:+.3f} y={y:+.3f} (travelled {dist:.3f} m)")
+    print(f"  final position     : x={x:+.3f} y={y:+.3f} (vs world origin; "
+          "includes reset/warmup settling)")
+    print(f"  path travelled     : {dist:.4f} m  <-- this is what the checks use")
     if logbook.entries():
         print("  logbook:")
         for entry in logbook.entries():
@@ -184,7 +194,7 @@ def main() -> int:
     checks.append((
         "A1 robot actually walked with the wrapper in place",
         dist_a > 0.05,
-        f"travelled {dist_a:.3f} m, expected > 0.05",
+        f"path travelled {dist_a:.3f} m, expected > 0.05",
     ))
     checks.append((
         "A2 watchdog did NOT trip when force was nominal",
@@ -210,7 +220,7 @@ def main() -> int:
     checks.append((
         "B3 robot stopped short of the clean run's distance",
         dist_b < dist_a,
-        f"trip run {dist_b:.3f} m vs clean run {dist_a:.3f} m",
+        f"trip run travelled {dist_b:.3f} m vs clean run {dist_a:.3f} m",
     ))
 
     vetoed, wd_c, dist_c = scenario(
@@ -224,9 +234,10 @@ def main() -> int:
         f"control_steps={vetoed.control_steps}, expected 0",
     ))
     checks.append((
-        "C2 robot never moved",
+        "C2 robot travelled nowhere during the episode",
         dist_c < 1e-6,
-        f"travelled {dist_c:.6f} m, expected ~0",
+        f"path travelled {dist_c:.6f} m, expected 0 (reset/warmup settling is "
+        f"excluded by using path_length, not distance from origin)",
     ))
 
     print("\n" + "=" * 68)
