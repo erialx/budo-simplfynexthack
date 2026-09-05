@@ -58,6 +58,10 @@ echo ""
 # the console codepage can't encode (CLAUDE.md, "Windows-specific").
 # PYTHONPATH: forces THIS repo's source ahead of the editable install, which
 # points at the Orca_VLN checkout and would otherwise be what actually loads.
+# PYTHONUNBUFFERED / -u: Git Bash's terminal is a pipe, not a real Windows
+# console, so Python block-buffers stdout and the script looks hung for
+# minutes while MJLab loads. Force line-by-line output instead.
 PYTHONIOENCODING=utf-8 \
+PYTHONUNBUFFERED=1 \
 PYTHONPATH="$REPO_ROOT/NaVILA-Orca/src" \
-"$PY" "$REPO_ROOT/a_workspace/check_real_backend.py" "$@"
+"$PY" -u "$REPO_ROOT/a_workspace/check_real_backend.py" "$@"
