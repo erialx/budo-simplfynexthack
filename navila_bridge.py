@@ -316,6 +316,7 @@ def _load_perstep() -> dict:
         make_backend=bb.make_backend,
         make_vlm=bb.make_vlm,
         placeholder_frame=bb.placeholder_frame,
+        trigger_scene_hazard=bb.trigger_scene_hazard,
         parse_velocity_command=parse_velocity_command,
         ActionParseError=ActionParseError,
         duration_to_ticks=duration_to_ticks,
@@ -564,7 +565,7 @@ class _PerStepSession:
         self._build_safety_stack(deps, kw)
         self._build_veto_stack(deps, kw)
 
-        self._frames = [deps["placeholder_frame"]()]
+        self._frames = [self._capture_frame(deps)]
         self.phase = "running"
         return {
             "ok": True,
@@ -641,6 +642,24 @@ class _PerStepSession:
             client, on_decision=self.logbook.record_veto_decision
         )
 
+    def _capture_frame(self, deps: dict):
+        """One frame for the driver VLM + veto gate: a real OrcaLab camera
+        capture when the backend can provide one (C2's camera-capture-only
+        fallback, docs/PLAN.md -- currently OrcaLabMirrorBackend.capture_frame
+        with NAVILA_BRIDGE_ORCA_CAMERA on), else the mock's 8x8 placeholder.
+        A capture failure never blocks the loop -- capture_frame() itself
+        returns None on any error and this just falls back to the placeholder
+        for that one frame."""
+        capture = getattr(self.backend, "capture_frame", None)
+        if capture is not None:
+            try:
+                frame = capture()
+            except Exception:  # noqa: BLE001 -- capture is best-effort
+                frame = None
+            if frame is not None:
+                return frame
+        return deps["placeholder_frame"]()
+
     def _veto_frame(self, deps: dict):
         """PIL frame for the current decision's veto check: self._frames[-1]
         (the same frame the driver VLM just reasoned over), converted to PIL,
@@ -701,7 +720,7 @@ class _PerStepSession:
                 "note": "backend was interrupted before this step",
             }
 
-        self._frames.append(deps["placeholder_frame"]())
+        self._frames.append(self._capture_frame(deps))
         try:
             raw = self.vlm.next_action(
                 instruction=instruction,
@@ -805,7 +824,7 @@ class _PerStepSession:
             if ps.terminated or ps.truncated:
                 chunk_term = "terminated" if ps.terminated else "truncated"
                 break
-        self._frames.append(deps["placeholder_frame"]())
+        self._frames.append(self._capture_frame(deps))
         self.last_action = action_text
 
         end_pose = _pose(self._state)
@@ -1307,6 +1326,59 @@ def navila_clear_hazards() -> dict:
     episode already finished with termination_reason 'veto'; call
     navila_continue_episode or navila_reset_episode to proceed."""
     return _jsonable(_SESSION.clear_hazards())
+
+
+def _trigger_scene_hazard_impl(
+    actor_name: str, x: float, y: float, z: float, yaw_deg: float = 0.0
+) -> dict:
+    if not actor_name or not actor_name.strip():
+        return {"ok": False, "error": "actor_name must be a non-empty string"}
+    deps = _load_perstep()
+    if "error" in deps:
+        return {"ok": False, "error": deps["error"]}
+
+    actor_name = actor_name.strip()
+    yaw = math.radians(float(yaw_deg))
+    rotation_wxyz = (math.cos(yaw / 2.0), 0.0, 0.0, math.sin(yaw / 2.0))
+    try:
+        deps["trigger_scene_hazard"](
+            actor_name, (float(x), float(y), float(z)), rotation_wxyz
+        )
+    except Exception as exc:  # noqa: BLE001 -- surface any connection/write failure
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "note": "is the OrcaLab GUI + edit service (port 50151) running?",
+        }
+    return {
+        "ok": True,
+        "actor_name": actor_name,
+        "position": {"x": float(x), "y": float(y), "z": float(z)},
+        "yaw_deg": float(yaw_deg),
+    }
+
+
+@mcp.tool()
+def navila_trigger_scene_hazard(
+    actor_name: str, x: float, y: float, z: float, yaw_deg: float = 0.0
+) -> dict:
+    """Move an existing OrcaLab scene actor to a world pose -- the visibly-real,
+    in-scene hazard trigger for the live demo (docs/PLAN.md 'C' item 5), as
+    opposed to navila_inject_hazard's ScenarioInjector frame-overlay (that one
+    is the disclosed automated-test path, composited onto captured frames --
+    this one actually moves something in the scene judges can see).
+
+    actor_name must already exist in the loaded scene, e.g. one of D's
+    street.json hazard cast: blue_hatchback_car_1, traffic_light_1..4,
+    female_pedestrian_model_1..4, supine_human_model_1. x/y/z are world-frame
+    meters, yaw_deg is heading in degrees.
+
+    Independent of the per-step episode/backend -- works whether or not
+    navila_start_episode has been called, and regardless of backend_kind.
+    Requires the OrcaLab GUI + edit service (port 50151) to be up; returns
+    ok=False with the error message (never raises) if it isn't.
+    """
+    return _jsonable(_trigger_scene_hazard_impl(actor_name, x, y, z, yaw_deg))
 
 
 @mcp.tool()

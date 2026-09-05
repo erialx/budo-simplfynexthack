@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# D's private OrcaStudio asset transfer — proprietary .pak payloads, redistribution
+# terms unconfirmed (see CLAUDE.md's 2026-09-05 note / the bundle's own README).
+private_asset_transfer/

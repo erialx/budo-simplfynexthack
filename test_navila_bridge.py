@@ -16,6 +16,8 @@ import json
 import math
 import os
 
+import numpy as np
+
 import navila_bridge as bridge
 
 TOOLS = [
@@ -505,6 +507,151 @@ def test_stop_override_not_suppressed_on_normal_motion_step():
     step = s.navigate_step()
     assert step["action"] == "move forward by 75 cm"
     assert step["stop_override_suppressed"] is False
+
+
+# ---------------------------------------------------------------------------
+# C2 camera-capture-only fallback (docs/PLAN.md, "C" item 3): _capture_frame
+# prefers a real backend.capture_frame() over the mock placeholder, and never
+# lets a capture failure block the loop.
+# ---------------------------------------------------------------------------
+
+class _CameraBackend:
+    """Fake StepBackend exposing capture_frame(), no other StepBackend surface
+    needed since _capture_frame only ever does getattr(backend, "capture_frame")."""
+
+    def __init__(self, frame):
+        self._frame = frame
+
+    def capture_frame(self):
+        return self._frame
+
+
+class _RaisingCameraBackend:
+    def capture_frame(self):
+        raise RuntimeError("simulated capture failure")
+
+
+class _NoneCameraBackend:
+    def capture_frame(self):
+        return None
+
+
+def test_capture_frame_prefers_real_backend_frame():
+    s = _fresh()
+    deps = bridge._load_perstep()
+    real = np.full((64, 64, 3), 42, dtype=np.uint8)
+    s.backend = _CameraBackend(real)
+    frame = s._capture_frame(deps)
+    assert frame.shape == (64, 64, 3)
+    assert (frame == 42).all()
+
+
+def test_capture_frame_falls_back_when_backend_has_no_camera():
+    s = _fresh()
+    deps = bridge._load_perstep()
+    s.backend = object()  # no capture_frame attribute at all
+    frame = s._capture_frame(deps)
+    assert frame.shape == (8, 8, 3)
+
+
+def test_capture_frame_falls_back_when_camera_returns_none():
+    s = _fresh()
+    deps = bridge._load_perstep()
+    s.backend = _NoneCameraBackend()
+    frame = s._capture_frame(deps)
+    assert frame.shape == (8, 8, 3)
+
+
+def test_capture_frame_falls_back_when_camera_raises():
+    s = _fresh()
+    deps = bridge._load_perstep()
+    s.backend = _RaisingCameraBackend()
+    frame = s._capture_frame(deps)  # must not propagate the RuntimeError
+    assert frame.shape == (8, 8, 3)
+
+
+def test_mock_backend_episode_still_uses_placeholder_frames():
+    """Regression guard: MockBackend has no capture_frame, so start_episode /
+    navigate_step must keep recording 8x8 placeholders exactly as before this
+    change -- the whole point of getattr(..., "capture_frame", None)."""
+    s = _fresh()
+    s.start_episode("go", vlm_script="move forward by 50 cm; stop", max_decisions=5)
+    assert s._frames[0].shape == (8, 8, 3)
+    s.navigate_step()
+    assert all(f.shape == (8, 8, 3) for f in s._frames)
+
+
+# ---------------------------------------------------------------------------
+# navila_trigger_scene_hazard (docs/PLAN.md "C" item 5): in-scene hazard
+# trigger, independent of any episode/backend. bridge_backends.trigger_scene_
+# hazard itself is exercised against a fake edit service in
+# test_bridge_backends.py; these tests only cover _trigger_scene_hazard_impl's
+# own validation + error-shape contract, via a monkeypatched deps entry.
+# ---------------------------------------------------------------------------
+
+def _with_patched_trigger(fake_fn, fn):
+    deps = bridge._load_perstep()
+    orig = deps.get("trigger_scene_hazard")
+    deps["trigger_scene_hazard"] = fake_fn
+    try:
+        fn()
+    finally:
+        deps["trigger_scene_hazard"] = orig
+
+
+def test_trigger_scene_hazard_rejects_empty_actor_name():
+    result = bridge._trigger_scene_hazard_impl("", 0.0, 0.0, 0.0)
+    assert result["ok"] is False
+
+
+def test_trigger_scene_hazard_rejects_whitespace_actor_name():
+    result = bridge._trigger_scene_hazard_impl("   ", 0.0, 0.0, 0.0)
+    assert result["ok"] is False
+
+
+def test_trigger_scene_hazard_success_reports_pose_and_forwards_args():
+    calls = []
+
+    def _check():
+        result = bridge._trigger_scene_hazard_impl(
+            "blue_hatchback_car_1", 1.0, 2.0, 0.0, yaw_deg=90.0
+        )
+        assert result["ok"] is True
+        assert result["actor_name"] == "blue_hatchback_car_1"
+        assert result["position"] == {"x": 1.0, "y": 2.0, "z": 0.0}
+        assert result["yaw_deg"] == 90.0
+        assert len(calls) == 1
+        actor, pos, rot = calls[0]
+        assert actor == "blue_hatchback_car_1"
+        assert pos == (1.0, 2.0, 0.0)
+        # 90 deg yaw -> wxyz quat (cos45, 0, 0, sin45)
+        assert math.isclose(rot[0], math.cos(math.pi / 4), rel_tol=1e-9)
+        assert math.isclose(rot[3], math.sin(math.pi / 4), rel_tol=1e-9)
+
+    _with_patched_trigger(
+        lambda actor, pos, rot=(1.0, 0.0, 0.0, 0.0): calls.append((actor, pos, rot)),
+        _check,
+    )
+
+
+def test_trigger_scene_hazard_failure_is_reported_not_raised():
+    def _boom(actor, pos, rot=(1.0, 0.0, 0.0, 0.0)):
+        raise RuntimeError("OrcaLab edit service not reachable at 127.0.0.1:50151")
+
+    def _check():
+        result = bridge._trigger_scene_hazard_impl("blue_hatchback_car_1", 0.0, 0.0, 0.0)
+        assert result["ok"] is False
+        assert "not reachable" in result["error"]
+
+    _with_patched_trigger(_boom, _check)
+
+
+def test_trigger_scene_hazard_impl_result_survives_json_dumps():
+    def _check():
+        result = bridge._trigger_scene_hazard_impl("blue_hatchback_car_1", 0.0, 0.0, 0.0)
+        bridge._dumps(result)  # must not raise
+
+    _with_patched_trigger(lambda actor, pos, rot=(1.0, 0.0, 0.0, 0.0): None, _check)
 
 
 if __name__ == "__main__":

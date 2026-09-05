@@ -77,9 +77,9 @@ flowchart TB
 | 1 | Per-step MCP tools + mock backend | Everything else plugs into this seam. | **Done + merged.** (C) |
 | 2 | End-to-end loop on mocks + real Safety Watchdog | Proves the pipeline works before the hard part. | **Done + merged.** (A built the watchdog; C wired it into `navila_navigate_step` + `navila_inject_force_drop` / `navila_get_logbook` / `navila_clear_*`; verified headless, 23/23.) |
 | C1 | Per-step loop visible in the OrcaLab GUI | Needed to demo anything; also de-risks the `mjlab` backend. | **Done + merged.** (C — `OrcaLabMirrorBackend`, root-pose mirror; verified live: dog glides, freezes on trip, resumes. Legs don't articulate yet.) |
-| C2 | Real gait + real ego-camera frames in the per-step loop | Articulated walking for the demo; frames are the Veto Agent's input. | Not started. **Split** — real-gait physics (needs GPU — D has one now) → **D**; real camera-capture-only fallback (no GPU needed) → **C**. See Task delegation. |
+| C2 | Real gait + real ego-camera frames in the per-step loop | Articulated walking for the demo; frames are the Veto Agent's input. | **Split** — real-gait physics (needs GPU — D has one now) → **D**, not started; real camera-capture-only fallback (no GPU needed) → **C**, done + live-verified. See Task delegation. |
 | 3 | Hazard Veto Agent gated into the loop | The differentiator. Protect the most time here. | **Done, uncommitted** (**C** — gate wired into `navigate_step` via a stub client on placeholder frames + `WAYPOINT_STOP_OVERRIDE` precedence flag; verified live against the OrcaLab GUI, see `docs/STAGE3_TESTING.md`). Swap to real frames when C2 lands. |
-| 4 | Integration + demo rehearsal | No new features — fixing and rehearsing the trigger. | Not started. D's fork is merged (no longer blocking), but the demo is still blocked on C2 (split D + C), the in-scene hazard trigger + scene reset reliability (C), the `NavigationRunner` safety gap (A), and the missing `hackathon_assets.zip` USD payloads (D). |
+| 4 | Integration + demo rehearsal | No new features — fixing and rehearsing the trigger. | Not started. D's fork is merged (no longer blocking), but the demo is still blocked on C2 (split D + C), the in-scene hazard trigger + scene reset reliability (C), the `NavigationRunner` safety gap (A), and the `hackathon_assets.zip` USD payloads — D delivered her own project's 2 assets (2026-09-05, see D's list), 24 shared-library asset refs + Windows-side install still unverified. |
 
 ## Task delegation
 
@@ -112,7 +112,8 @@ split as the actual work allows, given each person's real context:
 - Scripted human proxy stays dropped (see "Cut" below D's list) — not reassigned, genuinely not
   needed.
 - D also keeps the one thing nobody else can do: exporting the missing asset payloads from her
-  own OrcaStudio project.
+  own OrcaStudio project. **Done for her own project's 2 assets (2026-09-05)**; the 24
+  shared-library refs are a separate account-access question, see D's list item 1.
 
 ---
 
@@ -138,24 +139,55 @@ split as the actual work allows, given each person's real context:
    loop has zero watchdog/veto wiring of its own — this flag is a ready-made suppression check
    for whenever the reflex gets ported into this loop, not a fix to `runner.py`'s live-demo
    safety gap. That gap is still open (see below) and out of scope unless asked. 4 new tests.
-3. **C2 — real camera-capture-only fallback (your half of the split, see "Redelegated" above).**
-   Add a `bridge_backends` path that wires `OrcaLabRenderBridge.capture` (or
-   `EditServiceWrapper.get_camera_png`) into the `orcalab-mock` inner backend's `StepBackend`,
-   so `navila_navigate_step` hands the VLM/veto gate a real RGB frame instead of
-   `placeholder_frame()`. No GPU/MJLab needed — this is exactly the fallback PLAN.md already
-   called out ("unblocks Stage 3 with real frames even before real gait"), now formally your
-   half of C2 rather than a fallback for D's half to fall back to.
+3. ~~**C2 — real camera-capture-only fallback (your half of the split).**~~ **Done.**
+   `OrcaLabMirrorBackend.capture_frame()` pulls a real RGB frame via the same edit-service
+   connection/event-loop already used for pose pushes (`EditServiceWrapper.get_camera_png`
+   against a persistent `mujococamera1080` actor — no GPU/MJLab needed), gated by
+   `NAVILA_BRIDGE_ORCA_CAMERA` (off by default; `NAVILA_BRIDGE_ORCA_CAMERA_NAME` to override
+   the actor). `navila_bridge.py`'s new `_capture_frame()` prefers
+   `backend.capture_frame()` when the backend exposes one and falls back to
+   `placeholder_frame()` on `None`/an exception/no such method — so `mock`/`mjlab` backends
+   are byte-for-byte unaffected. A capture failure degrades to one placeholder frame and
+   retries next call; it never blocks the loop. 14 unit tests (6 in `test_navila_bridge.py`
+   for the fallback helper, 8 in new `test_bridge_backends.py` for the PNG-read path against
+   a fake edit service). **Live-verified 2026-09-05** against D's `street.json` loaded in a
+   running OrcaLab GUI: `OrcaLabMirrorBackend(inner_kind="mock", camera=True).capture_frame()`
+   returned a real 1080×1080 RGB frame of the actual street scene (pedestrians, traffic light,
+   supine_human_model_1, swing set — not a black placeholder). One prerequisite the scene
+   doesn't ship with: `mujococamera1080` doesn't exist in `street.json` yet, so it had to be
+   spawned once via `add_actor_batch` (asset `prefabs/mujococamera1080`) before capture would
+   work — that actor add was live-only (not saved back to `street.json`), so it won't persist
+   across a scene reload unless someone explicitly saves/publishes it, or D bakes a permanent
+   camera actor into the authored scene. Real frames now also unblock `vlm_kind="tcp"` in the
+   per-step loop (it previously refused placeholder frames, see
+   `_is_placeholder_frame`/`TcpVLM`) — untested end-to-end with the real VLM yet, just the
+   frame-capture half.
 4. **C2 seam check (D's half).** When D delivers the real-gait `orcalab-render`
    `StepBackend`, confirm `_PerStepSession` / `_build_safety_stack` take it unchanged (same
    `StepBackend` interface — they should) and that the watchdog still attaches. Blocked on D;
    nothing to do yet.
-5. **In-scene hazard trigger.** Script spawn/move of a judge-facing
-   hazard — traffic-light state, `blue_hatchback_car_1` crossing, a pedestrian stepping out —
-   via `EditServiceWrapper` (`add_actor_batch` / `set_actor_transform_batch`, the same wrapper
-   `OrcaLabMirrorBackend` already connects to). Expose it as an MCP tool (distinct name from
-   `navila_inject_hazard`, which is the `ScenarioInjector` test-harness path, not this one) or
-   a standalone script to fire during the demo. This is the "visibly real, not composited"
-   trigger.
+5. ~~**In-scene hazard trigger.**~~ **Done, live-verified.** New MCP tool
+   `navila_trigger_scene_hazard(actor_name, x, y, z, yaw_deg=0.0)` moves an existing scene
+   actor (e.g. `blue_hatchback_car_1`) to a world pose via `EditServiceWrapper.
+   set_actor_transform_batch` — the same verified write path as the pose mirror, but a new
+   standalone `bridge_backends.trigger_scene_hazard()` function that opens/closes its own
+   edit-service connection per call (fires once or twice a demo run, so a fresh connection
+   beats managing a persistent background thread for something this infrequent) rather than
+   reusing `OrcaLabMirrorBackend`'s. Deliberately independent of the per-step episode/backend —
+   works regardless of `backend_kind` or whether an episode is even running. Unlike the pose
+   mirror's silent-degrade contract, a connection/write failure here is surfaced as
+   `ok: False` with the error (never raises past the MCP tool), since a demo trigger the
+   operator can't see fire needs to be visible when it fails. Only moves an *existing* actor
+   (`set_actor_transform_batch`) — spawning a brand-new one via `add_actor_batch` was left out
+   for now since that API path isn't verified anywhere in this codebase yet and D's hazard cast
+   (street.json) already has every actor this needs (traffic lights, `blue_hatchback_car_1`,
+   pedestrian models, `supine_human_model_1`) as a pre-placed, moveable actor. 9 new tests (5
+   in `test_bridge_backends.py` against a fake edit service, 4 in `test_navila_bridge.py` for
+   the impl's validation/error-shape). **Live-verified 2026-09-05**: called
+   `trigger_scene_hazard` against the running scene to move `blue_hatchback_car_1` next to
+   `quadruped_robot_1`, confirmed the write server-side (`get_actor_property_groups_batch`
+   readback matched exactly) AND visually in the OrcaLab GUI (user confirmed), then restored
+   the car to its authored position from `street.json`.
 6. **Scene reset reliability.** Repeatable "reset to authored layout" for
    rehearsal + judges — `EditServiceWrapper.save_state`/`restore_state`, or transform
    write-back to the layout's original pose (the same mechanism already used to fix the
@@ -165,19 +197,26 @@ split as the actual work allows, given each person's real context:
 **D — OrcaLab-side code & scene** (has the **Hermes AI** coding assistant; owns everything
 inside the sim + the OrcaLab-facing backend code)
 
-1. **`hackathon_assets.zip`'s scene is visually incomplete — needs D's action.** The user
-   unzipped it and loaded `street.json` into a live OrcaLab GUI; most actors render as
-   missing/placeholder. Root cause: `street.json` is only the scene graph (transforms +
-   `asset_path` references into OrcaStudio's managed asset service) — it does not embed the
-   actual USD geometry/texture payloads, and the zip only bundles 3 preview `.apng` images
-   (explicitly *not* substitutes, per its own `ASSET_MANIFEST.md`) against 20 actual
-   `asset_path` references in the scene. The Go2 itself (`unitree_robots/prefabs/go2_usda`) is
-   almost certainly fine — that's the prefab pack bundled with every install of this fork — but
-   the 2 `simplifynext_hackathon/prefabs/...` assets (asphalt road, traffic light) are private
-   to D's own OrcaStudio project and were never exported as portable payloads; ~14 more
-   (`default_project/prefabs/a_<hash>_usda`, `remy`, `vln_presentation/...`) are unconfirmed —
-   could be shared/stock content or also D-private. **No code fix possible** — D needs to
-   export the actual USD payloads or grant asset-project sync access.
+1. ~~**`hackathon_assets.zip`'s scene is visually incomplete — needs D's action.**~~
+   **Partially done, 2026-09-05.** The user unzipped it and loaded `street.json` into a live
+   OrcaLab GUI; most actors render as missing/placeholder. Root cause: `street.json` is only
+   the scene graph (transforms + `asset_path` references into OrcaStudio's managed asset
+   service) — it does not embed the actual USD geometry/texture payloads. D has since sent
+   `private_asset_transfer/` (untracked, gitignored — proprietary, not for commit): an updated
+   `street.json` (now 26 unique `asset_path` refs, up from 20) plus real `.pak` payloads for
+   the 2 assets private to her own `simplifynext_hackathon` project — `traffic_light_202608270102_usda`
+   and a renamed/replacement road, `road2_202609041615_usda` (was `asphalt_road_202608270155_usda`).
+   Hashes verified against the bundle's own `SHA256SUMS.txt`. **Still open:** the other 24
+   `asset_path` refs (`remy`, `remy_liedown`, `go2_usda`, `cardbox_02_static`, `barrel_blue_01`,
+   `coolingrib_01_d`, 19 unnamed `default_project/prefabs/a_<hash>_usda`) live under a
+   *different* project id (`e071469a36d3c8aa`) — per D's own transfer README this needs normal
+   OrcaStudio account access to that shared project, not another export; unconfirmed whether
+   the recipient's account already has it. `go2` is very likely fine regardless (bundled with
+   every install of this fork). **Also still open:** the actual Windows-side install (copying
+   the `.pak`s into `%LOCALAPPDATA%\Orca\OrcaStudio\{GUID}\Cache\pc`) can only happen on a
+   native Windows OrcaLab machine — not verified end-to-end, so it's unconfirmed that even the
+   2 covered assets render correctly post-install. Next action for D: confirm whether
+   `e071469a36d3c8aa` is a shared team project or needs its own export/invite.
 2. **C2 — real gait (your half of the split, see "Redelegated" above; top priority).** Add a
    `bridge_backends` kind `orcalab-render`: a `StepBackend` that runs `MjlabGo2Backend` for
    physics and drives `OrcaLabRenderBridge.push_state(state, backend.qpos_batch)` each step for

@@ -30,6 +30,8 @@ from __future__ import annotations
 import math
 import os
 import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any, Protocol, Sequence, runtime_checkable
 
@@ -45,6 +47,14 @@ import numpy as np
 from navila_orca.contracts import PhysicsStep, RobotState, VelocityCommand
 
 DEFAULT_CONTROL_DT = 0.02  # Go2 policy tick: 5 ms sim timestep x decimation 4.
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    """Parse an on/off env var, e.g. NAVILA_BRIDGE_ORCA_CAMERA. Unset -> default."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off", "")
 
 
 # ---------------------------------------------------------------------------
@@ -216,10 +226,10 @@ class OrcaLabMirrorBackend:
 
     Pose-only: pushes root translation + wxyz orientation via the edit service's
     ``set_actor_transform_batch`` (A's verified path). Leg joints are NOT
-    articulated -- the dog glides rather than walks. Real gait + ego-camera
-    frames need ``OrcaLabRenderBridge`` (Phase 2 / open item); this is the
-    minimal "see the dog move, see it freeze on an e-stop" bridge for the
-    Stage 2 demo.
+    articulated -- the dog glides rather than walks. Real gait needs
+    ``OrcaLabRenderBridge`` (full qpos push, split to D as C2's GPU half, see
+    docs/PLAN.md). Real ego-camera frames (C2's GPU-free half, C's job) ARE
+    available here via ``capture_frame()`` -- see below.
 
     OrcaLab is a passive viewer here: if the edit service is unreachable or the
     actor path is wrong, mirroring disables itself (logged once to stderr) and
@@ -231,6 +241,16 @@ class OrcaLabMirrorBackend:
         the Go2 actor name in D_street.json; check your scene outline)
       * ``NAVILA_BRIDGE_ORCA_INNER``         (default ``mjlab``; ``mock`` for a
         GPU-free GUI demo -- also selectable as backend kind ``orcalab-mock``)
+      * ``NAVILA_BRIDGE_ORCA_CAMERA``        (default off) -- when on,
+        ``capture_frame()`` pulls a real RGB frame from a persistent OrcaLab
+        MuJoCo camera actor via the same edit-service connection used for pose
+        pushes (``EditServiceWrapper.get_camera_png``, confirmed working in
+        CLAUDE.md's "Known technical facts"). No GPU/MJLab needed -- this is
+        C2's camera-capture-only fallback (see docs/PLAN.md), independent of
+        D's real-gait half. The camera actor itself (default name
+        ``mujococamera1080``) must already exist in the loaded scene; this
+        class does not spawn one.
+      * ``NAVILA_BRIDGE_ORCA_CAMERA_NAME``   (default ``mujococamera1080``)
     """
 
     def __init__(
@@ -240,6 +260,9 @@ class OrcaLabMirrorBackend:
         inner_kind: str = "mjlab",
         edit_address: str | None = None,
         robot_actor_name: str | None = None,
+        camera: bool | None = None,
+        camera_name: str | None = None,
+        camera_timeout_s: float = 10.0,
         **inner_kwargs: Any,
     ) -> None:
         self._inner = (
@@ -260,6 +283,18 @@ class OrcaLabMirrorBackend:
         self._mirror_disabled = False
         self._mirror_error: str | None = None
         self._mirror_failures = 0
+        self._camera_enabled = (
+            _env_flag("NAVILA_BRIDGE_ORCA_CAMERA", False)
+            if camera is None
+            else bool(camera)
+        )
+        self._camera_name = camera_name or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_CAMERA_NAME", "mujococamera1080"
+        )
+        self._camera_timeout_s = float(camera_timeout_s)
+        self._camera_output_dir: str | None = None
+        self._camera_request_index = 0
+        self._camera_failures = 0
 
     # -- StepBackend surface (delegate to inner) -------------------------------
     @property
@@ -409,6 +444,68 @@ class OrcaLabMirrorBackend:
                     flush=True,
                 )
 
+    def capture_frame(self) -> "np.ndarray | None":
+        """Pull one real RGB frame from OrcaLab's persistent MuJoCo camera actor
+        (C2's GPU-free camera fallback, docs/PLAN.md). Reuses the same
+        edit-service connection + event loop as the pose mirror -- no second
+        gRPC channel.
+
+        Returns None if the camera is disabled, the mirror never connected, or
+        the capture fails for any reason (unreachable actor, stale/unreadable
+        PNG, ...) -- the caller (``navila_bridge._capture_frame``) falls back
+        to the mock placeholder frame in that case, same "never block the
+        loop" contract as the pose mirror above.
+        """
+        if not self._camera_enabled or self._mirror_disabled or self._service is None:
+            return None
+        try:
+            from PIL import Image
+
+            if self._camera_output_dir is None:
+                self._camera_output_dir = tempfile.mkdtemp(prefix="navila_bridge_camera_")
+
+            service = self._service
+            camera_name = self._camera_name
+            output_dir = self._camera_output_dir
+            filename = f"{camera_name}_{self._camera_request_index}.png"
+            self._camera_request_index += 1
+
+            async def _capture() -> bool:
+                return bool(
+                    await self._maybe_await(
+                        service.get_camera_png(camera_name, output_dir, filename)
+                    )
+                )
+
+            if not self._call(_capture()):
+                raise RuntimeError(f"OrcaLab camera {camera_name!r} refused PNG capture")
+
+            path = os.path.join(output_dir, filename)
+            deadline = time.monotonic() + self._camera_timeout_s
+            last_error: Exception | None = None
+            while True:
+                try:
+                    with Image.open(path) as image:
+                        return np.asarray(image.convert("RGB"), dtype=np.uint8).copy()
+                except (OSError, SyntaxError, ValueError) as exc:
+                    last_error = exc
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError(
+                            f"camera PNG not readable within {self._camera_timeout_s:.1f}s: "
+                            f"{path}: {last_error}"
+                        ) from exc
+                    time.sleep(0.01)
+        except Exception as exc:  # noqa: BLE001 -- capture is best-effort
+            self._camera_failures += 1
+            if self._camera_failures == 1:
+                print(
+                    f"[orcalab-camera] capture failed ({type(exc).__name__}: {exc}); "
+                    "falling back to placeholder frames, retrying each call.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            return None
+
     def _stop_loop(self) -> None:
         loop, thread = self._loop, self._loop_thread
         self._loop = self._loop_thread = self._call = None
@@ -451,6 +548,97 @@ class OrcaLabMirrorBackend:
         finally:
             self._stop_loop()
             self._service = self._robot_path = self._runtime_transform = None
+
+
+# ---------------------------------------------------------------------------
+# In-scene hazard trigger -- the "visibly real, not composited" live-demo
+# trigger (docs/PLAN.md "C" item 5), distinct from ScenarioInjector's
+# frame-overlay test harness.
+# ---------------------------------------------------------------------------
+
+def trigger_scene_hazard(
+    actor_name: str,
+    position: Sequence[float],
+    rotation_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
+    *,
+    edit_address: str | None = None,
+) -> None:
+    """Teleport an existing OrcaLab scene actor to a world pose -- move a
+    hazard (e.g. ``blue_hatchback_car_1``) into the Go2's path for the live
+    demo. ``actor_name`` must already exist in the loaded scene (D's
+    street.json hazard cast: ``blue_hatchback_car_1``, ``traffic_light_1..4``,
+    ``female_pedestrian_model_1..4``, ``supine_human_model_1``, ...) -- this
+    moves an actor via the same verified ``set_actor_transform_batch`` path as
+    the pose mirror, it does not spawn a new one.
+
+    Deliberately independent of ``StepBackend``/``OrcaLabMirrorBackend``: this
+    fires once per demo beat (a judge-facing trigger), not once per physics
+    tick, and must work no matter which ``backend_kind`` the per-step loop is
+    using (mock, mjlab, orcalab, orcalab-mock), headless included. Opens and
+    closes its own edit-service connection per call rather than holding one
+    open -- this fires rarely (once or twice a demo run), so a fresh
+    connection is simpler than managing a long-lived background thread's
+    lifecycle for something this infrequent.
+
+    Unlike the pose mirror's "never block the loop, degrade silently"
+    contract, failures here are RAISED, not swallowed: a demo trigger the
+    operator can't see fire needs to surface an error (OrcaLab not running,
+    wrong actor name, ...), not silently do nothing.
+    """
+    import asyncio
+    import threading
+
+    address = edit_address or os.environ.get(
+        "NAVILA_BRIDGE_ORCA_EDIT_ADDRESS", "127.0.0.1:50151"
+    )
+    service_factory, transform_type, path_type = _load_orca_edit_runtime()
+
+    loop = asyncio.new_event_loop()
+    ready = threading.Event()
+
+    def _run_loop() -> None:
+        asyncio.set_event_loop(loop)
+        ready.set()
+        loop.run_forever()
+
+    thread = threading.Thread(
+        target=_run_loop, name="orcalab-hazard-trigger", daemon=True
+    )
+    thread.start()
+    ready.wait(timeout=5.0)
+
+    async def _maybe_await(value: Any) -> Any:
+        if asyncio.iscoroutine(value):
+            return await value
+        return value
+
+    async def _run() -> None:
+        service = service_factory()
+        try:
+            await _maybe_await(service.init_grpc(address))
+            if not await _maybe_await(service.aloha()):
+                raise RuntimeError(f"OrcaLab edit service not reachable at {address}")
+            pos = np.asarray(position, dtype=np.float64).reshape(3)
+            rot = np.asarray(rotation_wxyz, dtype=np.float64).reshape(4)
+            transform = transform_type(position=pos.copy(), rotation=rot.copy(), scale=1.0)
+            path = path_type(f"/{actor_name}")
+            await _maybe_await(service.set_actor_transform_batch([path], [transform]))
+        finally:
+            if hasattr(service, "destroy_grpc"):
+                try:
+                    await _maybe_await(service.destroy_grpc())
+                except Exception:  # noqa: BLE001 -- best-effort cleanup only
+                    pass
+
+    try:
+        asyncio.run_coroutine_threadsafe(_run(), loop).result(timeout=15.0)
+    finally:
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+            thread.join(timeout=2.0)
+            loop.close()
+        except Exception:  # noqa: BLE001 -- loop teardown is best-effort
+            pass
 
 
 # ---------------------------------------------------------------------------
