@@ -10,16 +10,20 @@ plumbing, so these tests bypass _connect() entirely and inject a fake service
 object directly -- exercising the actual PNG-read code path (via a real tiny
 PNG written to disk) without needing OrcaLab, grpc, or a GPU.
 
-trigger_scene_hazard() opens its own connection per call rather than reusing a
-persistent one, so its tests patch bridge_backends._load_orca_edit_runtime to
-return a fake (service_factory, Transform, Path) triple instead -- exercising
-the real connect/write/disconnect coroutine without needing orcalab.* either.
+trigger_scene_hazard() and reset_scene_layout() open their own connection per
+call rather than reusing a persistent one, so their tests patch
+bridge_backends._load_orca_edit_runtime to return a fake (service_factory,
+Transform, Path) triple instead -- exercising the real connect/write/
+disconnect coroutine without needing orcalab.* either. load_scene_layout()
+just parses a street.json-shaped file, tested against real temp files.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import tempfile
 
 import numpy as np
 from PIL import Image
@@ -250,6 +254,198 @@ def test_trigger_scene_hazard_raises_on_write_failure_and_still_disconnects():
         else:
             raise AssertionError("expected RuntimeError")
         assert service.destroyed is True  # finally-block cleanup still ran
+
+    _with_patched_edit_runtime(service, _check)
+
+
+# ---------------------------------------------------------------------------
+# load_scene_layout / reset_scene_layout (docs/PLAN.md "C" item 6: scene
+# reset reliability)
+# ---------------------------------------------------------------------------
+
+def _write_scene_json(actors):
+    fd, path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w") as f:
+        json.dump({"actors": actors}, f)
+    return path
+
+
+def test_load_scene_layout_parses_position_rotation_scale():
+    path = _write_scene_json([
+        {
+            "name": "a1",
+            "transform": {"position": [1, 2, 3], "rotation": [1, 0, 0, 0], "scale": 2.0},
+        },
+        {"name": "no_transform"},
+        {"transform": {"position": [0, 0, 0], "rotation": [1, 0, 0, 0]}},  # no name
+    ])
+    try:
+        layout = bb.load_scene_layout(path)
+        assert set(layout) == {"a1"}
+        assert layout["a1"]["position"] == (1.0, 2.0, 3.0)
+        assert layout["a1"]["rotation_wxyz"] == (1.0, 0.0, 0.0, 0.0)
+        assert layout["a1"]["scale"] == 2.0
+    finally:
+        os.remove(path)
+
+
+def test_load_scene_layout_defaults_scale_to_one():
+    path = _write_scene_json([
+        {"name": "a1", "transform": {"position": [0, 0, 0], "rotation": [1, 0, 0, 0]}},
+    ])
+    try:
+        layout = bb.load_scene_layout(path)
+        assert layout["a1"]["scale"] == 1.0
+    finally:
+        os.remove(path)
+
+
+def test_load_scene_layout_env_var_default():
+    path = _write_scene_json([
+        {"name": "env_actor", "transform": {"position": [9, 9, 9], "rotation": [1, 0, 0, 0]}},
+    ])
+
+    def _check():
+        layout = bb.load_scene_layout()  # path=None -> env var
+        assert set(layout) == {"env_actor"}
+
+    try:
+        _with_env("NAVILA_BRIDGE_SCENE_LAYOUT", path, _check)
+    finally:
+        os.remove(path)
+
+
+def test_reset_scene_layout_restores_all_except_robot_by_default():
+    layout = {
+        "quadruped_robot_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+        "blue_hatchback_car_1": {
+            "position": (5.0, 6.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+        "traffic_light_1": {
+            "position": (1.0, 1.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    service = _FakeEditService()
+
+    def _check():
+        restored = bb.reset_scene_layout(layout)
+        assert set(restored) == {"blue_hatchback_car_1", "traffic_light_1"}
+        assert len(service.transform_calls) == 1
+        paths, transforms = service.transform_calls[0]
+        assert {p.path for p in paths} == {"/blue_hatchback_car_1", "/traffic_light_1"}
+
+    _with_patched_edit_runtime(service, _check)
+
+
+def test_reset_scene_layout_explicit_actor_names_overrides_robot_exclusion():
+    layout = {
+        "quadruped_robot_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+        "blue_hatchback_car_1": {
+            "position": (5.0, 6.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    service = _FakeEditService()
+
+    def _check():
+        restored = bb.reset_scene_layout(layout, actor_names=["quadruped_robot_1"])
+        assert restored == ["quadruped_robot_1"]
+        paths, _transforms = service.transform_calls[0]
+        assert paths[0].path == "/quadruped_robot_1"
+
+    _with_patched_edit_runtime(service, _check)
+
+
+def test_reset_scene_layout_raises_on_unknown_actor_name():
+    layout = {
+        "blue_hatchback_car_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    try:
+        bb.reset_scene_layout(layout, actor_names=["nonexistent_actor"])
+    except KeyError as exc:
+        assert "nonexistent_actor" in str(exc)
+    else:
+        raise AssertionError("expected KeyError")
+
+
+def test_reset_scene_layout_empty_result_never_contacts_edit_service():
+    layout = {
+        "quadruped_robot_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+
+    def _boom():
+        raise AssertionError("edit service should not be contacted for an empty restore set")
+
+    orig = bb._load_orca_edit_runtime
+    bb._load_orca_edit_runtime = _boom
+    try:
+        restored = bb.reset_scene_layout(layout)  # only actor is the excluded robot
+        assert restored == []
+    finally:
+        bb._load_orca_edit_runtime = orig
+
+
+def test_reset_scene_layout_custom_exclude_actors():
+    layout = {
+        "quadruped_robot_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+        "blue_hatchback_car_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    service = _FakeEditService()
+
+    def _check():
+        restored = bb.reset_scene_layout(layout, exclude_actors=["blue_hatchback_car_1"])
+        assert set(restored) == {"quadruped_robot_1"}
+
+    _with_patched_edit_runtime(service, _check)
+
+
+def test_reset_scene_layout_uses_custom_robot_actor_env():
+    layout = {
+        "custom_robot": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+        "blue_hatchback_car_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    service = _FakeEditService()
+
+    def _inner():
+        restored = bb.reset_scene_layout(layout)
+        assert set(restored) == {"blue_hatchback_car_1"}
+
+    def _check():
+        _with_patched_edit_runtime(service, _inner)
+
+    _with_env("NAVILA_BRIDGE_ORCA_ROBOT_ACTOR", "custom_robot", _check)
+
+
+def test_reset_scene_layout_raises_when_edit_service_unreachable():
+    layout = {
+        "blue_hatchback_car_1": {
+            "position": (0.0, 0.0, 0.0), "rotation_wxyz": (1.0, 0.0, 0.0, 0.0), "scale": 1.0
+        },
+    }
+    service = _FakeEditService(aloha_ok=False)
+
+    def _check():
+        try:
+            bb.reset_scene_layout(layout)
+        except RuntimeError as exc:
+            assert "not reachable" in str(exc)
+        else:
+            raise AssertionError("expected RuntimeError")
 
     _with_patched_edit_runtime(service, _check)
 

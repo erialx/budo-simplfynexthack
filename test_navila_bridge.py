@@ -654,6 +654,85 @@ def test_trigger_scene_hazard_impl_result_survives_json_dumps():
     _with_patched_trigger(lambda actor, pos, rot=(1.0, 0.0, 0.0, 0.0): None, _check)
 
 
+# ---------------------------------------------------------------------------
+# navila_reset_scene_layout (docs/PLAN.md "C" item 6): scene reset
+# reliability, independent of any episode/backend. bridge_backends.
+# reset_scene_layout itself is exercised against a fake edit service in
+# test_bridge_backends.py; these tests only cover _reset_scene_layout_impl's
+# own arg-parsing + error-shape contract, via a monkeypatched deps entry.
+# ---------------------------------------------------------------------------
+
+def _with_patched_reset(fake_fn, fn):
+    deps = bridge._load_perstep()
+    orig = deps.get("reset_scene_layout")
+    deps["reset_scene_layout"] = fake_fn
+    try:
+        fn()
+    finally:
+        deps["reset_scene_layout"] = orig
+
+
+def test_reset_scene_layout_impl_full_reset_passes_none_actor_names():
+    calls = []
+
+    def _check():
+        result = bridge._reset_scene_layout_impl(None)
+        assert result["ok"] is True
+        assert result["restored_actors"] == ["blue_hatchback_car_1", "traffic_light_1"]
+        assert result["count"] == 2
+        assert calls == [None]
+
+    _with_patched_reset(
+        lambda actor_names=None: calls.append(actor_names)
+        or ["blue_hatchback_car_1", "traffic_light_1"],
+        _check,
+    )
+
+
+def test_reset_scene_layout_impl_splits_semicolon_actor_names():
+    calls = []
+
+    def _check():
+        result = bridge._reset_scene_layout_impl("blue_hatchback_car_1; traffic_light_1 ")
+        assert result["ok"] is True
+        assert calls == [["blue_hatchback_car_1", "traffic_light_1"]]
+
+    _with_patched_reset(
+        lambda actor_names=None: calls.append(actor_names) or list(actor_names),
+        _check,
+    )
+
+
+def test_reset_scene_layout_impl_blank_actor_names_means_full_reset():
+    calls = []
+
+    def _check():
+        bridge._reset_scene_layout_impl("   ")
+        assert calls == [None]
+
+    _with_patched_reset(lambda actor_names=None: calls.append(actor_names) or [], _check)
+
+
+def test_reset_scene_layout_impl_failure_is_reported_not_raised():
+    def _boom(actor_names=None):
+        raise KeyError("['nonexistent_actor']")
+
+    def _check():
+        result = bridge._reset_scene_layout_impl("nonexistent_actor")
+        assert result["ok"] is False
+        assert "nonexistent_actor" in result["error"]
+
+    _with_patched_reset(_boom, _check)
+
+
+def test_reset_scene_layout_impl_result_survives_json_dumps():
+    def _check():
+        result = bridge._reset_scene_layout_impl(None)
+        bridge._dumps(result)  # must not raise
+
+    _with_patched_reset(lambda actor_names=None: ["a1"], _check)
+
+
 if __name__ == "__main__":
     # Zero-dependency runner: pytest isn't installed in either conda env here.
     import sys

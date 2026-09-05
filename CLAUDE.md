@@ -211,6 +211,27 @@ Don't build a `RobotBackend`↔`StepBackend` bridge unless the real hardware pat
   `quadruped_robot_1` in the running OrcaLab GUI, confirmed both server-side (property
   readback matched) and visually (user confirmed in the viewport), then restored the car to
   its authored `street.json` position.
+- **Scene reset reliability — done, live-verified 2026-09-05.** New
+  `bridge_backends.load_scene_layout()` parses a street.json-shaped file (fresh from disk each
+  call, default the repo-root `street.json` — see "Known technical facts" — override via
+  `NAVILA_BRIDGE_SCENE_LAYOUT`) into `{actor_name: {position, rotation_wxyz, scale}}`, and
+  `reset_scene_layout()` batch-restores every actor (or just `actor_names`, if given) to that
+  authored transform in ONE `set_actor_transform_batch` call, using the same one-shot
+  connect/write/disconnect pattern as `trigger_scene_hazard`. Built on this verified
+  write-back mechanism rather than `EditServiceWrapper.save_state`/`restore_state` — those
+  take zero arguments with no docstring, an unnamed single-slot checkpoint of unknown scope,
+  too risky to call blind. **The robot actor (`NAVILA_BRIDGE_ORCA_ROBOT_ACTOR`, default
+  `quadruped_robot_1`) is excluded from a full reset by default** — its pose belongs to the
+  per-step episode's backend, not this file, so writing it here would just get overwritten by
+  the next `navigate_step`'s pose mirror; use `navila_reset_episode` for the robot. New MCP
+  tool `navila_reset_scene_layout(actor_names=None)`. 20 new tests (14 + 6). **Live-verified**:
+  moved `blue_hatchback_car_1` away, called `reset_scene_layout()`, confirmed it restored
+  154/155 actors in one batch, the car landed back at its exact authored position (bit-for-bit
+  match via API readback), `quadruped_robot_1` was completely untouched, and the user
+  confirmed the car's snap-back visually in the GUI.
+
+**C's queue (items 1-6, docs/PLAN.md) is now fully done and live-verified.** Only item 4 (C2
+seam check) remains, blocked on D's real-gait half landing.
 
 ## D's components / handover
 
@@ -493,9 +514,11 @@ engineering / AV sensor-fault testing), not a shortcut, and we say so openly in 
 - ~~**In-scene hazard trigger (C).**~~ **Done, live-verified** — see "Per-step bridge
   (C) — status" above. `navila_trigger_scene_hazard` moves an existing scene actor via a new
   standalone `bridge_backends.trigger_scene_hazard()`, independent of the episode/backend.
-- **Scene reset reliability (C, open).** Repeatable "reset to authored layout" for rehearsal +
-  judges. Still genuinely unbuilt — zero `save_state`/`restore_state` usage anywhere in the
-  repo. See `docs/PLAN.md`'s C item 6.
+- ~~**Scene reset reliability (C).**~~ **Done, live-verified** — see "Per-step bridge
+  (C) — status" above. `navila_reset_scene_layout` batch-restores actors via a new
+  `bridge_backends.reset_scene_layout()`, independent of the episode/backend, robot excluded
+  by default. **C's queue (docs/PLAN.md items 1-6) is now fully done.** Only item 4 (C2 seam
+  check) remains, blocked on D.
 - ~~**D's NaVILA-Orca fork is not in this repo.**~~ **Merged.** See "D's components /
   handover" above.
 - **`WAYPOINT_STOP_OVERRIDE` vs. safety/veto precedence — open, assigned to A.** C's

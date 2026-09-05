@@ -27,6 +27,7 @@ Selection is by environment variable so nothing here has to change per machine:
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import sys
@@ -642,6 +643,221 @@ def trigger_scene_hazard(
 
 
 # ---------------------------------------------------------------------------
+# Scene reset reliability -- repeatable "reset to authored layout" for
+# rehearsal + judges (docs/PLAN.md "C" item 6).
+#
+# Deliberately built on the same verified set_actor_transform_batch write-back
+# used by trigger_scene_hazard/the pose mirror, NOT EditServiceWrapper's
+# save_state()/restore_state() -- those take zero arguments (confirmed via
+# inspect.signature against the live orcalab package, no docstring), which
+# means a single global, unnamed checkpoint slot with unknown scope (does it
+# snapshot the whole editor session? interact with Play mode? touch anything
+# on disk?). Calling an unverified, undocumented, no-argument "restore"
+# against a scene someone is actively rehearsing in is too risky to guess at;
+# transform write-back is the mechanism this codebase has already verified
+# and shipped (see CLAUDE.md's "Known technical facts" and the Go2
+# pose-reset-between-runs fix).
+# ---------------------------------------------------------------------------
+
+# The repo-root street.json is D's current live demo scene (183 actors,
+# portable_road_ramp_1/2) -- confirmed 2026-09-05 to be what's actually loaded
+# in the running OrcaLab GUI, as opposed to the older, smaller, git-tracked
+# NaVILA-Orca/hackathon_assets/street.json (70 actors). Untracked on purpose,
+# same as private_asset_transfer/ -- see CLAUDE.md's "Do not commit" note on
+# proprietary OrcaStudio scene content.
+DEFAULT_SCENE_LAYOUT_PATH = Path(__file__).resolve().parent / "street.json"
+
+
+def load_scene_layout(path: "str | Path | None" = None) -> "dict[str, dict[str, Any]]":
+    """Parse a street.json-shaped scene file into
+    ``{actor_name: {"position": (x,y,z), "rotation_wxyz": (w,x,y,z), "scale": s}}``
+    for every actor with a name + transform -- the ground-truth "authored
+    layout" scene reset restores actors back to. Reads fresh from disk on
+    every call (no caching) so it always reflects whichever street.json is
+    currently checked out, not a stale snapshot from process start.
+
+    ``path`` defaults to ``DEFAULT_SCENE_LAYOUT_PATH`` (the repo-root
+    ``street.json``, D's current live demo scene) -- override via the
+    ``path`` arg or ``NAVILA_BRIDGE_SCENE_LAYOUT`` env var (checked when
+    ``path`` is None) for a different scene file, e.g.
+    ``NaVILA-Orca/hackathon_assets/street.json``.
+    """
+    if path is None:
+        path = os.environ.get("NAVILA_BRIDGE_SCENE_LAYOUT")
+    p = Path(path) if path is not None else DEFAULT_SCENE_LAYOUT_PATH
+    with open(p, encoding="utf-8") as f:
+        data = json.load(f)
+
+    layout: "dict[str, dict[str, Any]]" = {}
+    for actor in data.get("actors", []):
+        name = actor.get("name")
+        transform = actor.get("transform")
+        if not name or not transform:
+            continue
+        pos = transform.get("position")
+        rot = transform.get("rotation")
+        if pos is None or rot is None:
+            continue
+        layout[name] = {
+            "position": tuple(float(v) for v in pos),
+            "rotation_wxyz": tuple(float(v) for v in rot),
+            "scale": float(transform.get("scale", 1.0)),
+        }
+    return layout
+
+
+def authored_robot_start_pose(
+    actor_name: str | None = None, layout_path: "str | Path | None" = None
+) -> "tuple[float, float, float] | None":
+    """(x, y, yaw_rad) for the robot actor's AUTHORED spawn transform in the
+    scene layout, so the per-step loop's planar mock physics starts facing
+    the way the scene's own hazard cast (traffic lights, zebra crossing,
+    cars) is actually laid out, instead of always resetting to world origin
+    facing +X regardless of the street's real heading -- confirmed as the
+    root cause of the dog walking perpendicular to the street/crossing
+    instead of along it (street.json's quadruped_robot_1 is authored at
+    yaw ~86 deg, not 0). Returns None (never raises) if the layout file or
+    the actor entry isn't available; callers then fall back to (0, 0), yaw 0
+    -- today's pre-fix behavior, unchanged for scenes without this actor.
+    """
+    try:
+        layout = load_scene_layout(layout_path)
+        name = actor_name or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_ROBOT_ACTOR", "quadruped_robot_1"
+        )
+        entry = layout.get(name)
+        if entry is None:
+            return None
+        x, y, _z = entry["position"]
+        w, _qx, _qy, qz = entry["rotation_wxyz"]
+        return float(x), float(y), 2.0 * math.atan2(qz, w)
+    except Exception:  # noqa: BLE001 -- anchoring is best-effort, never blocks start
+        return None
+
+
+def reset_scene_layout(
+    layout: "dict[str, dict[str, Any]] | None" = None,
+    *,
+    actor_names: "Sequence[str] | None" = None,
+    scene_path: "str | Path | None" = None,
+    edit_address: str | None = None,
+    exclude_actors: "Sequence[str] | None" = None,
+) -> "list[str]":
+    """Batch-restore scene actors to their authored transform -- the "reset
+    to authored layout" rehearsal/judges reset. Opens its own one-shot
+    edit-service connection (same pattern as ``trigger_scene_hazard``: this
+    fires between demo runs, not every physics tick) and writes every
+    restored actor's transform in a SINGLE ``set_actor_transform_batch`` call.
+
+    ``layout`` defaults to ``load_scene_layout(scene_path)`` -- pass a
+    pre-loaded layout to skip re-reading the file, or to reset to a layout
+    captured at some other point instead of whatever is on disk now.
+
+    ``actor_names`` restores only those actors (raises ``KeyError`` if any
+    name isn't in the layout) -- e.g. after ``trigger_scene_hazard`` moved
+    just ``blue_hatchback_car_1``, reset just that one. Omit it to restore
+    EVERY actor in the layout except ``exclude_actors``.
+
+    ``exclude_actors`` defaults to the per-step loop's robot actor
+    (``NAVILA_BRIDGE_ORCA_ROBOT_ACTOR``, default ``quadruped_robot_1``) --
+    only applied to a full-layout reset (ignored when ``actor_names`` is
+    given explicitly, since an explicit request should never be silently
+    filtered). The robot is excluded by default because its pose is owned by
+    the per-step episode/backend, not this scene file: writing it here would
+    desync from that backend's internal state, and the very next
+    ``navila_navigate_step`` would overwrite this write anyway via the pose
+    mirror. Use ``navila_reset_episode`` to reset the robot instead.
+
+    Raises (never swallows) on a missing actor name, a connection failure, or
+    a write failure -- a rehearsal reset that silently does nothing would be
+    worse than a loud error. Returns the list of actor names actually
+    restored.
+    """
+    if layout is None:
+        layout = load_scene_layout(scene_path)
+
+    if actor_names is not None:
+        names = list(actor_names)
+        missing = [n for n in names if n not in layout]
+        if missing:
+            raise KeyError(f"actor(s) not found in the authored layout: {missing}")
+    else:
+        skip = set(exclude_actors) if exclude_actors is not None else {
+            os.environ.get("NAVILA_BRIDGE_ORCA_ROBOT_ACTOR", "quadruped_robot_1")
+        }
+        names = [n for n in layout if n not in skip]
+
+    if not names:
+        return []
+
+    import asyncio
+    import threading
+
+    address = edit_address or os.environ.get(
+        "NAVILA_BRIDGE_ORCA_EDIT_ADDRESS", "127.0.0.1:50151"
+    )
+    service_factory, transform_type, path_type = _load_orca_edit_runtime()
+
+    loop = asyncio.new_event_loop()
+    ready = threading.Event()
+
+    def _run_loop() -> None:
+        asyncio.set_event_loop(loop)
+        ready.set()
+        loop.run_forever()
+
+    thread = threading.Thread(
+        target=_run_loop, name="orcalab-scene-reset", daemon=True
+    )
+    thread.start()
+    ready.wait(timeout=5.0)
+
+    async def _maybe_await(value: Any) -> Any:
+        if asyncio.iscoroutine(value):
+            return await value
+        return value
+
+    async def _run() -> None:
+        service = service_factory()
+        try:
+            await _maybe_await(service.init_grpc(address))
+            if not await _maybe_await(service.aloha()):
+                raise RuntimeError(f"OrcaLab edit service not reachable at {address}")
+            paths = [path_type(f"/{n}") for n in names]
+            transforms = []
+            for n in names:
+                entry = layout[n]
+                pos = np.asarray(entry["position"], dtype=np.float64).reshape(3)
+                rot = np.asarray(entry["rotation_wxyz"], dtype=np.float64).reshape(4)
+                transforms.append(
+                    transform_type(
+                        position=pos.copy(),
+                        rotation=rot.copy(),
+                        scale=float(entry.get("scale", 1.0)),
+                    )
+                )
+            await _maybe_await(service.set_actor_transform_batch(paths, transforms))
+        finally:
+            if hasattr(service, "destroy_grpc"):
+                try:
+                    await _maybe_await(service.destroy_grpc())
+                except Exception:  # noqa: BLE001 -- best-effort cleanup only
+                    pass
+
+    try:
+        asyncio.run_coroutine_threadsafe(_run(), loop).result(timeout=30.0)
+    finally:
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+            thread.join(timeout=2.0)
+            loop.close()
+        except Exception:  # noqa: BLE001 -- loop teardown is best-effort
+            pass
+
+    return names
+
+
+# ---------------------------------------------------------------------------
 # Mock VLM
 # ---------------------------------------------------------------------------
 
@@ -776,6 +992,23 @@ def make_backend(kind: str | None = None, **kwargs: Any) -> StepBackend:
             if kind == "orcalab-mock"
             else os.environ.get("NAVILA_BRIDGE_ORCA_INNER", "mjlab")
         )
+        # Anchor the mock inner's spawn to the scene's authored transform for
+        # the robot actor -- MockBackend otherwise always starts at world
+        # origin facing yaw=0, which is NOT the street's actual heading (see
+        # authored_robot_start_pose's docstring). MjlabGo2Backend (the
+        # non-mock inner) has no start-pose kwarg to anchor -- its own spawn
+        # anchoring is a separate, not-yet-built concern (docs/PLAN.md's C2
+        # real-gait item), so this only fires when inner_kind == "mock".
+        if (
+            inner_kind == "mock"
+            and _env_flag("NAVILA_BRIDGE_ORCA_ANCHOR", True)
+            and "start_xy" not in kwargs
+            and "start_yaw" not in kwargs
+        ):
+            anchor = authored_robot_start_pose(kwargs.get("robot_actor_name"))
+            if anchor is not None:
+                x, y, yaw = anchor
+                kwargs = {**kwargs, "start_xy": (x, y), "start_yaw": yaw}
         return OrcaLabMirrorBackend(inner_kind=inner_kind, **kwargs)
     raise ValueError(
         f"unknown backend kind {kind!r} "

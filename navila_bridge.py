@@ -317,6 +317,7 @@ def _load_perstep() -> dict:
         make_vlm=bb.make_vlm,
         placeholder_frame=bb.placeholder_frame,
         trigger_scene_hazard=bb.trigger_scene_hazard,
+        reset_scene_layout=bb.reset_scene_layout,
         parse_velocity_command=parse_velocity_command,
         ActionParseError=ActionParseError,
         duration_to_ticks=duration_to_ticks,
@@ -1379,6 +1380,51 @@ def navila_trigger_scene_hazard(
     ok=False with the error message (never raises) if it isn't.
     """
     return _jsonable(_trigger_scene_hazard_impl(actor_name, x, y, z, yaw_deg))
+
+
+def _reset_scene_layout_impl(actor_names: "str | None" = None) -> dict:
+    deps = _load_perstep()
+    if "error" in deps:
+        return {"ok": False, "error": deps["error"]}
+
+    names = None
+    if actor_names and actor_names.strip():
+        names = [n.strip() for n in actor_names.split(";") if n.strip()]
+
+    try:
+        restored = deps["reset_scene_layout"](actor_names=names)
+    except Exception as exc:  # noqa: BLE001 -- surface any connection/write/lookup failure
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "note": "is the OrcaLab GUI + edit service (port 50151) running, and did every "
+            "requested actor_name exist in the authored layout?",
+        }
+    return {"ok": True, "restored_actors": restored, "count": len(restored)}
+
+
+@mcp.tool()
+def navila_reset_scene_layout(actor_names: str | None = None) -> dict:
+    """Restore scene actors to their authored transform from street.json -- the
+    "reset to authored layout" rehearsal/judges reset (docs/PLAN.md 'C' item 6).
+    Batches every restore into a single edit-service write.
+
+    actor_names: optional ';'-separated list to restore only those actors
+    (e.g. after navila_trigger_scene_hazard moved blue_hatchback_car_1, pass
+    "blue_hatchback_car_1" to put just it back). Omit to restore EVERY actor
+    in the authored layout except the per-step loop's robot actor
+    (NAVILA_BRIDGE_ORCA_ROBOT_ACTOR, default quadruped_robot_1) -- the robot
+    is excluded by default because its pose belongs to the per-step episode's
+    backend, not this scene file; use navila_reset_episode for that instead,
+    or this desyncs from the backend's own state and gets overwritten by the
+    next navila_navigate_step's pose mirror anyway.
+
+    Independent of the per-step episode/backend, same as
+    navila_trigger_scene_hazard. Requires the OrcaLab GUI + edit service
+    (port 50151) to be up; returns ok=False with the error message (never
+    raises) if it isn't, or if a named actor doesn't exist in the layout.
+    """
+    return _jsonable(_reset_scene_layout_impl(actor_names))
 
 
 @mcp.tool()

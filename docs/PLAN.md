@@ -188,11 +188,32 @@ split as the actual work allows, given each person's real context:
    `quadruped_robot_1`, confirmed the write server-side (`get_actor_property_groups_batch`
    readback matched exactly) AND visually in the OrcaLab GUI (user confirmed), then restored
    the car to its authored position from `street.json`.
-6. **Scene reset reliability.** Repeatable "reset to authored layout" for
-   rehearsal + judges — `EditServiceWrapper.save_state`/`restore_state`, or transform
-   write-back to the layout's original pose (the same mechanism already used to fix the
-   Go2 pose-reset-between-runs bug). Confirmed genuinely unbuilt — zero
-   `save_state`/`restore_state` usage anywhere in the repo yet.
+6. ~~**Scene reset reliability.**~~ **Done, live-verified 2026-09-05.** New
+   `bridge_backends.load_scene_layout()` parses a street.json-shaped file into
+   `{actor_name: {position, rotation_wxyz, scale}}` (fresh from disk every call), and
+   `reset_scene_layout()` batch-restores every actor (or just the ones named via
+   `actor_names`) to that authored transform in a SINGLE `set_actor_transform_batch` call —
+   same one-shot connect/write/disconnect pattern as `trigger_scene_hazard`. Deliberately
+   built on this verified write-back mechanism, NOT `EditServiceWrapper.save_state`/
+   `restore_state` — those take zero arguments (confirmed via `inspect.signature` against the
+   live `orcalab` package, no docstring), meaning an unnamed, single-slot, undocumented
+   checkpoint with unknown scope; too risky to call blind against someone's live rehearsal
+   session. **The robot actor is excluded from a full reset by default**
+   (`NAVILA_BRIDGE_ORCA_ROBOT_ACTOR`, default `quadruped_robot_1`) — its pose belongs to the
+   per-step episode's backend, not this scene file, so writing it here would immediately get
+   overwritten by the next `navila_navigate_step`'s pose mirror anyway; use
+   `navila_reset_episode` for the robot instead. New MCP tool
+   `navila_reset_scene_layout(actor_names=None)`. Default scene file is now the repo-root
+   `street.json` (D's current live demo scene, confirmed 2026-09-05 to be what's actually
+   loaded — see "Known technical facts"), overridable via `NAVILA_BRIDGE_SCENE_LAYOUT`. 20 new
+   tests (14 in `test_bridge_backends.py`, 6 in `test_navila_bridge.py`). **Live-verified**:
+   moved `blue_hatchback_car_1` away, called `reset_scene_layout()`, confirmed it restored
+   154/155 actors in one batch, landed the car back at its exact authored position
+   (bit-for-bit match), left `quadruped_robot_1` completely untouched, and the user confirmed
+   the car's snap-back visually in the OrcaLab GUI.
+
+**C's full queue (items 1-6) is now done and live-verified. Item 4 (C2 seam check) remains
+blocked on D's real-gait half landing — nothing else to do there yet.**
 
 **D — OrcaLab-side code & scene** (has the **Hermes AI** coding assistant; owns everything
 inside the sim + the OrcaLab-facing backend code)
