@@ -109,6 +109,44 @@ Full existing suite after all of this: 98 passed, 1 skipped. Nothing outside
   `MjlabGo2Backend` implements. The joint-action facade is not used by this project today
   and is out of scope.
 
+### 3. Added `anthropic` as an optional extra (docs/PLAN.md A item 1)
+
+Pinned `anthropic==1.4.0` in `NaVILA-Orca/pyproject.toml` under a new `veto`
+optional-dependency group, not as a base dependency. Reason: everything in
+`navila_orca.veto` except `AnthropicVetoVisionClient` works with no SDK and no API
+key, so the mock and demo paths should never be forced to install it. Install with
+`pip install -e "NaVILA-Orca[veto]"`.
+
+Smoke-tested against a real OrcaLab robot-view render
+(`NaVILA-Orca/assets/cover/warehouse-robot-view.png`). What passed: the SDK installs
+and imports, the deferred import path builds a real `anthropic.Anthropic` client,
+`_encode_png` produces a valid PNG that round-trips, and the full request assembles
+correctly with the real frame in the image block. What was not tested: an actual API
+call, which needs a real key.
+
+**Two problems that smoke test found, both still open, both in
+`veto/claude_vision_client.py` (A's own file):**
+
+1. **Frames are sent at full resolution as PNG.** That 2467x1219 render encodes to
+   3,950,276 base64 characters, roughly 2.9MB, per veto call. At the ~1Hz tactical
+   cadence the upload alone would blow the budget, and it buys nothing: the API
+   downscales anything past about 1568px on the long edge anyway. Fix is to downscale
+   before encoding and switch to JPEG, which for a photographic sim render should be
+   one to two orders of magnitude smaller. This is a demo-latency bug, not cosmetic.
+2. **A missing API key does not fail at construction.** `AnthropicVetoVisionClient()`
+   built fine with `ANTHROPIC_API_KEY` unset, so the failure would land on the first
+   real veto call instead. `HazardVetoAgent` defaults to VETO on any client error, so
+   the fail-safe direction is right, but the visible symptom mid-demo would be the dog
+   refusing to move at all with no obvious cause. Worth an explicit key check at
+   construction or episode start.
+
+**Also worth a decision:** the client's default model is still `claude-sonnet-4-5`.
+It is a valid ID in the SDK's model list, so nothing is broken, but that list now also
+carries `claude-sonnet-5`, `claude-opus-5` and `claude-haiku-4-5`. For a 1Hz binary
+VETO/CLEAR gate, latency dominates, so `claude-haiku-4-5` is probably the better
+default with a newer Sonnet as the accuracy fallback. Not changed unilaterally since
+it affects demo behaviour and overlaps A item 4 (tuning).
+
 ### Next steps for A
 
 1. Commit this to `ANNA` and push, so the team can see it at the meeting.
@@ -116,9 +154,10 @@ Full existing suite after all of this: 98 passed, 1 skipped. Nothing outside
    the GPU box. This is the main thing standing between "design proven" and "actually
    protects the demo".
 3. Agree with D on wiring it into `cli.py`, then do that change.
-4. `docs/PLAN.md` A item 1, still open and quick: add `anthropic` to
-   `NaVILA-Orca/pyproject.toml` and smoke-test `AnthropicVetoVisionClient` against one
-   real saved OrcaLab frame with an API key.
+4. ~~`docs/PLAN.md` A item 1: add `anthropic` to `NaVILA-Orca/pyproject.toml`.~~
+   **Done**, see section 3 above. Two follow-ups it uncovered are open: downscale and
+   JPEG-encode frames before sending (demo latency), and fail fast on a missing API
+   key. A real end-to-end API call still needs a key.
 5. `docs/PLAN.md` A item 2, low priority: make `HazardVetoAgent.assess` and
    `ScenarioInjector.inject` accept a raw `np.ndarray` as well as PIL. C already worked
    around this locally, so it is cleanliness rather than a blocker.
