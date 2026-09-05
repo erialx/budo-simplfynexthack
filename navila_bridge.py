@@ -343,6 +343,23 @@ def _load_perstep() -> dict:
         )
     except Exception as exc:  # noqa: BLE001 -- watchdog optional, surface the reason
         _PERSTEP["safety_error"] = f"safety stack unavailable: {exc!r}"
+    # The Hazard Veto Agent (Stage 3 differentiator) is also optional and
+    # imported independently of the watchdog block above, so a failure in
+    # either stack never takes down the other. 'veto_error' records why.
+    try:
+        from navila_orca.decision_logbook import DecisionLogbook
+        from navila_orca.veto.scenario_injector import ScenarioInjector
+        from navila_orca.veto.veto_agent import HazardVetoAgent
+        from PIL import Image
+
+        _PERSTEP.update(
+            HazardVetoAgent=HazardVetoAgent,
+            ScenarioInjector=ScenarioInjector,
+            DecisionLogbook=DecisionLogbook,
+            Image=Image,
+        )
+    except Exception as exc:  # noqa: BLE001 -- veto optional, surface the reason
+        _PERSTEP["veto_error"] = f"veto stack unavailable: {exc!r}"
     return _PERSTEP
 
 
@@ -374,6 +391,41 @@ def _logbook_sink(line: str) -> None:
     """DecisionLogbook sink -> stderr. stdout is the MCP stdio transport, so the
     logbook must never print there; stderr shows up in the server log instead."""
     print(line, file=sys.stderr, flush=True)
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    """Parse an on/off env var, e.g. NAVILA_BRIDGE_VETO. Unset -> default."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off", "")
+
+
+class _RedBarStubVetoClient:
+    """Self-contained VetoVisionClient stub -- no API key, no anthropic SDK.
+
+    Detects ScenarioInjector's injected hazard marker directly from pixel data:
+    the top bar always covers row 0 regardless of frame size (bar_height =
+    max(4, height // 12) in scenario_injector.py), so (0, 0) is a reliable probe
+    pixel. This is the seam navila_orca.veto.claude_vision_client.
+    AnthropicVetoVisionClient swaps into later (see _make_veto_vision_client)
+    without changing anything in _build_veto_stack or the navigate_step gate.
+    """
+
+    _HAZARD_RGB = (220, 20, 20)  # must match ScenarioInjector.inject's bar fill
+
+    def query(self, image, instruction: str, proposed_action: str) -> str:
+        del instruction, proposed_action
+        if image.convert("RGB").getpixel((0, 0)) == self._HAZARD_RGB:
+            return "VETO: injected hazard marker visible in the current frame"
+        return "CLEAR"
+
+
+def _make_veto_vision_client(kind: "str | None"):
+    kind = (kind or os.environ.get("NAVILA_BRIDGE_VETO_CLIENT", "stub")).lower()
+    if kind == "stub":
+        return _RedBarStubVetoClient()
+    raise ValueError(f"unknown veto_client_kind {kind!r} (expected 'stub')")
 
 
 class _PerStepSession:
@@ -408,6 +460,14 @@ class _PerStepSession:
         # Scheduled force-drop events survive close()/re-arm so a rehearsal loop
         # can inject once and run repeatedly. Cleared only by navila_clear_force_drops.
         self._force_events = getattr(self, "_force_events", [])
+        # Hazard Veto Agent (Stage 3). Same persistence-across-reset shape as
+        # the force-drop events above, cleared only by navila_clear_hazards.
+        self.veto_agent = None
+        self._hazard_injector = None
+        self._hazard_events = getattr(self, "_hazard_events", [])
+        # WAYPOINT_STOP_OVERRIDE precedence (docs/PLAN.md, "C" item 2): see the
+        # comment on stop_override_suppressed inside navigate_step.
+        self.stop_override_suppressed = False
 
     # -- helpers --------------------------------------------------------------
     def _distance_to_goal(self):
@@ -432,6 +492,8 @@ class _PerStepSession:
             "pose": _pose(self._state) if self._state is not None else None,
             "state": self._state,
             "watchdog_enabled": self.watchdog is not None,
+            "veto_enabled": self.veto_agent is not None,
+            "stop_override_suppressed": self.stop_override_suppressed,
         }
         if self.watchdog is not None:
             snap["watchdog_tripped"] = bool(self.watchdog.tripped)
@@ -500,6 +562,7 @@ class _PerStepSession:
             return {"ok": False, "error": f"episode start failed: {exc!r}"}
 
         self._build_safety_stack(deps, kw)
+        self._build_veto_stack(deps, kw)
 
         self._frames = [deps["placeholder_frame"]()]
         self.phase = "running"
@@ -543,6 +606,53 @@ class _PerStepSession:
             on_trip=self.logbook.record_watchdog_trip,
         )
 
+    def _build_veto_stack(self, deps: dict, kw: dict) -> None:
+        """Wire the Hazard Veto Agent + ScenarioInjector onto this episode.
+        No-op (veto_agent stays None) if veto resolves False (kw['veto'], else
+        NAVILA_BRIDGE_VETO env, default on) or the veto stack didn't import.
+
+        MUST be called after _build_safety_stack, which unconditionally resets
+        self.logbook=None at its own top -- reversing the order would drop a
+        logbook built here. Reuses self.logbook if the watchdog already built
+        one this episode (one merged STOP+VETO+CLEAR stream); otherwise builds
+        its own, so veto works standalone with watchdog=False too.
+        """
+        self.veto_agent = None
+        self._hazard_injector = None
+
+        veto_kw = kw.get("veto")
+        veto_enabled = (
+            _env_flag("NAVILA_BRIDGE_VETO", True) if veto_kw is None else bool(veto_kw)
+        )
+        if not veto_enabled:
+            return
+        if "HazardVetoAgent" not in deps:
+            return
+
+        self._hazard_injector = deps["ScenarioInjector"]()
+        for ev in self._hazard_events:
+            self._hazard_injector.schedule(**ev)
+
+        if self.logbook is None:
+            self.logbook = deps["DecisionLogbook"](sink=_logbook_sink)
+
+        client = _make_veto_vision_client(kw.get("veto_client_kind"))
+        self.veto_agent = deps["HazardVetoAgent"](
+            client, on_decision=self.logbook.record_veto_decision
+        )
+
+    def _veto_frame(self, deps: dict):
+        """PIL frame for the current decision's veto check: self._frames[-1]
+        (the same frame the driver VLM just reasoned over), converted to PIL,
+        with any scheduled ScenarioInjector hazard composited onto a COPY.
+        Never written back into self._frames -- the driver's own frame history
+        stays the raw capture, untouched by this test-harness marker."""
+        raw = self._frames[-1]
+        frame = raw if hasattr(raw, "convert") else deps["Image"].fromarray(raw).convert("RGB")
+        if self._hazard_injector is not None:
+            frame = self._hazard_injector.inject(frame, step=self.decision_index)
+        return frame
+
     def status(self) -> dict:
         if self.phase == "idle":
             return {"ok": True, "phase": "idle", "note": "no active episode"}
@@ -564,10 +674,26 @@ class _PerStepSession:
 
         instruction = goal.strip() if goal and goal.strip() else self.instruction
 
+        # WAYPOINT_STOP_OVERRIDE precedence (docs/PLAN.md, "C" item 2): D's
+        # runner.py forward-nudge reflex (in NaVILA-Orca's NavigationRunner, a
+        # separate CLI-driven loop this bridge doesn't call) forces one step of
+        # forward motion when the VLM stops prematurely mid-waypoint, so a
+        # frozen camera doesn't deadlock the VLM into "stop" forever. That must
+        # NEVER override a real safety stop -- a watchdog trip or a veto is not
+        # a "prematurely confused VLM," it's a legitimate reason to actually
+        # stop. This flag is this bridge's per-step record of "did a safety
+        # system end this step," reset every call, so a future port of the
+        # override reflex into this loop has a ready-made suppression check
+        # (`if session.stop_override_suppressed: don't nudge`). No consumer of
+        # it exists in this file yet -- the per-step bridge has no waypoint
+        # staging/forward-nudge logic of its own to suppress.
+        self.stop_override_suppressed = False
+
         # An out-of-band emergency_stop (Stage 3 watchdog) latches this flag.
         if getattr(self.backend, "interrupted", False):
             self.phase = "stopped"
             self.termination_reason = "emergency_stop"
+            self.stop_override_suppressed = True
             return {
                 "ok": True,
                 **self._snapshot(),
@@ -620,6 +746,28 @@ class _PerStepSession:
             self.last_action = "stop"
             return {"ok": True, **self._snapshot(), "action": "stop", "raw_vlm_text": raw}
 
+        action_text = _action_text(cmd)
+
+        # Hazard Veto Agent (Stage 3 differentiator): one tactical vision check
+        # per decision, gating this proposed motion before any physics runs.
+        # Never runs inside the ~20Hz tick loop below -- that's the reactive
+        # watchdog's job; this is the ~1Hz tactical layer.
+        if self.veto_agent is not None:
+            decision = self.veto_agent.assess(self._veto_frame(deps), instruction, action_text)
+            if not decision.is_clear:
+                self.phase = "done"
+                self.termination_reason = "veto"
+                self.last_action = "stop"
+                self.stop_override_suppressed = True
+                return {
+                    "ok": True,
+                    **self._snapshot(),
+                    "action": "stop",
+                    "raw_vlm_text": raw,
+                    "veto_reason": decision.reason,
+                    "note": f"Hazard Veto Agent vetoed the proposed action: {decision.reason}",
+                }
+
         control_dt = float(self.backend.control_dt)
         ticks = deps["duration_to_ticks"](cmd.duration_s, control_dt)
         self.backend.set_velocity_command(cmd)
@@ -658,7 +806,7 @@ class _PerStepSession:
                 chunk_term = "terminated" if ps.terminated else "truncated"
                 break
         self._frames.append(deps["placeholder_frame"]())
-        self.last_action = _action_text(cmd)
+        self.last_action = action_text
 
         end_pose = _pose(self._state)
         moved_m = math.hypot(
@@ -672,6 +820,7 @@ class _PerStepSession:
             done, self.phase, self.termination_reason = True, "done", chunk_term
         elif chunk_term == "emergency_stop":
             done, self.phase, self.termination_reason = True, "stopped", "emergency_stop"
+            self.stop_override_suppressed = True
         elif chunk_term == "max_control_steps":
             done, self.phase, self.termination_reason = True, "done", "max_control_steps"
         elif dist is not None and dist <= self.goal_radius:
@@ -847,6 +996,58 @@ class _PerStepSession:
             **self._snapshot(),
         }
 
+    def inject_hazard(
+        self, at_step: int, duration_steps: int = 1, label: str = "HAZARD"
+    ) -> dict:
+        """Schedule a ScenarioInjector hazard marker for the Hazard Veto Agent
+        to catch. Step units are DECISION INDICES (navila_navigate_step calls,
+        1 = the episode's first decision) -- NOT physics ticks like
+        inject_force_drop, because the veto agent runs once per decision, not
+        once per tick."""
+        try:
+            at_step = int(at_step)
+            duration_steps = int(duration_steps)
+        except (TypeError, ValueError) as exc:
+            return {"ok": False, "error": f"bad argument: {exc}"}
+        if at_step < 0 or duration_steps < 1:
+            return {"ok": False, "error": "at_step >= 0 and duration_steps >= 1 required"}
+        if not label:
+            return {"ok": False, "error": "label must be non-empty"}
+
+        ev = {"at_step": at_step, "duration_steps": duration_steps, "label": label}
+        self._hazard_events.append(ev)
+        applied = self._hazard_injector is not None
+        if applied:
+            self._hazard_injector.schedule(**ev)
+        return {
+            "ok": True,
+            "scheduled": ev,
+            "applied_to_live_injector": applied,
+            "all_scheduled": list(self._hazard_events),
+            "note": (
+                None if applied
+                else "no active episode / veto disabled; will apply on the next "
+                "navila_start_episode with veto enabled"
+            ),
+        }
+
+    def clear_hazards(self) -> dict:
+        """Forget every scheduled hazard injection, including on the live
+        ScenarioInjector -- frames read clean again from the next decision.
+        Does not un-end an episode already finished with
+        termination_reason='veto'."""
+        n = len(self._hazard_events)
+        self._hazard_events.clear()
+        live = self._hazard_injector is not None
+        if live:
+            self._hazard_injector._events.clear()
+        return {
+            "ok": True,
+            "cleared": n,
+            "applied_to_live_injector": live,
+            **self._snapshot(),
+        }
+
     def clear_stop(self) -> dict:
         """Un-latch an emergency stop so the loop can resume from the current pose
         (the 'hazard cleared, dog proceeds' demo beat). Does NOT teleport -- that's
@@ -872,7 +1073,12 @@ class _PerStepSession:
     def get_logbook(self) -> dict:
         """The merged Safety Watchdog + Hazard Veto decision log for this episode."""
         if self.logbook is None:
-            reason = _load_perstep().get("safety_error") or "no active episode / watchdog disabled"
+            deps = _load_perstep()
+            reason = (
+                deps.get("safety_error")
+                or deps.get("veto_error")
+                or "no active episode / watchdog+veto disabled"
+            )
             return {"ok": True, "entries": [], "text": "", "note": reason}
         entries = [
             {
@@ -905,6 +1111,8 @@ def navila_start_episode(
     watchdog_debounce_ticks: int = 3,
     force_low: float | None = None,
     force_high: float | None = None,
+    veto: bool | None = None,
+    veto_client_kind: str | None = None,
 ) -> dict:
     """Arm a per-step navigation episode. After this, call navila_navigate_step
     repeatedly until it returns done=true.
@@ -932,6 +1140,17 @@ def navila_start_episode(
         fault with navila_inject_force_drop; read the outcome with navila_get_logbook.
     force_low / force_high: safe harness-force band in newtons (default 20-80,
         nominal mock reading is 45). Pass both to override.
+    veto: attach the Hazard Veto Agent (tactical, ~1Hz vision gate) via a
+        VetoVisionClient (default: a self-contained stub that VETOes when
+        ScenarioInjector's red hazard marker is present in the current frame --
+        no API key needed). Omit to defer to NAVILA_BRIDGE_VETO (default on).
+        A VETO ends the step with termination_reason='veto' and skips the
+        motion chunk entirely; schedule the test hazard with
+        navila_inject_hazard, read the outcome with navila_get_logbook.
+    veto_client_kind: which VetoVisionClient backs the gate -- 'stub' (default)
+        today; a future kind will wire in AnthropicVetoVisionClient once an API
+        key + the anthropic pyproject dependency land. Also settable via
+        NAVILA_BRIDGE_VETO_CLIENT.
     """
     return _jsonable(
         _SESSION.start_episode(
@@ -949,6 +1168,8 @@ def navila_start_episode(
             watchdog_debounce_ticks=watchdog_debounce_ticks,
             force_low=force_low,
             force_high=force_high,
+            veto=veto,
+            veto_client_kind=veto_client_kind,
         )
     )
 
@@ -962,7 +1183,7 @@ def navila_navigate_step(goal: str = "") -> dict:
     per-chunk motion (moved_m, yaw_delta_deg), the full robot state, and
     distance_to_goal. When done=true, read termination_reason ('stop',
     'goal_reached', 'max_decisions', 'max_control_steps', 'terminated',
-    'truncated', 'emergency_stop', 'parse_error') and stop calling this.
+    'truncated', 'emergency_stop', 'parse_error', 'veto') and stop calling this.
 
     goal: optional per-step instruction override (otherwise the episode's).
     """
@@ -1057,6 +1278,38 @@ def navila_clear_force_drops() -> dict:
 
 
 @mcp.tool()
+def navila_inject_hazard(
+    at_step: int, duration_steps: int = 1, label: str = "HAZARD"
+) -> dict:
+    """Schedule a ScenarioInjector hazard marker (red bar + label composited onto
+    the frame) the Hazard Veto Agent will catch -- the disclosed automated-test
+    fault-injection scenario for the differentiator gate.
+
+    at_step: decision index to start the hazard at -- counts navila_navigate_step
+        calls (1 = the episode's first decision), NOT physics ticks (contrast
+        navila_inject_force_drop, which counts watchdog/physics ticks).
+    duration_steps: how many consecutive decisions carry the marker.
+    label: text drawn on the marker bar (cosmetic; detection is by pixel color).
+
+    Callable before or during an episode; scheduled hazards persist across
+    navila_reset_episode until navila_clear_hazards. When active and veto is
+    enabled, the running navila_navigate_step ends with termination_reason
+    'veto' and the motion chunk never executes; see navila_get_logbook for the
+    reason.
+    """
+    return _jsonable(_SESSION.inject_hazard(at_step, duration_steps, label))
+
+
+@mcp.tool()
+def navila_clear_hazards() -> dict:
+    """Forget every scheduled hazard injection, on the live ScenarioInjector too
+    -- frames read clean again from the next decision. Does not un-end an
+    episode already finished with termination_reason 'veto'; call
+    navila_continue_episode or navila_reset_episode to proceed."""
+    return _jsonable(_SESSION.clear_hazards())
+
+
+@mcp.tool()
 def navila_clear_stop() -> dict:
     """Un-latch an emergency stop (watchdog trip or navila_emergency_stop) so the
     loop can resume from the current pose -- the 'hazard cleared, dog proceeds'
@@ -1067,7 +1320,7 @@ def navila_clear_stop() -> dict:
 @mcp.tool()
 def navila_get_logbook() -> dict:
     """Return the merged Safety Watchdog + Hazard Veto decision log for the current
-    episode: a timestamped list of every emergency stop and (later) every veto.
+    episode: a timestamped list of every emergency stop and every veto.
     This is the 'how do you know it's making good decisions' answer for Q&A."""
     return _jsonable(_SESSION.get_logbook())
 

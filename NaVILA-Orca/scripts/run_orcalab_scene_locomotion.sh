@@ -21,7 +21,6 @@ for ORCA_DISTRIBUTION in orca-lab orca-gym; do
   fi
 done
 
-DEFAULT_INSTRUCTION_FILE="${NAVILA_ORCA_INSTRUCTION_FILE:-${PROJECT_ROOT}/prompts/orcalab_scene_locomotion.txt}"
 INSTRUCTION_ARGS=()
 HAS_INSTRUCTION_OVERRIDE=false
 for ARG in "$@"; do
@@ -33,7 +32,7 @@ for ARG in "$@"; do
   esac
 done
 if [[ "${HAS_INSTRUCTION_OVERRIDE}" == false ]]; then
-  INSTRUCTION_ARGS=(--instruction-file "${DEFAULT_INSTRUCTION_FILE}")
+  INSTRUCTION_ARGS=(--traffic-light-crossing)
 fi
 
 # This command never launches or republishes OrcaLab. It reuses the current
@@ -58,6 +57,7 @@ exec "${ORCA_PYTHON}" -m navila_orca.cli run \
   --vlm-port 54321 \
   --image-interval 0.5 \
   --state-stream-interval 0.04 \
+  --realtime-visual-sync \
   ${NAVILA_ORCA_LIVE_MONITOR:+--live-monitor --monitor-interval 0.1} \
   --warmup-steps 100 \
   --max-decisions 0 \
