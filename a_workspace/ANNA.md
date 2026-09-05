@@ -75,6 +75,8 @@ tests.
 | `a_workspace/safety_integration.py` | The three wrappers plus `build_safe_runner()` (305 lines) |
 | `a_workspace/tests/test_safety_integration.py` | 4 integration tests |
 | `a_workspace/README.md` | What this folder is, how to run it, what is left before it lands |
+| `a_workspace/check_real_backend.py` | Validates the wrapper against a real MjlabGo2Backend (added later in the session, see section 5) |
+| `a_workspace/run_check.sh` | One-line runner for the above; resolves the orcalab interpreter and the PYTHONPATH |
 | `a_workspace/ANNA.md` | This log |
 
 ### Verified
@@ -147,19 +149,106 @@ VETO/CLEAR gate, latency dominates, so `claude-haiku-4-5` is probably the better
 default with a newer Sonnet as the accuracy fallback. Not changed unilaterally since
 it affects demo behaviour and overlaps A item 4 (tuning).
 
+### 4. Proved the unit tests are not vacuous (mutation testing)
+
+Fair challenge raised: the tests pass, but I wrote both the code and the tests, so
+passing only proves internal consistency. Answered by deliberately breaking each of
+the three pieces and confirming the tests notice:
+
+| Mutation | Result |
+|---|---|
+| Baseline, untouched | 4 passed |
+| Override-suppression property ignores the safety flag | 1 failed, 3 passed |
+| Watchdog never ticked on physics steps | 1 failed, 3 passed |
+| A VETO is let through instead of forcing a stop | 2 failed, 2 passed |
+| Restored | 4 passed |
+
+`git status` clean afterwards, so the file is exactly what was committed. Anyone can
+repeat this in two minutes: delete the two lines in
+`premature_stop_recovery_command` that return `None`, rerun, watch one test fail.
+
+### 5. Validated against the REAL MjlabGo2Backend
+
+Wrote `a_workspace/check_real_backend.py` plus `a_workspace/run_check.sh`. It builds a
+real `MjlabGo2Backend` (MJLab/MJWarp, real `go2_flat.pt` policy) and runs three
+scenarios through `build_safe_runner()`. No OrcaLab GUI, no AWS tunnel and no GPU
+needed, since the backend defaults to `device="cpu"`. The renderer and driver VLM are
+still faked, as neither is what is under test.
+
+**First real run: 6 of 7 checks passed.** On real physics with the real trained policy:
+
+- Clean run: the dog walked 2.593 m over 4 decisions and 300 control steps with the
+  wrapper in place, and the watchdog correctly stayed quiet on nominal force.
+- Force drop: the watchdog tripped after exactly 3 consecutive out-of-band readings,
+  the run ended as `terminated`, and the dog stopped after 8 control steps having
+  travelled 0.018 m instead of 2.593 m. Logbook caught it verbatim:
+  `STOP (safety_watchdog): harness force 0.00N outside safe band [20.0, 80.0]N for 3
+  consecutive ticks`.
+- Veto: the run ended with `control_steps: 0`, so not a single physics tick executed,
+  and the logbook recorded `VETO (hazard_veto): pedestrian in the path`.
+
+That is the core claim confirmed against real physics rather than against my own fakes.
+
+**The one failure was the check, not the safety code.** C2 asserted "robot never moved"
+and reported 0.011 m on a run where C1 had just proved zero physics ticks executed. The
+two cannot both be about navigation. Cause: `MjlabGo2Backend.reset()` runs a
+zero-velocity warmup of real physics steps to settle the Go2 onto its feet, explicitly
+"outside the public navigation clock", and its reset events (`reset_base`,
+`reset_robot_joints`, `randomize_terrain`) randomize the starting pose. The robot is
+therefore about a centimetre off the world origin before decision 1, and I was
+measuring distance from the origin, which counts that settling as navigation. Every
+distance assertion now uses `NavigationMetrics.path_length`, which accumulates from the
+post-reset pose and only grows on real navigation ticks.
+
+**Not yet re-run after that fix.** Expect 7 of 7, but that is a prediction, not a
+result. If C2 still reports a non-zero path length it is a genuine finding.
+
+### 6. Two self-inflicted bugs worth remembering
+
+- `run_check.sh` crashed on `USER: unbound variable`. Git Bash on Windows sets
+  `USERNAME`, not `USER`, and the script runs under `set -u`. Fixed by defaulting both
+  and allowing `PY=` as an explicit override.
+- Python printed nothing for minutes and looked hung. Git Bash's terminal is a pipe
+  rather than a real Windows console, so Python block-buffers stdout. Fixed with `-u`
+  and `PYTHONUNBUFFERED=1`.
+- A stray `line 64: script: command not found` appeared mid-run. That was me editing
+  `run_check.sh` while bash was executing it: bash reads scripts incrementally by byte
+  offset, so inserting lines shifted everything and it resumed inside a comment
+  reading "the script looks hung for". Confirmed by `git show` on that commit. Harmless,
+  but do not edit a shell script while it is running.
+
 ### Next steps for A
 
-1. Commit this to `ANNA` and push, so the team can see it at the meeting.
-2. Run `build_safe_runner()` against a real `MjlabGo2Backend` plus the OrcaLab renderer on
-   the GPU box. This is the main thing standing between "design proven" and "actually
-   protects the demo".
-3. Agree with D on wiring it into `cli.py`, then do that change.
-4. ~~`docs/PLAN.md` A item 1: add `anthropic` to `NaVILA-Orca/pyproject.toml`.~~
-   **Done**, see section 3 above. Two follow-ups it uncovered are open: downscale and
-   JPEG-encode frames before sending (demo latency), and fail fast on a missing API
-   key. A real end-to-end API call still needs a key.
-5. `docs/PLAN.md` A item 2, low priority: make `HazardVetoAgent.assess` and
-   `ScenarioInjector.inject` accept a raw `np.ndarray` as well as PIL. C already worked
-   around this locally, so it is cleanliness rather than a blocker.
-6. `docs/PLAN.md` A item 4, tuning `SafeForceBand`, `debounce_ticks` and the veto cadence,
-   stays blocked on C2 landing a real loop with measurable latency.
+1. **Re-run `bash a_workspace/run_check.sh`** after the `path_length` fix. Not done yet.
+   Expecting 7/7. This is the cheapest outstanding item and it closes out the
+   real-backend validation.
+2. **Swap `NullRenderBridge` for the real OrcaLab render bridge** and confirm the freeze
+   is visible in the GUI, not just in a results table. This needs the OrcaLab setup
+   (stop Multipass first, it squats on port 50051).
+3. **`cli.py` wiring.** Still untouched, so **the live demo does not use any of this
+   yet.** That is the gap between "A's task is done" and "the demo is actually
+   protected". Needs agreement with D, who owns that file.
+4. Fix the two smoke-test findings in `veto/claude_vision_client.py`: downscale and
+   JPEG-encode frames before sending (currently ~2.9MB per call, far too slow for a 1Hz
+   gate), and fail fast on a missing API key rather than silently vetoing everything
+   mid-demo.
+5. Decide the veto model default. Currently `claude-sonnet-4-5`; `claude-haiku-4-5` is
+   probably the better choice for a 1Hz binary gate where latency dominates.
+6. `docs/PLAN.md` A item 2, low priority: accept `np.ndarray` frames as well as PIL in
+   `HazardVetoAgent.assess` and `ScenarioInjector.inject`. C already worked around it.
+7. `docs/PLAN.md` A item 4, tuning the force band, debounce and veto cadence, stays
+   blocked on C2 landing a real loop with measurable latency.
+
+### Status summary, honestly
+
+**Verified against real physics:** the watchdog trips, the dog freezes, a veto blocks a
+decision before any physics runs, and both land in the logbook.
+
+**Verified only against fakes:** everything in `a_workspace/tests/`, which is where the
+override-suppression behaviour is proven. The real-backend script does not exercise the
+waypoint override path.
+
+**Not verified at all:** the OrcaLab GUI freeze, a real VLM in the loop, a real
+Anthropic API call, and the corrected C2 check.
+
+**Not wired up:** `cli.py`. The demo command runs none of this today.
