@@ -19,7 +19,8 @@ A real backend must satisfy ``StepBackend``. ``MjlabGo2Backend`` already provide
 bridge falls back to latching a zero ``VelocityCommand``).
 
 Selection is by environment variable so nothing here has to change per machine:
-  * ``NAVILA_BRIDGE_BACKEND``  -> ``mock`` (default) | ``mjlab``
+  * ``NAVILA_BRIDGE_BACKEND``  -> ``mock`` (default) | ``mjlab`` |
+    ``orcalab`` | ``orcalab-mock`` | ``orcalab-render``
   * ``NAVILA_BRIDGE_VLM``      -> ``mock`` (default) | ``tcp``
   * ``NAVILA_BRIDGE_VLM_SCRIPT`` -> optional ';'-separated action phrases for the
     mock VLM, e.g. "move forward by 75 cm; turn left by 30 degrees; stop"
@@ -858,6 +859,232 @@ def reset_scene_layout(
 
 
 # ---------------------------------------------------------------------------
+# Articulated OrcaLab renderer -- real MJLab gait + complete qpos mirroring
+# ---------------------------------------------------------------------------
+
+class _PosePushOnlyCamera:
+    """Satisfy OrcaLabRenderBridge lifecycle without requiring an RGB stream.
+
+    C2's gait half only calls ``push_state``. Marking this adapter as a
+    pull-capture camera prevents ``push_state`` from waiting on an otherwise
+    unused WebSocket frame; the separate camera-capture backend can inject its
+    real camera factory through ``OrcaLabRenderBackend(camera_factory=...)``.
+    """
+
+    pull_capture = True
+
+    def __init__(self, _name: str, _port: int) -> None:
+        pass
+
+    def start(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+    def get_frame(self, *, format: str = "rgb24") -> tuple[np.ndarray, int]:
+        del format
+        raise RuntimeError(
+            "orcalab-render is pose-only; configure a real camera factory "
+            "before calling capture()"
+        )
+
+
+class OrcaLabRenderBackend:
+    """Run the Go2 policy in MJLab and mirror its full articulated pose.
+
+    Unlike :class:`OrcaLabMirrorBackend`, which writes only the actor's root
+    transform through the edit service, this backend forwards MJLab's complete
+    ``qpos_batch`` to :class:`navila_orca.render.orca.OrcaLabRenderBridge`
+    after reset and after every policy step.  The renderer can therefore move
+    all twelve Go2 joints and show the policy's real gait in OrcaLab.
+
+    The construction order intentionally matches ``cli.py::_run`` and
+    ``cli.py::_make_renderer``: start MJLab first so its joint-qpos addresses
+    exist, then assemble the OrcaLab renderer from those addresses.  ``inner``
+    and ``renderer``/``renderer_factory`` are injection seams for unit tests;
+    production always defaults to ``MjlabGo2Backend`` with the bundled
+    ``go2_flat.pt`` checkpoint.
+    """
+
+    def __init__(
+        self,
+        *,
+        inner: "StepBackend | None" = None,
+        renderer: Any | None = None,
+        renderer_factory: Any | None = None,
+        camera_factory: Any | None = None,
+        checkpoint: str | Path | None = None,
+        device: str | None = None,
+        num_envs: int = 1,
+        deterministic_play: bool = True,
+        warmup_steps: int = 100,
+        orcagym_address: str | None = None,
+        camera_port: int | None = None,
+        camera_name: str | None = None,
+        render_timeout_s: float | None = None,
+        robot_actor_name: str | None = None,
+        robot_asset_path: str | None = None,
+        terrain_asset_path: str | None = None,
+        publish: bool = False,
+        anchor_to_scene: bool = True,
+        scene_timestep: float | None = None,
+        scene_profile: str | None = None,
+    ) -> None:
+        if int(num_envs) != 1:
+            raise ValueError("orcalab-render currently requires num_envs=1")
+        if inner is None:
+            from navila_orca.backends.mjlab_go2 import (
+                DEFAULT_CHECKPOINT,
+                MjlabGo2Backend,
+            )
+
+            inner = MjlabGo2Backend(
+                checkpoint=DEFAULT_CHECKPOINT if checkpoint is None else checkpoint,
+                device=device or os.environ.get("NAVILA_ORCA_DEVICE", "cpu"),
+                num_envs=1,
+                deterministic_play=deterministic_play,
+                warmup_steps=warmup_steps,
+            )
+        self._inner = inner
+        self._renderer = renderer
+        self._renderer_factory = renderer_factory
+        self._camera_factory = camera_factory or _PosePushOnlyCamera
+        self._orcagym_address = orcagym_address or os.environ.get(
+            "NAVILA_BRIDGE_ORCAGYM_ADDRESS", "127.0.0.1:50051"
+        )
+        self._camera_port = int(
+            camera_port
+            if camera_port is not None
+            else os.environ.get("NAVILA_BRIDGE_ORCA_CAMERA_PORT", "7070")
+        )
+        self._camera_name = camera_name or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_CAMERA_NAME", "navila_ego"
+        )
+        self._render_timeout_s = float(
+            render_timeout_s
+            if render_timeout_s is not None
+            else os.environ.get("NAVILA_BRIDGE_ORCA_RENDER_TIMEOUT", "10.0")
+        )
+        self._robot_actor_name = robot_actor_name or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_ROBOT_ACTOR", "auto"
+        )
+        self._robot_asset_path = robot_asset_path
+        self._terrain_asset_path = terrain_asset_path
+        self._publish = bool(publish)
+        self._anchor_to_scene = bool(anchor_to_scene)
+        self._scene_timestep = scene_timestep
+        self._scene_profile = scene_profile or os.environ.get(
+            "NAVILA_BRIDGE_ORCA_SCENE_PROFILE", "orca-train"
+        )
+
+    @property
+    def control_dt(self) -> float:
+        return self._inner.control_dt
+
+    @property
+    def interrupted(self) -> bool:
+        return bool(getattr(self._inner, "interrupted", False))
+
+    @interrupted.setter
+    def interrupted(self, value: bool) -> None:
+        if hasattr(self._inner, "interrupted"):
+            self._inner.interrupted = bool(value)
+
+    @property
+    def qpos_batch(self) -> np.ndarray:
+        return self._inner.qpos_batch
+
+    @property
+    def joint_qpos_addr(self) -> dict[str, int]:
+        return self._inner.joint_qpos_addr
+
+    @property
+    def alignment_report(self) -> dict[str, Any] | None:
+        return getattr(self._inner, "alignment_report", None)
+
+    def start(self) -> None:
+        self._inner.start()
+        self._ensure_renderer()
+
+    def reset(self, episode: Any | None = None) -> RobotState:
+        self._inner.start()
+        self._ensure_renderer()
+        state = self._inner.reset(episode)
+        self._push_state(state)
+        return state
+
+    def set_velocity_command(self, command: VelocityCommand) -> None:
+        self._inner.set_velocity_command(command)
+
+    def step(self) -> "RobotState | PhysicsStep":
+        result = self._inner.step()
+        state = getattr(result, "state", result)
+        self._push_state(state)
+        return result
+
+    def emergency_stop(self) -> None:
+        if hasattr(self._inner, "emergency_stop"):
+            self._inner.emergency_stop()
+        else:
+            self._inner.set_velocity_command(
+                VelocityCommand(0.0, 0.0, 0.0, 0.0, stop=True)
+            )
+
+    def close(self) -> None:
+        try:
+            if self._renderer is not None:
+                self._renderer.close()
+        finally:
+            self._renderer = None
+            self._inner.close()
+
+    def _ensure_renderer(self) -> None:
+        if self._renderer is not None:
+            return
+        factory = self._renderer_factory
+        if factory is None:
+            from navila_orca.render.orca import (
+                DEFAULT_GO2_ASSET,
+                OrcaLabRenderBridge,
+            )
+
+            factory = OrcaLabRenderBridge
+            asset_path = self._robot_asset_path or DEFAULT_GO2_ASSET
+        else:
+            # Keep the production default visible to injected factories too.
+            from navila_orca.render.orca import DEFAULT_GO2_ASSET
+
+            asset_path = self._robot_asset_path or DEFAULT_GO2_ASSET
+
+        discover_agents = self._robot_actor_name == "auto" and not self._publish
+        agent_name = None if discover_agents else self._robot_actor_name
+        if agent_name == "auto":
+            agent_name = "go2_000"
+        self._renderer = factory(
+            orcagym_address=self._orcagym_address,
+            camera_port=self._camera_port,
+            camera_name=self._camera_name,
+            timeout_s=self._render_timeout_s,
+            num_envs=1,
+            joint_qpos_addr=self._inner.joint_qpos_addr,
+            agent_name=agent_name,
+            discover_agents=discover_agents,
+            asset_path=asset_path,
+            terrain_asset_path=self._terrain_asset_path,
+            publish=self._publish,
+            anchor_to_scene=self._anchor_to_scene,
+            scene_timestep=self._scene_timestep,
+            scene_profile=self._scene_profile,
+            camera_factory=self._camera_factory,
+        )
+
+    def _push_state(self, state: RobotState) -> None:
+        self._ensure_renderer()
+        self._renderer.push_state(state, self._inner.qpos_batch)
+
+
+# ---------------------------------------------------------------------------
 # Mock VLM
 # ---------------------------------------------------------------------------
 
@@ -984,6 +1211,13 @@ def make_backend(kind: str | None = None, **kwargs: Any) -> StepBackend:
         params = {"num_envs": 1, "device": os.environ.get("NAVILA_ORCA_DEVICE", "cpu")}
         params.update(kwargs)
         return MjlabGo2Backend(**params)
+    if kind == "orcalab-render":
+        params = {
+            "num_envs": 1,
+            "device": os.environ.get("NAVILA_ORCA_DEVICE", "cpu"),
+        }
+        params.update(kwargs)
+        return OrcaLabRenderBackend(**params)
     if kind in ("orcalab", "orcalab-mock"):
         # 'orcalab'      -> real physics (mjlab inner) mirrored into the GUI
         # 'orcalab-mock' -> planar physics (mock inner) mirrored into the GUI, no GPU
@@ -1012,7 +1246,8 @@ def make_backend(kind: str | None = None, **kwargs: Any) -> StepBackend:
         return OrcaLabMirrorBackend(inner_kind=inner_kind, **kwargs)
     raise ValueError(
         f"unknown backend kind {kind!r} "
-        "(expected 'mock', 'mjlab', 'orcalab', or 'orcalab-mock')"
+        "(expected 'mock', 'mjlab', 'orcalab', 'orcalab-mock', "
+        "or 'orcalab-render')"
     )
 
 

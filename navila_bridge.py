@@ -291,7 +291,8 @@ def navila_run_instruction(instruction: str, timeout_s: int = DEFAULT_TIMEOUT_S)
 #   mjlab        real MJWarp physics + Go2 policy, headless
 #   orcalab      mjlab physics, robot pose mirrored into the OrcaLab GUI
 #   orcalab-mock planar physics mirrored into the OrcaLab GUI (no GPU)
-# The two 'orcalab*' kinds push root pose only (dog glides, legs don't
+#   orcalab-render real MJWarp physics + full articulated qpos in OrcaLab
+# 'orcalab' and 'orcalab-mock' push root pose only (dog glides, legs don't
 # articulate) and degrade to headless if the edit service isn't reachable.
 # ===========================================================================
 
@@ -427,7 +428,17 @@ def _make_veto_vision_client(kind: "str | None"):
     kind = (kind or os.environ.get("NAVILA_BRIDGE_VETO_CLIENT", "stub")).lower()
     if kind == "stub":
         return _RedBarStubVetoClient()
-    raise ValueError(f"unknown veto_client_kind {kind!r} (expected 'stub')")
+    if kind == "anthropic":
+        # Deferred import, same reason claude_vision_client.py itself defers
+        # 'anthropic': the stub/mock path must keep working with neither the
+        # SDK nor an API key installed. Raises a clear RuntimeError (missing
+        # package) if 'anthropic' isn't installed -- caught by the caller in
+        # _build_veto_stack, which degrades to veto_agent=None rather than
+        # crashing navila_start_episode.
+        from navila_orca.veto.claude_vision_client import AnthropicVetoVisionClient
+
+        return AnthropicVetoVisionClient()
+    raise ValueError(f"unknown veto_client_kind {kind!r} (expected 'stub' or 'anthropic')")
 
 
 class _PerStepSession:
@@ -467,6 +478,12 @@ class _PerStepSession:
         self.veto_agent = None
         self._hazard_injector = None
         self._hazard_events = getattr(self, "_hazard_events", [])
+        # Set if veto_client_kind="anthropic" was requested but the client
+        # failed to construct (missing 'anthropic' package, see
+        # _make_veto_vision_client) -- episode still starts, just with
+        # veto_agent=None, same silent-degrade-with-a-visible-reason shape as
+        # safety_error/veto_error in _load_perstep().
+        self._veto_client_error = None
         # WAYPOINT_STOP_OVERRIDE precedence (docs/PLAN.md, "C" item 2): see the
         # comment on stop_override_suppressed inside navigate_step.
         self.stop_override_suppressed = False
@@ -495,6 +512,7 @@ class _PerStepSession:
             "state": self._state,
             "watchdog_enabled": self.watchdog is not None,
             "veto_enabled": self.veto_agent is not None,
+            "veto_client_error": self._veto_client_error,
             "stop_override_suppressed": self.stop_override_suppressed,
         }
         if self.watchdog is not None:
@@ -621,6 +639,7 @@ class _PerStepSession:
         """
         self.veto_agent = None
         self._hazard_injector = None
+        self._veto_client_error = None
 
         veto_kw = kw.get("veto")
         veto_enabled = (
@@ -638,7 +657,17 @@ class _PerStepSession:
         if self.logbook is None:
             self.logbook = deps["DecisionLogbook"](sink=_logbook_sink)
 
-        client = _make_veto_vision_client(kw.get("veto_client_kind"))
+        try:
+            client = _make_veto_vision_client(kw.get("veto_client_kind"))
+        except Exception as exc:  # noqa: BLE001 -- a bad/missing veto client must
+            # degrade the episode to veto_agent=None, not crash navila_start_episode
+            # (e.g. veto_client_kind="anthropic" with the 'anthropic' package not
+            # installed). Recorded on the session so it's visible in the start_episode
+            # response instead of silently vanishing -- see A's own flagged finding
+            # that a missing-key/package failure here would otherwise look like the
+            # dog just refusing to move for no obvious reason.
+            self._veto_client_error = f"{type(exc).__name__}: {exc}"
+            return
         self.veto_agent = deps["HazardVetoAgent"](
             client, on_decision=self.logbook.record_veto_decision
         )
@@ -1141,10 +1170,13 @@ def navila_start_episode(
     goal_x / goal_y: optional world-frame target; when set, the episode ends with
         termination_reason 'goal_reached' once the robot is within goal_radius (m).
     max_decisions / max_control_steps: safety caps (0 = unlimited).
-    backend_kind: 'mock' (default), 'mjlab', 'orcalab' (mjlab physics mirrored
-        into the OrcaLab GUI), or 'orcalab-mock' (planar physics mirrored into
-        the GUI, no GPU). The 'orcalab*' kinds fall back to headless if the edit
-        service on :50151 isn't reachable. vlm_kind: 'mock' (default) or 'tcp'.
+    backend_kind: 'mock' (default), 'mjlab', 'orcalab' (mjlab root pose mirrored
+        into the OrcaLab GUI), 'orcalab-mock' (planar root pose mirrored into the
+        GUI, no GPU), or 'orcalab-render' (real MJWarp gait with full articulated
+        qpos pushed through OrcaLabRenderBridge). The root-only mirror kinds fall
+        back to headless if the edit service on :50151 isn't reachable; the
+        articulated renderer fails closed if OrcaLab is unavailable.
+        vlm_kind: 'mock' (default) or 'tcp'.
     vlm_script: ';'-separated action phrases for the mock VLM, e.g.
         "move forward by 75 cm; turn left by 30 degrees; stop".
     vlm_timeout_s: per-decision socket timeout for vlm_kind='tcp' (default: the
@@ -1167,10 +1199,15 @@ def navila_start_episode(
         A VETO ends the step with termination_reason='veto' and skips the
         motion chunk entirely; schedule the test hazard with
         navila_inject_hazard, read the outcome with navila_get_logbook.
-    veto_client_kind: which VetoVisionClient backs the gate -- 'stub' (default)
-        today; a future kind will wire in AnthropicVetoVisionClient once an API
-        key + the anthropic pyproject dependency land. Also settable via
-        NAVILA_BRIDGE_VETO_CLIENT.
+    veto_client_kind: which VetoVisionClient backs the gate -- 'stub' (default,
+        free, no API key, pixel-color detection) or 'anthropic' (one real
+        Claude vision call per decision, model claude-haiku-4-5, needs
+        ANTHROPIC_API_KEY and `pip install -e "NaVILA-Orca[veto]"` -- costs
+        money and adds latency, so it is opt-in, never the default). Also
+        settable via NAVILA_BRIDGE_VETO_CLIENT. A construction failure (e.g.
+        the anthropic package missing) degrades the episode to veto_agent
+        disabled rather than failing this call -- check the response's
+        veto_enabled / veto_client_error fields.
     """
     return _jsonable(
         _SESSION.start_episode(
