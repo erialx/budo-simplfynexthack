@@ -18,22 +18,28 @@ echo "Repo root : $REPO_ROOT"
 
 # --- find the orcalab interpreter ------------------------------------------
 # The env does NOT live in this repo. It's in the Orca_VLN checkout.
+# Git Bash on Windows sets USERNAME, not USER, so default both rather than
+# letting `set -u` kill the script.
+WHOAMI="${USERNAME:-${USER:-}}"
+
 CANDIDATES=(
+  "${PY:-}"
   "$REPO_ROOT/.conda/envs/orcalab/python.exe"
   "$HOME/Orca_VLN/.conda/envs/orcalab/python.exe"
-  "/c/Users/$USER/Orca_VLN/.conda/envs/orcalab/python.exe"
+  "/c/Users/${WHOAMI}/Orca_VLN/.conda/envs/orcalab/python.exe"
   "/c/Users/aadha/Orca_VLN/.conda/envs/orcalab/python.exe"
 )
 
-PY=""
+FOUND=""
 for candidate in "${CANDIDATES[@]}"; do
+  [ -z "$candidate" ] && continue
   if [ -x "$candidate" ] || [ -f "$candidate" ]; then
-    PY="$candidate"
+    FOUND="$candidate"
     break
   fi
 done
 
-if [ -z "$PY" ]; then
+if [ -z "$FOUND" ]; then
   echo ""
   echo "ERROR: could not find the orcalab env's python.exe."
   echo "Looked in:"
@@ -44,6 +50,7 @@ if [ -z "$PY" ]; then
   exit 1
 fi
 
+PY="$FOUND"
 echo "Interpreter: $PY"
 echo ""
 
