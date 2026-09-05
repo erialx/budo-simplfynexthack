@@ -39,7 +39,7 @@ class AnthropicVetoVisionClient:
     without the real SDK installed.
     """
 
-    def __init__(self, model: str = "claude-sonnet-4-5", *, client: Any = None) -> None:
+    def __init__(self, model: str = "claude-haiku-4-5", *, client: Any = None) -> None:
         self.model = model
         if client is not None:
             self._client = client
@@ -55,14 +55,29 @@ class AnthropicVetoVisionClient:
                 ) from exc
             self._client = anthropic.Anthropic()
 
-    @staticmethod
-    def _encode_png(image: Image.Image) -> str:
+    # Downscale + JPEG before sending, not the raw sim render. A full-res PNG of a
+    # 2467x1219 OrcaLab frame smoke-tested at ~2.9MB / 3.95M base64 chars per call --
+    # the API downscales anything past ~1568px on the long edge anyway, so sending
+    # it at full size buys nothing and is a real latency/cost problem at a ~1Hz
+    # veto cadence, not a cosmetic one. 1024px is comfortably under that threshold.
+    _MAX_EDGE_PX = 1024
+    _JPEG_QUALITY = 85
+
+    @classmethod
+    def _encode_jpeg(cls, image: Image.Image) -> str:
+        rgb = image.convert("RGB")
+        w, h = rgb.size
+        scale = min(1.0, cls._MAX_EDGE_PX / max(w, h))
+        if scale < 1.0:
+            rgb = rgb.resize(
+                (max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS
+            )
         buffer = io.BytesIO()
-        image.convert("RGB").save(buffer, format="PNG")
+        rgb.save(buffer, format="JPEG", quality=cls._JPEG_QUALITY)
         return base64.b64encode(buffer.getvalue()).decode("ascii")
 
     def query(self, image: Image.Image, instruction: str, proposed_action: str) -> str:
-        image_b64 = self._encode_png(image)
+        image_b64 = self._encode_jpeg(image)
         message = self._client.messages.create(
             model=self.model,
             max_tokens=64,
@@ -75,7 +90,7 @@ class AnthropicVetoVisionClient:
                             "type": "image",
                             "source": {
                                 "type": "base64",
-                                "media_type": "image/png",
+                                "media_type": "image/jpeg",
                                 "data": image_b64,
                             },
                         },

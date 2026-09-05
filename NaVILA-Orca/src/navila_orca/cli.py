@@ -36,6 +36,7 @@ from .render.orca_camera import (
     OrcaMujocoPngCamera,
 )
 from .runner import NavigationRunner
+from .safety_integration import SafeVLMClient, build_safe_runner
 from .training import (
     COMPATIBLE_VERSION_SPECS,
     compatibility_errors,
@@ -45,7 +46,24 @@ from .traffic_crossing import (
     premature_stop_recovery_command,
     traffic_light_crossing_waypoints,
 )
+from .veto.claude_vision_client import AnthropicVetoVisionClient
 from .vlm_client import LengthPrefixedJsonVLMClient
+
+
+class _AlwaysClearVetoClient:
+    """Zero-cost, zero-latency VetoVisionClient stub: every decision is CLEAR.
+
+    Default for --veto-client so a --safety run (SafetyWatchdog + the
+    override-suppression wiring) can be exercised for free -- no ANTHROPIC_API_KEY,
+    no network call, no per-decision spend. Pass --veto-client anthropic to swap in
+    the real AnthropicVetoVisionClient (one real Claude vision call per decision,
+    costs money and adds latency) once you actually want the Hazard Veto Agent's
+    differentiator live, not just the wiring.
+    """
+
+    def query(self, image: Image.Image, instruction: str, proposed_action: str) -> str:
+        del image, instruction, proposed_action
+        return "CLEAR"
 
 
 class ScriptedVLMClient:
@@ -373,10 +391,7 @@ def _run(args: argparse.Namespace) -> int:
         # This stays fail-closed until the backend applies a versioned visual,
         # collision and coordinate manifest plus the episode reset pose.
         scene_fidelity = False
-        runner = NavigationRunner(
-            backend,
-            renderer,
-            vlm,
+        runner_kwargs: dict[str, Any] = dict(
             scene_fidelity=scene_fidelity,
             image_interval_s=args.image_interval,
             state_stream_interval_s=args.state_stream_interval,
@@ -390,13 +405,38 @@ def _run(args: argparse.Namespace) -> int:
             premature_stop_recovery_command=stop_recovery_command,
             realtime_visual_sync=args.realtime_visual_sync,
         )
+        # A's SafetyWatchdog + Hazard Veto Agent (docs/PLAN.md item A3): on by
+        # default, so a real harness-force trip or veto is a stop the
+        # WAYPOINT_STOP_OVERRIDE reflex cannot undo. --veto-client defaults to
+        # the free stub (always CLEAR) so this is exercisable with zero API
+        # spend; pass --veto-client anthropic for the real Claude vision gate.
+        safety_state = watchdog = veto_agent = safety_logbook = None
+        if args.safety:
+            veto_client = (
+                AnthropicVetoVisionClient()
+                if args.veto_client == "anthropic"
+                else _AlwaysClearVetoClient()
+            )
+            runner, safety_state, watchdog, veto_agent, safety_logbook = (
+                build_safe_runner(backend, renderer, vlm, veto_client, **runner_kwargs)
+            )
+        else:
+            runner = NavigationRunner(backend, renderer, vlm, **runner_kwargs)
         if args.rehearsal:
             result = None
             for run_number in _episode_starts(True):
                 renderer.frames.clear()
                 renderer.pose_pushes = 0
                 if args.vlm_backend == "scripted":
-                    runner.vlm_client = _make_vlm(args)
+                    new_vlm = _make_vlm(args)
+                    if args.safety:
+                        # Re-wrap for the veto gate too, or this rerun's VLM
+                        # would bypass HazardVetoAgent entirely from run 2 on.
+                        runner.vlm_client = SafeVLMClient(
+                            new_vlm, veto_agent, runner.physics, safety_state
+                        )
+                    else:
+                        runner.vlm_client = new_vlm
                 if (
                     run_number > 1
                     and args.render_backend == "orcalab"
@@ -476,6 +516,12 @@ def _run(args: argparse.Namespace) -> int:
             "motion_chunks": [asdict(chunk) for chunk in result.motion_chunks],
             "metrics": result.metrics,
             "final_state": _state_dict(result.final_state),
+            "safety": {
+                "enabled": args.safety,
+                "veto_client": args.veto_client if args.safety else None,
+                "watchdog_tripped": bool(watchdog.tripped) if watchdog is not None else None,
+                "logbook": safety_logbook.dump() if safety_logbook is not None else None,
+            },
             "episode": {
                 "episode_id": episode.episode_id,
                 "scene_id": episode.scene_id,
@@ -885,6 +931,27 @@ def _build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=False,
         help="show live Go2 ego RGB with instruction and VLM command text",
+    )
+    run.add_argument(
+        "--safety",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="wire A's SafetyWatchdog + Hazard Veto Agent into this run via "
+        "build_safe_runner() (docs/PLAN.md item A3), so a harness-force trip "
+        "or a veto is a real stop the WAYPOINT_STOP_OVERRIDE reflex cannot "
+        "undo; --no-safety runs the plain unwrapped NavigationRunner instead",
+    )
+    run.add_argument(
+        "--veto-client",
+        choices=("stub", "anthropic"),
+        default="stub",
+        help="which VetoVisionClient backs the Hazard Veto Agent when --safety "
+        "is on: 'stub' (default) always returns CLEAR, zero cost, for "
+        "dry-running the wiring itself; 'anthropic' makes one real Claude "
+        "vision call per decision (needs ANTHROPIC_API_KEY and the "
+        "'veto' extra, pip install -e \"NaVILA-Orca[veto]\") -- this is the "
+        "actual differentiator, but it costs money and adds latency, so it "
+        "is opt-in, not the default",
     )
     run.add_argument(
         "--monitor-interval",
