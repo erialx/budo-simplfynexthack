@@ -1107,53 +1107,6 @@ def reset_scene_layout(
 # Articulated OrcaLab renderer -- real MJLab gait + complete qpos mirroring
 # ---------------------------------------------------------------------------
 
-def _neutralize_orca_gym_mainthread_signal() -> None:
-    """Make ``orca_gym``'s file lock usable from a non-main thread.
-
-    ``orca_gym.utils.dir_utils.file_lock`` bounds a blocking ``fcntl.flock``
-    wait by installing a ``SIGALRM`` handler.  ``signal.signal`` /
-    ``signal.alarm`` raise ``ValueError('signal only works in main thread of
-    the main interpreter')`` off the main thread, and ``OrcaLabRenderBackend``
-    now drives the renderer on a dedicated worker thread (see ``_run``).
-
-    Swap that module's ``signal`` reference for a proxy that no-ops
-    ``signal``/``alarm`` on non-main threads -- the flock wait then just blocks
-    without a timeout, which is fine for the single-process demo where the
-    per-file lock is uncontended and stale locks are already reaped by
-    ``cleanup_zombie_locks``.  Real ``signal`` behaviour is untouched on the
-    main thread.  Idempotent; a missing ``orca_gym`` is left for the renderer
-    factory to report.
-    """
-    try:
-        from orca_gym.utils import dir_utils  # type: ignore
-    except Exception:  # noqa: BLE001 -- absence surfaced later, with context
-        return
-
-    import signal as _real_signal
-    import threading
-
-    if getattr(dir_utils.signal, "_navila_worker_safe", False):
-        return
-
-    class _WorkerSafeSignal:
-        _navila_worker_safe = True
-
-        def __getattr__(self, name: str) -> Any:
-            return getattr(_real_signal, name)
-
-        def signal(self, sig: Any, handler: Any) -> Any:
-            if threading.current_thread() is threading.main_thread():
-                return _real_signal.signal(sig, handler)
-            return _real_signal.getsignal(sig)
-
-        def alarm(self, seconds: Any) -> int:
-            if threading.current_thread() is threading.main_thread():
-                return _real_signal.alarm(seconds)
-            return 0
-
-    dir_utils.signal = _WorkerSafeSignal()
-
-
 class _PosePushOnlyCamera:
     """Satisfy OrcaLabRenderBridge lifecycle without requiring an RGB stream.
 
@@ -1269,28 +1222,6 @@ class OrcaLabRenderBackend:
         self._scene_profile = scene_profile or os.environ.get(
             "NAVILA_BRIDGE_ORCA_SCENE_PROFILE", "orca-train"
         )
-        # Every lifecycle call runs on this one dedicated thread.
-        # ``OrcaLabBatchRenderer`` (built inside ``_ensure_renderer``) creates
-        # its own asyncio loop and drives it with ``loop.run_until_complete``
-        # on whatever thread constructs/steps it.  The MCP bridge calls this
-        # backend from a sync ``@mcp.tool()`` that FastMCP runs inline on the
-        # server's *running* event-loop thread, where ``run_until_complete``
-        # raises ``RuntimeError('Cannot run the event loop while another loop
-        # is running')``.  A loop-free worker thread sidesteps that and also
-        # keeps all MJLab/MJWarp state on a single thread.  Created lazily so
-        # constructing the backend without starting it (unit tests, dry runs)
-        # spawns no thread.
-        self._executor: Any | None = None
-
-    def _run(self, fn: Any, *args: Any) -> Any:
-        """Execute ``fn`` on the dedicated worker thread and block for it."""
-        import concurrent.futures
-
-        if self._executor is None:
-            self._executor = concurrent.futures.ThreadPoolExecutor(
-                max_workers=1, thread_name_prefix="orcalab-render"
-            )
-        return self._executor.submit(fn, *args).result()
 
     @property
     def control_dt(self) -> float:
@@ -1318,16 +1249,10 @@ class OrcaLabRenderBackend:
         return getattr(self._inner, "alignment_report", None)
 
     def start(self) -> None:
-        self._run(self._start_impl)
-
-    def _start_impl(self) -> None:
         self._inner.start()
         self._ensure_renderer()
 
     def reset(self, episode: Any | None = None) -> RobotState:
-        return self._run(self._reset_impl, episode)
-
-    def _reset_impl(self, episode: Any | None = None) -> RobotState:
         self._inner.start()
         self._ensure_renderer()
         state = self._inner.reset(episode)
@@ -1335,21 +1260,15 @@ class OrcaLabRenderBackend:
         return state
 
     def set_velocity_command(self, command: VelocityCommand) -> None:
-        self._run(self._inner.set_velocity_command, command)
+        self._inner.set_velocity_command(command)
 
     def step(self) -> "RobotState | PhysicsStep":
-        return self._run(self._step_impl)
-
-    def _step_impl(self) -> "RobotState | PhysicsStep":
         result = self._inner.step()
         state = getattr(result, "state", result)
         self._push_state(state)
         return result
 
     def emergency_stop(self) -> None:
-        self._run(self._emergency_stop_impl)
-
-    def _emergency_stop_impl(self) -> None:
         if hasattr(self._inner, "emergency_stop"):
             self._inner.emergency_stop()
         else:
@@ -1358,14 +1277,6 @@ class OrcaLabRenderBackend:
             )
 
     def close(self) -> None:
-        try:
-            self._run(self._close_impl)
-        finally:
-            executor, self._executor = self._executor, None
-            if executor is not None:
-                executor.shutdown(wait=False)
-
-    def _close_impl(self) -> None:
         try:
             if self._renderer is not None:
                 self._renderer.close()
@@ -1376,9 +1287,6 @@ class OrcaLabRenderBackend:
     def _ensure_renderer(self) -> None:
         if self._renderer is not None:
             return
-        # This runs on the worker thread (see ``_run``); orca_gym's file lock
-        # would otherwise crash trying to install a SIGALRM handler here.
-        _neutralize_orca_gym_mainthread_signal()
         factory = self._renderer_factory
         if factory is None:
             from navila_orca.render.orca import (
