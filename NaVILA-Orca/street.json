@@ -2,15 +2,15 @@
     "version": "3.0",
     "viewport_camera_transform": {
         "position": [
-            -16.64715003967285,
-            31.94192886352539,
-            46.64667892456055
+            -6.504753589630127,
+            41.16190719604492,
+            28.76691436767578
         ],
         "rotation": [
-            0.34471090498749396,
-            -0.2754101663006312,
-            0.5601560289926459,
-            -0.7011054524564414
+            0.09011609851611457,
+            -0.0531980246263993,
+            -0.5055574774347998,
+            0.8564231991100223
         ]
     },
     "actors": [
@@ -114,573 +114,6 @@
             ]
         },
         {
-            "name": "quadruped_robot_1",
-            "path": "/quadruped_robot_1",
-            "type": "AssetActor",
-            "transform": {
-                "position": [
-                    -0.23202192783355713,
-                    0.7222723960876465,
-                    -7.450580596923828e-09
-                ],
-                "rotation": [
-                    0.7301523205784841,
-                    0.0,
-                    0.0,
-                    0.683284412784204
-                ],
-                "scale": 2.092074155807495
-            },
-            "asset_path": "assets/e071469a36d3c8aa/unitree_robots/prefabs/go2_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        },
-                        {
-                            "name": "FL_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FL_hip",
-                            "index": 5
-                        },
-                        {
-                            "name": "FL_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "FL_calf",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RL_hip",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "RL_calf",
-                            "index": 2
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_thigh",
-                            "index": 1
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "FR_hip",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_thigh",
-                            "index": 1
-                        },
-                        {
-                            "name": "FR_calf",
-                            "index": 2
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 0.0,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_thigh",
-                            "index": 3
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "entity_path": [
-                        {
-                            "name": "mujoco_wrap",
-                            "index": 0
-                        },
-                        {
-                            "name": "rootPrim",
-                            "index": 2
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "base_link",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_hip",
-                            "index": 0
-                        },
-                        {
-                            "name": "RR_thigh",
-                            "index": 3
-                        },
-                        {
-                            "name": "RR_calf",
-                            "index": 0
-                        }
-                    ],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.0,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "name": "traffic_light_1",
             "path": "/traffic_light_1",
             "type": "AssetActor",
@@ -688,7 +121,7 @@
                 "position": [
                     -7.481048107147217,
                     1.627542495727539,
-                    0.0
+                    0.04436969757080078
                 ],
                 "rotation": [
                     1.0,
@@ -726,8 +159,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    0.6950275897979736,
-                    0.6084954738616943,
+                    -0.7630307674407959,
+                    1.356464147567749,
                     0.0
                 ],
                 "rotation": [
@@ -758,17 +191,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.48886215686798096,
+                                    "value": 4.813604354858398,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -2.005861520767212,
+                                    "value": -3.3629441261291504,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 40.53645706176758,
+                                    "value": 177.82852172851562,
                                     "type": "float"
                                 },
                                 {
@@ -788,9 +221,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.546115875244141,
-                    11.301507949829102,
-                    0.0
+                    -7.352447509765625,
+                    18.830961227416992,
+                    0.040780067443847656
                 ],
                 "rotation": [
                     1.0,
@@ -828,7 +261,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.302756309509277,
+                    -7.209157943725586,
                     2.0258450508117676,
                     0.0
                 ],
@@ -848,8 +281,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.404458999633789,
-                    3.324873208999634,
+                    -7.097505569458008,
+                    3.3343985080718994,
                     0.0
                 ],
                 "rotation": [
@@ -1080,25 +513,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/ccdac06a414e99b7c79e268bafb18f8c2efac07b_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -9.575807571411133,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/ccdac06a414e99b7c79e268bafb18f8c2efac07b_usda"
         },
         {
             "name": "range_rover_suv_1",
@@ -1118,25 +533,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5cd043b511e3f7031892d1fa56fe309d2896128a_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -11.786924362182617,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5cd043b511e3f7031892d1fa56fe309d2896128a_usda"
         },
         {
             "name": "blue_flammable_liquid_drums_1",
@@ -1144,7 +541,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.036927223205566,
+                    -6.845126152038574,
                     4.21730899810791,
                     0.0
                 ],
@@ -1164,7 +561,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.355886459350586,
+                    -7.164085388183594,
                     4.52137565612793,
                     0.0
                 ],
@@ -1336,17 +733,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.49956798553466797,
+                                    "value": 4.792680740356445,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -1.9904308319091797,
+                                    "value": -3.4232540130615234,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 40.061180114746094,
+                                    "value": 176.78623962402344,
                                     "type": "float"
                                 },
                                 {
@@ -1401,26 +798,6 @@
             "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5063b5239fc589cc5c7da36e87f921901827bcbf_usda"
         },
         {
-            "name": "soccer_ball_2",
-            "path": "/soccer_ball_2",
-            "type": "AssetActor",
-            "transform": {
-                "position": [
-                    -6.399541854858398,
-                    6.618988037109375,
-                    0.0
-                ],
-                "rotation": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "scale": 1.0
-            },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5063b5239fc589cc5c7da36e87f921901827bcbf_usda"
-        },
-        {
             "name": "abstract_pattern_rug_1",
             "path": "/abstract_pattern_rug_1",
             "type": "AssetActor",
@@ -1447,8 +824,8 @@
             "transform": {
                 "position": [
                     1.1934456825256348,
-                    4.692654609680176,
-                    -0.06477737426757812
+                    4.793606758117676,
+                    -0.01918792724609375
                 ],
                 "rotation": [
                     1.0,
@@ -1526,8 +903,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -30.832504272460938,
-                    16.833866119384766,
+                    -24.86501693725586,
+                    25.748432159423828,
                     0.18247853219509125
                 ],
                 "rotation": [
@@ -1546,9 +923,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -7.209125518798828,
-                    14.811441421508789,
-                    0.9613419771194458
+                    -7.377062797546387,
+                    11.816179275512695,
+                    0.1326829195022583
                 ],
                 "rotation": [
                     1.0,
@@ -1566,9 +943,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.22875690460205,
-                    12.018904685974121,
-                    0.9489202499389648
+                    -13.89831256866455,
+                    15.823686599731445,
+                    0.5346975326538086
                 ],
                 "rotation": [
                     1.0,
@@ -1586,8 +963,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.446311950683594,
-                    20.486631393432617,
+                    -7.529645919799805,
+                    20.916288375854492,
                     0.2632535696029663
                 ],
                 "rotation": [
@@ -1608,7 +985,7 @@
                 "position": [
                     -10.806069374084473,
                     5.645332336425781,
-                    0.1824784278869629
+                    0.10078287124633789
                 ],
                 "rotation": [
                     1.0,
@@ -1628,7 +1005,7 @@
                 "position": [
                     -10.76236629486084,
                     30.031272888183594,
-                    0.18247854709625244
+                    -0.032918334007263184
                 ],
                 "rotation": [
                     1.0,
@@ -1638,7 +1015,27 @@
                 ],
                 "scale": 21.00586700439453
             },
-            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/road2_202609041615_usda",
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/road2_202609041615_usda"
+        },
+        {
+            "name": "traffic_light_5",
+            "path": "/traffic_light_5",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    -7.535497665405273,
+                    23.803146362304688,
+                    0.39528119564056396
+                ],
+                "rotation": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "scale": 2.3213911056518555
+            },
+            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda",
             "entity_overrides": [
                 {
                     "entity_path": [],
@@ -1649,7 +1046,7 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.y",
-                                    "value": 30.031272888183594,
+                                    "value": 23.803146362304688,
                                     "type": "float"
                                 }
                             ]
@@ -1659,34 +1056,14 @@
             ]
         },
         {
-            "name": "traffic_light_5",
-            "path": "/traffic_light_5",
-            "type": "AssetActor",
-            "transform": {
-                "position": [
-                    -7.1328125,
-                    24.433977127075195,
-                    0.2632535696029663
-                ],
-                "rotation": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "scale": 2.3213911056518555
-            },
-            "asset_path": "assets/0fd4012bb82036d1/simplifynext_hackathon/prefabs/traffic_light_202608270102_usda"
-        },
-        {
             "name": "traffic_light_6",
             "path": "/traffic_light_6",
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -13.900314331054688,
-                    22.027751922607422,
-                    0.18247854709625244
+                    -13.95370101928711,
+                    26.8071231842041,
+                    0.25064384937286377
                 ],
                 "rotation": [
                     1.0,
@@ -1704,9 +1081,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -7.426002502441406,
-                    37.02979278564453,
-                    0.2632535696029663
+                    -7.508432388305664,
+                    36.15785217285156,
+                    0.8097680807113647
                 ],
                 "rotation": [
                     1.0,
@@ -1724,9 +1101,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.171181678771973,
-                    34.262699127197266,
-                    0.16381648182868958
+                    -13.750548362731934,
+                    39.41694259643555,
+                    1.7675151824951172
                 ],
                 "rotation": [
                     1.0,
@@ -1776,17 +1153,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.2851656675338745,
+                                    "value": 2.051496744155884,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -0.6517009735107422,
+                                    "value": -2.08087158203125,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 24.257715225219727,
+                                    "value": 160.66554260253906,
                                     "type": "float"
                                 }
                             ]
@@ -1803,7 +1180,7 @@
                 "position": [
                     -3.749112367630005,
                     32.341705322265625,
-                    0.2632535696029663
+                    -0.7790733575820923
                 ],
                 "rotation": [
                     1.0,
@@ -1833,17 +1210,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.2883036136627197,
+                                    "value": 2.0376992225646973,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -0.6460895538330078,
+                                    "value": -2.09234619140625,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 24.00228500366211,
+                                    "value": 160.68032836914062,
                                     "type": "float"
                                 }
                             ]
@@ -1890,17 +1267,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.2903919219970703,
+                                    "value": 2.0375137329101562,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -0.6522531509399414,
+                                    "value": -2.0969886779785156,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 24.063953399658203,
+                                    "value": 160.78138732910156,
                                     "type": "float"
                                 }
                             ]
@@ -1947,17 +1324,17 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.2840099334716797,
+                                    "value": 2.049703598022461,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -0.6462030410766602,
+                                    "value": -2.080554962158203,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": 24.339845657348633,
+                                    "value": 161.06307983398438,
                                     "type": "float"
                                 }
                             ]
@@ -1972,7 +1349,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -7.179208278656006,
+                    -7.474498271942139,
                     16.807506561279297,
                     0.18247853219509125
                 ],
@@ -1992,7 +1369,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.998156547546387,
+                    -7.498113632202148,
                     18.689180374145508,
                     0.7079444527626038
                 ],
@@ -2012,8 +1389,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -7.008058071136475,
-                    27.51595687866211,
+                    -7.3173508644104,
+                    27.99204444885254,
                     0.2632535696029663
                 ],
                 "rotation": [
@@ -2032,9 +1409,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.681143760681152,
-                    30.59238624572754,
-                    0.2632535696029663
+                    -7.2987518310546875,
+                    31.679555892944336,
+                    -0.34963953495025635
                 ],
                 "rotation": [
                     1.0,
@@ -2052,7 +1429,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.6925530433654785,
+                    -7.348174571990967,
                     29.669403076171875,
                     -0.6789098978042603
                 ],
@@ -2072,8 +1449,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -6.586497783660889,
-                    9.764501571655273,
+                    -7.299008846282959,
+                    33.68256378173828,
                     0.06732125580310822
                 ],
                 "rotation": [
@@ -2084,27 +1461,25 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0196e8210ba3ddbb8e0d61a6ff836da41e5b3f66_usda"
-        },
-        {
-            "name": "indoor_potted_plant_7",
-            "path": "/indoor_potted_plant_7",
-            "type": "AssetActor",
-            "transform": {
-                "position": [
-                    -6.540944576263428,
-                    7.602739334106445,
-                    0.06732125580310822
-                ],
-                "rotation": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "scale": 1.0
-            },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0196e8210ba3ddbb8e0d61a6ff836da41e5b3f66_usda"
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0196e8210ba3ddbb8e0d61a6ff836da41e5b3f66_usda",
+            "entity_overrides": [
+                {
+                    "entity_path": [],
+                    "group_overrids": [
+                        {
+                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
+                            "type_index": 0,
+                            "property_overrides": [
+                                {
+                                    "name": "translate.y",
+                                    "value": 33.68256378173828,
+                                    "type": "float"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
         },
         {
             "name": "indoor_potted_plant_8",
@@ -2112,7 +1487,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.424367904663086,
+                    -14.129024505615234,
                     3.9074230194091797,
                     0.18247853219509125
                 ],
@@ -2132,8 +1507,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.684924125671387,
-                    5.786410808563232,
+                    -14.23475170135498,
+                    5.780240535736084,
                     0.18247853219509125
                 ],
                 "rotation": [
@@ -2152,7 +1527,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.737712860107422,
+                    -14.356462478637695,
                     7.942447185516357,
                     0.18247853219509125
                 ],
@@ -2172,7 +1547,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.745043754577637,
+                    -14.43336009979248,
                     10.010354995727539,
                     0.18247853219509125
                 ],
@@ -2192,9 +1567,9 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.823760032653809,
+                    -14.179808616638184,
                     19.05379867553711,
-                    0.18247853219509125
+                    0.1572471708059311
                 ],
                 "rotation": [
                     1.0,
@@ -2212,7 +1587,7 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.9137601852417,
+                    -14.186575889587402,
                     17.204235076904297,
                     0.18247853219509125
                 ],
@@ -2232,8 +1607,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.50265121459961,
-                    28.697059631347656,
+                    -14.337726593017578,
+                    30.192537307739258,
                     0.16381648182868958
                 ],
                 "rotation": [
@@ -2252,8 +1627,8 @@
             "type": "AssetActor",
             "transform": {
                 "position": [
-                    -14.741897583007812,
-                    30.192033767700195,
+                    -14.337360382080078,
+                    31.9326229095459,
                     0.16381648182868958
                 ],
                 "rotation": [
@@ -2273,7 +1648,7 @@
             "transform": {
                 "position": [
                     -14.464547157287598,
-                    26.839168548583984,
+                    28.433731079101562,
                     0.16381648182868958
                 ],
                 "rotation": [
@@ -2395,7 +1770,7 @@
                             "property_overrides": [
                                 {
                                     "name": "rotate.z",
-                                    "value": 98.9023666381836,
+                                    "value": 98.90238189697266,
                                     "type": "float"
                                 }
                             ]
@@ -2800,30 +2175,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0196e8210ba3ddbb8e0d61a6ff836da41e5b3f66_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 41.89937973022461,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -0.4913806617259979,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_0196e8210ba3ddbb8e0d61a6ff836da41e5b3f66_usda"
         },
         {
             "name": "indoor_potted_plant_35",
@@ -3443,25 +2795,7 @@
                 ],
                 "scale": 3.2926692962646484
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.z",
-                                    "value": 4.039616107940674,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_3",
@@ -3481,45 +2815,7 @@
                 ],
                 "scale": 3.2304701805114746
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": -7.3699951171875,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 3.794070243835449,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.x",
-                                    "value": -5.211021197881749e-11,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.y",
-                                    "value": -0.01978233829140663,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -1.7186115980148315,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_4",
@@ -3599,35 +2895,7 @@
                 ],
                 "scale": 3.6780765056610107
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -27.20762062072754,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 2.835446357727051,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 3.6780765056610107,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_7",
@@ -3647,35 +2915,7 @@
                 ],
                 "scale": 3.5384631156921387
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -32.690242767333984,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -6.7884674072265625,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 3.5384631156921387,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_9",
@@ -3695,30 +2935,7 @@
                 ],
                 "scale": 3.3161184787750244
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -32.458412170410156,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -1.4487110376358032,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_10",
@@ -3886,28 +3103,8 @@
                             "type_index": 0,
                             "property_overrides": [
                                 {
-                                    "name": "translate.x",
-                                    "value": -32.14990997314453,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 36.449344635009766,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 3.240316390991211,
-                                    "type": "float"
-                                },
-                                {
                                     "name": "rotate.z",
-                                    "value": -90.66517639160156,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 4.163524627685547,
+                                    "value": -90.66516876220703,
                                     "type": "float"
                                 }
                             ]
@@ -3934,45 +3131,7 @@
                 ],
                 "scale": 5.6590166091918945
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -32.53645324707031,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 43.42564010620117,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.14618873596191406,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -92.78448486328125,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 5.6590166091918945,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_19",
@@ -3992,45 +3151,7 @@
                 ],
                 "scale": 5.678455352783203
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -23.270061492919922,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 43.33285903930664,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.4126988649368286,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -179.11917114257812,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 5.678455352783203,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_20",
@@ -4050,40 +3171,7 @@
                 ],
                 "scale": 7.820572376251221
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -13.21666431427002,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 43.38707733154297,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -2.6017799377441406,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 179.56092834472656,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_21",
@@ -4103,45 +3191,7 @@
                 ],
                 "scale": 16.913227081298828
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 11.298006057739258,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 43.802978515625,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -14.145929336547852,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": -179.5494842529297,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 16.913227081298828,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_22",
@@ -4181,45 +3231,7 @@
                 ],
                 "scale": 6.025681495666504
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 10.120065689086914,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 33.62853240966797,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.19774511456489563,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 89.3245849609375,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 6.025681495666504,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_24",
@@ -4239,40 +3251,7 @@
                 ],
                 "scale": 4.947782039642334
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 10.001572608947754,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 25.829465866088867,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 1.6099567413330078,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 4.947782039642334,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_25",
@@ -4292,45 +3271,7 @@
                 ],
                 "scale": 4.709758281707764
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 9.897719383239746,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 18.169109344482422,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 1.9075870513916016,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 89.06868743896484,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 4.709758281707764,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_26",
@@ -4350,45 +3291,7 @@
                 ],
                 "scale": 5.619421482086182
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 10.285989761352539,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 8.79146957397461,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.20858389139175415,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 89.2380142211914,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 5.619421482086182,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "metal_vent_grille_panel_27",
@@ -4408,40 +3311,7 @@
                 ],
                 "scale": 10.934320449829102
             },
-            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": 10.410435676574707,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": -8.561954498291016,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": -6.501495361328125,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 10.934320449829102,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/vln_presentation/industry_workshop_transport_02/prop/coolingrib_01/coolingrib_01_d"
         },
         {
             "name": "orange_convertible_sports_car_model_1",
@@ -4450,7 +3320,7 @@
             "transform": {
                 "position": [
                     -11.71710205078125,
-                    27.862817764282227,
+                    28.23973846435547,
                     0.5295869708061218
                 ],
                 "rotation": [
@@ -4461,25 +3331,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_703dc02d39bf4be233dd614b8bad4cd8363d667c_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -11.71710205078125,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_703dc02d39bf4be233dd614b8bad4cd8363d667c_usda"
         },
         {
             "name": "blue_hatchback_car_2",
@@ -4499,25 +3351,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/ccdac06a414e99b7c79e268bafb18f8c2efac07b_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.y",
-                                    "value": 20.689008712768555,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/ccdac06a414e99b7c79e268bafb18f8c2efac07b_usda"
         },
         {
             "name": "range_rover_suv_2",
@@ -4557,30 +3391,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5cd043b511e3f7031892d1fa56fe309d2896128a_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -9.842855453491211,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 32.935142517089844,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_5cd043b511e3f7031892d1fa56fe309d2896128a_usda"
         },
         {
             "name": "yellow_children_scooter_1",
@@ -4600,35 +3411,7 @@
                 ],
                 "scale": 1.862915277481079
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_24b5d71ee1907f6169b17bc63bc6b605086be64c_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -22.426816940307617,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "rotate.z",
-                                    "value": 174.66033935546875,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 1.862915277481079,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_24b5d71ee1907f6169b17bc63bc6b605086be64c_usda"
         },
         {
             "name": "soccer_ball_3",
@@ -4657,8 +3440,8 @@
             "transform": {
                 "position": [
                     -9.663512229919434,
-                    14.795495986938477,
-                    0.9205744862556458
+                    13.828840255737305,
+                    0.37404853105545044
                 ],
                 "rotation": [
                     1.0,
@@ -4668,35 +3451,7 @@
                 ],
                 "scale": 1.0
             },
-            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9722ca71ca7decbcaa44d5476d13b701d6370c3f_usda",
-            "entity_overrides": [
-                {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -9.663512229919434,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.y",
-                                    "value": 14.795495986938477,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "translate.z",
-                                    "value": 0.9205744862556458,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            "asset_path": "assets/e071469a36d3c8aa/default_project/prefabs/a_9722ca71ca7decbcaa44d5476d13b701d6370c3f_usda"
         },
         {
             "name": "young_male_character_7",
@@ -4719,27 +3474,6 @@
             "asset_path": "assets/e071469a36d3c8aa/remy/prefabs/remy",
             "entity_overrides": [
                 {
-                    "entity_path": [],
-                    "group_overrids": [
-                        {
-                            "type_id": "{22B10178-39B6-4C12-BB37-77DB45FDD3B6}",
-                            "type_index": 0,
-                            "property_overrides": [
-                                {
-                                    "name": "translate.x",
-                                    "value": -20.91132354736328,
-                                    "type": "float"
-                                },
-                                {
-                                    "name": "uniformScale",
-                                    "value": 1.74442720413208,
-                                    "type": "float"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
                     "entity_path": [
                         {
                             "name": "Remy",
@@ -4757,17 +3491,22 @@
                             "property_overrides": [
                                 {
                                     "name": "translate.x",
-                                    "value": -0.02012157440185547,
+                                    "value": 1.3900432586669922,
                                     "type": "float"
                                 },
                                 {
                                     "name": "translate.y",
-                                    "value": -0.02568817138671875,
+                                    "value": -2.3798980712890625,
                                     "type": "float"
                                 },
                                 {
                                     "name": "rotate.z",
-                                    "value": -4.246417045593262,
+                                    "value": 132.25881958007812,
+                                    "type": "float"
+                                },
+                                {
+                                    "name": "uniformScale",
+                                    "value": 0.49999988079071045,
                                     "type": "float"
                                 }
                             ]
@@ -4775,6 +3514,26 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "unitree_b2_quadruped_robot_1",
+            "path": "/unitree_b2_quadruped_robot_1",
+            "type": "AssetActor",
+            "transform": {
+                "position": [
+                    0.03050994873046875,
+                    0.5472441911697388,
+                    0.2632535696029663
+                ],
+                "rotation": [
+                    0.6651980355783953,
+                    0.0,
+                    0.0,
+                    0.7466669762770041
+                ],
+                "scale": 1.0
+            },
+            "asset_path": "assets/e071469a36d3c8aa/playground/prefabs/b2_usda"
         }
     ]
 }
