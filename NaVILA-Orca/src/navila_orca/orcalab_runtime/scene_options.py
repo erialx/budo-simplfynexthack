@@ -213,9 +213,16 @@ def assert_scene_options(
 def assert_flat_ground_options(
     model: mujoco.MjModel,
     *,
-    atol: float = 1.0e-9,
+    atol: float = 1.0e-6,
 ) -> list[dict[str, Any]]:
-    """Verify every plane geom against the flat locomotion contact contract."""
+    """Verify every plane geom against the flat locomotion contact contract.
+
+    ``atol`` is 1e-6, not machine epsilon: the OrcaLab render path compiles the
+    scene through a single-precision (MJWarp) model, so contract values like
+    ``solimp=(0.9, 0.95, ...)`` read back as ``(0.899999976, 0.949999988, ...)``
+    -- a float32 round-off of ~2e-8.  A physically meaningful contact-profile
+    mismatch is O(1e-2) or larger, well outside this band.
+    """
 
     planes: list[dict[str, Any]] = []
     mismatches: list[str] = []

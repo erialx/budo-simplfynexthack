@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "navila-orcalab": {
+      "type": "stdio",
+      "command": "${NAVILA_PYTHON:-python}",
+      "args": ["navila_bridge.py"],
+      "env": {
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+      }
+    }
+  }
+}

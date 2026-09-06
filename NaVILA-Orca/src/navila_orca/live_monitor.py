@@ -288,10 +288,24 @@ class LiveNavigationMonitor:
             ) from exc
 
     def pump(self) -> None:
-        """Keep the desktop window responsive while VLM inference blocks."""
+        """Keep the desktop window responsive AND repainted between updates.
 
-        if self._opened:
-            self.cv2.waitKey(20)
+        In a slow loop (the per-step MCP bridge: tens of seconds between
+        ``update()`` calls) a window that only gets ``waitKey`` and no fresh
+        ``imshow`` shows its uninitialized backing buffer -- garbage / "TV
+        static" -- on the next expose. Re-blitting the last canvas every pump
+        keeps the real frame on screen. Cheap: one memcpy of an already-built
+        array, no recomputation.
+        """
+
+        if not self._opened:
+            return
+        if self._last_canvas is not None:
+            try:
+                self.cv2.imshow(self.window_name, self._last_canvas)
+            except Exception:  # noqa: BLE001 -- a redraw failure must not kill the pump
+                pass
+        self.cv2.waitKey(20)
 
     def run_while_responsive(self, operation: Callable[[], _T]) -> _T:
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="navila-vlm") as pool:

@@ -105,6 +105,25 @@ def test_live_monitor_expands_for_a_long_instruction_without_dropping_text():
     monitor.close()
 
 
+def test_pump_reblits_the_last_canvas_so_the_window_does_not_rot():
+    cv2 = FakeCv2()
+    monitor = LiveNavigationMonitor(cv2_module=cv2)
+
+    # nothing shown yet -> pump must not blow up and must not invent a canvas
+    monitor.pump()
+    assert cv2.canvas is None
+
+    frame = RenderFrame(1, 0.0, "ego", np.full((64, 64, 3), 7, dtype=np.uint8), "1")
+    monitor.update(frame, instruction="go")
+    shown = np.array(cv2.canvas, copy=True)
+
+    cv2.canvas = None
+    monitor.pump()  # between decisions: the same real frame stays on screen
+    assert cv2.canvas is not None
+    assert np.array_equal(cv2.canvas, shown)
+    monitor.close()
+
+
 def test_live_monitor_replaces_opencv_missing_qt_font_path(
     tmp_path, monkeypatch
 ):

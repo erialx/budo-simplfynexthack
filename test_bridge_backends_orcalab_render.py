@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 import numpy as np
@@ -146,6 +147,57 @@ def test_orcalab_render_closes_renderer_before_physics():
     )
     backend.close()
     assert log.events == ["renderer.close", "inner.close"]
+
+
+class _LoopBoundRenderer:
+    """Mimics ``OrcaLabBatchRenderer``: owns an asyncio loop created at
+    construction and drives it with ``run_until_complete`` on every push.
+
+    On a thread that already has a *running* event loop this raises
+    ``RuntimeError('Cannot run the event loop while another loop is running')``
+    -- the exact failure ``navila_start_episode`` hit for ``orcalab-render``.
+    """
+
+    def __init__(self, log: _EventLog | None = None, **kwargs) -> None:
+        self.kwargs = kwargs
+        self.pushes: list[tuple[RobotState, np.ndarray]] = []
+        self._log = log
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
+    def push_state(self, state: RobotState, qpos_batch: np.ndarray) -> None:
+        async def _noop() -> None:
+            return None
+
+        self.loop.run_until_complete(_noop())
+        self.pushes.append((state, np.array(qpos_batch, copy=True)))
+
+    def close(self) -> None:
+        self.loop.close()
+
+
+def test_orcalab_render_survives_being_called_from_a_running_event_loop():
+    """Regression: FastMCP runs the sync ``navila_start_episode`` tool inline on
+    its running event-loop thread. The backend must marshal renderer work onto
+    a loop-free thread so ``run_until_complete`` does not blow up."""
+    from bridge_backends import OrcaLabRenderBackend
+
+    inner = _FakeInner()
+    backend = OrcaLabRenderBackend(inner=inner, renderer_factory=_LoopBoundRenderer)
+
+    async def drive() -> RobotState:
+        # A live loop is running on this very thread, exactly like FastMCP.
+        backend.start()
+        state = backend.reset()
+        backend.step()
+        return state
+
+    reset_state = asyncio.run(drive())
+
+    assert reset_state.step_id == 0
+    renderer = backend._renderer
+    assert len(renderer.pushes) == 2  # once after reset, once after the step
+    backend.close()
 
 
 def test_orcalab_render_factory_uses_bundled_go2_flat_checkpoint(monkeypatch):

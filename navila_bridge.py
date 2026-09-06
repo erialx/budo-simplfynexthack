@@ -21,6 +21,7 @@ Install the MCP SDK first (inside the orcalab env):
 """
 
 import dataclasses
+import io
 import json
 import math
 import os
@@ -32,7 +33,8 @@ import time
 from collections import deque
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
+from mcp.types import TextContent
 
 mcp = FastMCP("navila-orcalab-bridge")
 
@@ -407,12 +409,56 @@ def _wrap_deg(deg: float) -> float:
     return (deg + 180.0) % 360.0 - 180.0
 
 
+# Bounds for an Orchestrator-issued navila_nudge (see _PerStepSession.nudge). A
+# nudge is a deliberate, low-frequency deadlock-breaker, not a control channel --
+# keep it to gentle, short moves so it can't be used to "fly" the robot.
+_NUDGE_MAX_SPEED = 1.0        # m/s, |vx| and |vy|
+_NUDGE_MAX_YAW_RATE = 1.5     # rad/s, |wz|
+_NUDGE_MAX_DURATION_S = 3.0   # s
+
+# A nudge is a deadlock-breaker, not a drive channel. If the Orchestrator has to
+# nudge this many times in a row WITHOUT an autonomous navigate_step that
+# executes real physics in between, the situation is a genuine dead-end and the
+# episode terminates (termination_reason "nudge_deadlock") rather than the
+# Orchestrator nudging forever. The counter (session.consecutive_nudges) is reset
+# to 0 by any navigate_step that moves the robot; a vetoed navigate_step or a
+# NaVILA stop does not reset it.
+_MAX_CONSECUTIVE_NUDGES = 3
+
+
 def _action_text(cmd) -> str:
     """Canonical NaVILA phrase for a non-stop VelocityCommand."""
     if cmd.wz != 0.0:
         deg = round(math.degrees(abs(cmd.wz) * cmd.duration_s))
         return f"turn {'left' if cmd.wz > 0 else 'right'} by {deg} degrees"
     return f"move forward by {round(cmd.vx * cmd.duration_s * 100)} cm"
+
+
+def _nudge_action_text(vx: float, vy: float, wz: float, duration_s: float) -> str:
+    """Plain-language description of a nudge for the Hazard Veto Agent.
+
+    The raw ``vx=.. vy=.. wz=..`` string is fine for the live feed, but the veto
+    vision prompt reasons better over natural language -- a pure in-place rotation
+    should read as exactly that, not as a velocity dump it might mistake for a
+    lunge toward whatever is ahead.
+    """
+    parts = []
+    if wz != 0.0:
+        deg = round(math.degrees(abs(wz) * duration_s))
+        parts.append(
+            f"rotate {'left' if wz > 0 else 'right'} in place by about {deg} degrees"
+        )
+    if vx != 0.0:
+        parts.append(
+            f"move {'forward' if vx > 0 else 'backward'} by about "
+            f"{round(abs(vx) * duration_s * 100)} cm"
+        )
+    if vy != 0.0:
+        parts.append(
+            f"step {'left' if vy > 0 else 'right'} by about "
+            f"{round(abs(vy) * duration_s * 100)} cm"
+        )
+    return " and ".join(parts) if parts else "hold position"
 
 
 def _logbook_sink(line: str) -> None:
@@ -743,6 +789,16 @@ class _LiveStatusFeed:
         self._banner(f"[VETO: {reason}]", kind="alert")
         self.set_running(False)
 
+    def note_dead_end(self, consecutive_nudges: int) -> None:
+        core = (
+            f"[DEAD END: {consecutive_nudges} nudges in a row, no autonomous "
+            "progress -> episode terminated]"
+        )
+        with self._lock:
+            self._active_alert = core
+        self._banner(core, kind="alert")
+        self.set_running(False)
+
     # -- heartbeat -----------------------------------------------------
     def maybe_heartbeat(self, *, running: bool, force: bool = False) -> None:
         if not running:
@@ -845,6 +901,26 @@ class _PerStepSession:
         # WAYPOINT_STOP_OVERRIDE precedence (docs/PLAN.md, "C" item 2): see the
         # comment on stop_override_suppressed inside navigate_step.
         self.stop_override_suppressed = False
+        # Hazard Veto Agent gate behaviour, resolved per episode in
+        # _build_veto_stack from kw['veto_mode'] / NAVILA_BRIDGE_VETO_MODE:
+        #   "terminal" (default) -- the first VETO ends the episode
+        #     (termination_reason="veto"), the original Stage 3 behaviour.
+        #   "advisory" -- a VETO blocks only that one move (zero physics) and
+        #     leaves the episode running, so navila_navigate_step can be called
+        #     again (NaVILA re-decides on a fresh frame, optionally after a
+        #     corrective navila_continue_episode). For a full crossing test where
+        #     the veto must protect every step without aborting the mission.
+        self.veto_mode = "terminal"
+        self.advisory_veto_count = 0
+        self.last_veto_reason = None
+        # Count of Orchestrator-issued navila_nudge moves this episode (raw
+        # velocity commands the Orchestrator chose, gated by veto+watchdog just
+        # like a NaVILA move -- see _PerStepSession.nudge).
+        self.nudge_count = 0
+        # Nudges since the last autonomous navigate_step that executed real
+        # physics. Reaching _MAX_CONSECUTIVE_NUDGES terminates the episode as a
+        # dead-end; a navigate_step that moves the robot resets it to 0.
+        self.consecutive_nudges = 0
         # Judge-facing live commentary. One feed for the whole session lifetime
         # (scrollback survives reset), preserved across _reset_fields the same
         # way _force_events / _hazard_events are.
@@ -883,6 +959,11 @@ class _PerStepSession:
             "watchdog_enabled": self.watchdog is not None,
             "veto_enabled": self.veto_agent is not None,
             "veto_client_error": self._veto_client_error,
+            "veto_mode": self.veto_mode,
+            "advisory_veto_count": self.advisory_veto_count,
+            "last_veto_reason": self.last_veto_reason,
+            "nudge_count": self.nudge_count,
+            "consecutive_nudges": self.consecutive_nudges,
             "stop_override_suppressed": self.stop_override_suppressed,
             "live_monitor": self._monitor_state_str(),
         }
@@ -1073,6 +1154,13 @@ class _PerStepSession:
         self.veto_agent = None
         self._hazard_injector = None
         self._veto_client_error = None
+
+        mode = (
+            kw.get("veto_mode")
+            or os.environ.get("NAVILA_BRIDGE_VETO_MODE")
+            or "terminal"
+        ).strip().lower()
+        self.veto_mode = mode if mode in ("terminal", "advisory") else "terminal"
 
         veto_kw = kw.get("veto")
         veto_enabled = (
@@ -1287,6 +1375,79 @@ class _PerStepSession:
             frame = self._hazard_injector.inject(frame, step=self.decision_index)
         return frame
 
+    def current_ego_frame(
+        self, *, max_edge_px: int = 1024, fresh: bool = False
+    ) -> "tuple[dict, bytes | None]":
+        """(meta, jpeg_bytes) for the Orchestrator's own look at the dog's-eye view.
+
+        The per-step loop never hands Claude a frame -- only the veto agent's
+        one-sentence reason -- so a reroute after a VETO is a blind guess at which
+        way is clear. This lets the Orchestrator SEE the scene the veto just
+        blocked and aim a corrective navila_continue_episode at the actual open
+        space. After an advisory VETO the dog has not moved, so self._frames[-1]
+        IS the blocked frame -- no staleness. jpeg_bytes is None only when there
+        is nothing to show (no episode armed / frame not renderable).
+        """
+        from PIL import Image as _PILImage  # hard dep across this module
+
+        if self.phase == "idle" or not self._frames:
+            return (
+                {
+                    "ok": False,
+                    "error": "no active episode; call navila_start_episode first",
+                    "phase": self.phase,
+                },
+                None,
+            )
+
+        if fresh:
+            raw = self._capture_frame(_load_perstep())
+        else:
+            raw = self._frames[-1]
+
+        try:
+            img = raw if hasattr(raw, "convert") else _PILImage.fromarray(raw)
+            img = img.convert("RGB")
+        except Exception as exc:  # noqa: BLE001
+            return (
+                {"ok": False, "error": f"frame not renderable: {exc!r}", "phase": self.phase},
+                None,
+            )
+
+        src_w, src_h = img.size
+        real_capture = not (src_w == 8 and src_h == 8)
+        edge = max(1, int(max_edge_px))
+        scale = min(1.0, edge / max(src_w, src_h))
+        if scale < 1.0:
+            img = img.resize(
+                (max(1, round(src_w * scale)), max(1, round(src_h * scale))),
+                _PILImage.LANCZOS,
+            )
+        out_w, out_h = img.size
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+
+        meta = {
+            "ok": True,
+            "phase": self.phase,
+            "real_capture": real_capture,
+            "frame_desc": _describe_frame(raw),
+            "source_size": [int(src_w), int(src_h)],
+            "encoded_size": [int(out_w), int(out_h)],
+            "decision_index": self.decision_index,
+            "advisory_veto_count": self.advisory_veto_count,
+            "last_veto_reason": self.last_veto_reason,
+            "pose": _pose(self._state) if self._state is not None else None,
+            "distance_to_goal": self._distance_to_goal(),
+        }
+        if not real_capture:
+            meta["hint"] = (
+                "8x8 black placeholder, not a real ego view -- nothing to route "
+                "off. Enable real capture: navila_spawn_camera + camera=true on an "
+                "orcalab/orcalab-mock episode with the OrcaLab GUI up."
+            )
+        return meta, buf.getvalue()
+
     def status(self) -> dict:
         if self.phase == "idle":
             return {"ok": True, "phase": "idle", "note": "no active episode"}
@@ -1428,10 +1589,67 @@ class _PerStepSession:
         if self.veto_agent is not None:
             decision = self.veto_agent.assess(self._veto_frame(deps), instruction, action_text)
             if not decision.is_clear:
+                self.last_action = "stop"
+                self.last_veto_reason = decision.reason
+                # A veto is a real safety stop, never a "confused VLM" -- suppress
+                # any forward-nudge reflex regardless of veto_mode.
+                self.stop_override_suppressed = True
+
+                if self.veto_mode == "advisory":
+                    # Block THIS move only: zero physics, episode stays running.
+                    # The Orchestrator calls navila_navigate_step again (NaVILA
+                    # re-decides on a fresh frame -- the hazard may have cleared),
+                    # optionally after a corrective navila_continue_episode. The
+                    # decision budget already ticked (decision_index += 1 above),
+                    # so an endless veto storm still terminates via max_decisions
+                    # instead of livelocking.
+                    self.advisory_veto_count += 1
+                    budget_spent = (
+                        self.max_decisions is not None
+                        and self.decision_index >= self.max_decisions
+                    )
+                    if budget_spent:
+                        self.phase = "done"
+                        self.termination_reason = "max_decisions"
+                    self._live_status.note_step_result(
+                        decision_index=self.decision_index,
+                        moved_m=0.0,
+                        yaw_delta_deg=0.0,
+                        executed_ticks=0,
+                        done=budget_spent,
+                        termination_reason=self.termination_reason,
+                    )
+                    self._monitor_update(
+                        status=f"VETOED (advisory): {decision.reason}",
+                        vlm_output=raw,
+                        command="(blocked by Hazard Veto Agent -- episode continues)",
+                        chunk_result="zero physics executed",
+                    )
+                    return {
+                        "ok": True,
+                        **self._snapshot(),
+                        "action": "stop",
+                        "raw_vlm_text": raw,
+                        "vetoed": True,
+                        "veto_mode": "advisory",
+                        "veto_reason": decision.reason,
+                        "note": (
+                            "Hazard Veto Agent blocked this move and the decision "
+                            f"budget is now exhausted: {decision.reason}"
+                            if budget_spent
+                            else (
+                                "Hazard Veto Agent blocked this move (advisory "
+                                f"mode); episode still running: {decision.reason}. "
+                                "Call navila_navigate_step again, optionally after "
+                                "navila_continue_episode with a corrective "
+                                "instruction."
+                            )
+                        ),
+                    }
+
+                # terminal (default): the veto ends the episode.
                 self.phase = "done"
                 self.termination_reason = "veto"
-                self.last_action = "stop"
-                self.stop_override_suppressed = True
                 self._monitor_update(
                     status=f"VETOED: {decision.reason}",
                     vlm_output=raw,
@@ -1443,6 +1661,8 @@ class _PerStepSession:
                     **self._snapshot(),
                     "action": "stop",
                     "raw_vlm_text": raw,
+                    "vetoed": True,
+                    "veto_mode": "terminal",
                     "veto_reason": decision.reason,
                     "note": f"Hazard Veto Agent vetoed the proposed action: {decision.reason}",
                 }
@@ -1487,6 +1707,13 @@ class _PerStepSession:
         self._frames.append(self._capture_frame(deps))
         self.last_action = action_text
 
+        # Autonomous progress: NaVILA moved the robot on its own this decision, so
+        # the consecutive-nudge dead-end counter starts over. A vetoed step
+        # (handled above, zero physics) or a NaVILA stop never reaches here, so
+        # neither resets it.
+        if executed > 0:
+            self.consecutive_nudges = 0
+
         end_pose = _pose(self._state)
         moved_m = math.hypot(
             end_pose["x"] - start_pose["x"], end_pose["y"] - start_pose["y"]
@@ -1509,6 +1736,17 @@ class _PerStepSession:
             and self.decision_index >= self.max_decisions
         ):
             done, self.phase, self.termination_reason = True, "done", "max_decisions"
+
+        # Advisory veto leaves a sticky [VETO: ...] alert on the judge feed; once
+        # a later decision actually executes motion, that alert is stale -- drop
+        # it so the feed stops reading "HALTED" while the dog is walking.
+        if (
+            self.veto_mode == "advisory"
+            and self.advisory_veto_count
+            and executed > 0
+            and not done
+        ):
+            self._live_status.clear_alert()
 
         self._live_status.note_step_result(
             decision_index=self.decision_index,
@@ -1547,6 +1785,290 @@ class _PerStepSession:
             "executed_ticks": executed,
             "moved_m": moved_m,
             "yaw_delta_deg": yaw_delta_deg,
+        }
+
+    def nudge(
+        self,
+        *,
+        vx: float = 0.0,
+        vy: float = 0.0,
+        wz: float = 0.0,
+        duration_s: float = 1.0,
+        reason: str = "",
+    ) -> dict:
+        """Orchestrator-issued raw motion, through the SAME Hazard Veto + Safety
+        Watchdog gate as navigate_step. Escape hatch for the frozen-frame
+        livelock: NaVILA keeps re-emitting a vetoed action because the ego frame
+        never changes (every move blocked -> zero physics -> identical frame ->
+        identical output) and it ignores corrective instructions that conflict
+        with that frozen visual. The Orchestrator looks at navila_get_ego_frame,
+        then turns the dog a little toward open space HERE so NaVILA gets a new
+        frame on the next navila_navigate_step.
+
+        NOT a NaVILA decision -- the Driver seam is untouched. It DOES tick the
+        decision budget (a nudge storm still ends via max_decisions) and it is
+        fully subordinate to the veto/watchdog: an unsafe nudge is blocked
+        exactly like an unsafe NaVILA move.
+
+        Mirrors navigate_step's veto-gate + tick-loop + termination tail; kept
+        separate to leave that core path untouched. Unify if the pattern spreads.
+        """
+        deps = _load_perstep()
+        if "error" in deps:
+            return {"ok": False, "error": deps["error"]}
+        if self.phase == "idle":
+            return {"ok": False, "error": "no active episode; call navila_start_episode first"}
+        if self.phase in ("done", "stopped"):
+            return {
+                "ok": True,
+                **self._snapshot(),
+                "action": "stop",
+                "note": "episode already finished; call navila_reset_episode to run again",
+            }
+
+        vx, vy, wz, duration_s = float(vx), float(vy), float(wz), float(duration_s)
+        if not 0.0 < duration_s <= _NUDGE_MAX_DURATION_S:
+            return {"ok": False, "error": f"duration_s must be in (0, {_NUDGE_MAX_DURATION_S}] s"}
+        if abs(vx) > _NUDGE_MAX_SPEED or abs(vy) > _NUDGE_MAX_SPEED:
+            return {"ok": False, "error": f"|vx|, |vy| must be <= {_NUDGE_MAX_SPEED} m/s"}
+        if abs(wz) > _NUDGE_MAX_YAW_RATE:
+            return {"ok": False, "error": f"|wz| must be <= {_NUDGE_MAX_YAW_RATE} rad/s"}
+        if vx == 0.0 and vy == 0.0 and wz == 0.0:
+            return {"ok": False, "error": "nudge is all zeros; nothing to execute"}
+
+        self.stop_override_suppressed = False
+        if getattr(self.backend, "interrupted", False):
+            self.phase = "stopped"
+            self.termination_reason = "emergency_stop"
+            self.stop_override_suppressed = True
+            self._live_status.set_running(False)
+            self._monitor_update(status="halted: backend interrupted before this nudge")
+            return {
+                "ok": True,
+                **self._snapshot(),
+                "action": "stop",
+                "note": "backend was interrupted before this nudge",
+            }
+
+        self.decision_index += 1
+        self.nudge_count += 1
+        self.consecutive_nudges += 1
+
+        # Dead-end guard: too many nudges in a row with no autonomous progress
+        # (a navigate_step that moved the robot resets consecutive_nudges to 0).
+        # Terminate rather than keep nudging -- and rather than force the robot
+        # past whatever the veto agent keeps blocking.
+        if self.consecutive_nudges >= _MAX_CONSECUTIVE_NUDGES:
+            self.phase = "done"
+            self.termination_reason = "nudge_deadlock"
+            self.last_action = "stop"
+            self.stop_override_suppressed = True
+            self._live_status.note_dead_end(self.consecutive_nudges)
+            self._monitor_update(
+                status=f"DEAD END: {self.consecutive_nudges} consecutive nudges",
+                command="(episode terminated -- nudge_deadlock)",
+            )
+            return {
+                "ok": True,
+                **self._snapshot(),
+                "source": "orchestrator_nudge",
+                "action": "stop",
+                "note": (
+                    f"{self.consecutive_nudges} nudges in a row without an "
+                    "autonomous navigate_step that executed physics -- treating "
+                    "this as a genuine dead-end and terminating the episode "
+                    "(termination_reason 'nudge_deadlock'). Call "
+                    "navila_reset_episode to run again."
+                ),
+            }
+
+        cmd = deps["VelocityCommand"](vx, vy, wz, duration_s)
+        action_text = (
+            f"orchestrator nudge: vx={vx:.2f} vy={vy:.2f} wz={wz:+.2f} rad/s "
+            f"for {duration_s:.2f}s" + (f" -- {reason}" if reason else "")
+        )
+        self._frames.append(self._capture_frame(deps))
+        self._live_status.note_orchestrator_step(
+            decision_index=self.decision_index,
+            instruction=f"[NUDGE] {reason or action_text}",
+            frame_desc=_describe_frame(self._frames[-1]),
+        )
+        self._live_status._emit(f"   robot command: {_cmd_text(cmd)}", kind="decision")
+        self._monitor_update(status="orchestrator nudge -- veto check", command=_cmd_text(cmd))
+
+        # -- Hazard Veto Agent gate (same rules as navigate_step) -------------
+        if self.veto_agent is not None:
+            decision = self.veto_agent.assess(
+                self._veto_frame(deps),
+                self.instruction,
+                _nudge_action_text(vx, vy, wz, duration_s),
+            )
+            if not decision.is_clear:
+                self.last_action = "stop"
+                self.last_veto_reason = decision.reason
+                self.stop_override_suppressed = True
+                if self.veto_mode == "advisory":
+                    self.advisory_veto_count += 1
+                    budget_spent = (
+                        self.max_decisions is not None
+                        and self.decision_index >= self.max_decisions
+                    )
+                    if budget_spent:
+                        self.phase = "done"
+                        self.termination_reason = "max_decisions"
+                    self._live_status.note_step_result(
+                        decision_index=self.decision_index,
+                        moved_m=0.0,
+                        yaw_delta_deg=0.0,
+                        executed_ticks=0,
+                        done=budget_spent,
+                        termination_reason=self.termination_reason,
+                    )
+                    self._monitor_update(
+                        status=f"NUDGE VETOED (advisory): {decision.reason}",
+                        command="(blocked by Hazard Veto Agent -- episode continues)",
+                        chunk_result="zero physics executed",
+                    )
+                    return {
+                        "ok": True,
+                        **self._snapshot(),
+                        "source": "orchestrator_nudge",
+                        "action": "stop",
+                        "vetoed": True,
+                        "veto_mode": "advisory",
+                        "veto_reason": decision.reason,
+                        "note": (
+                            f"Hazard Veto Agent blocked the nudge: {decision.reason}"
+                            + ("" if not budget_spent else " (decision budget now exhausted)")
+                        ),
+                    }
+                self.phase = "done"
+                self.termination_reason = "veto"
+                self._monitor_update(
+                    status=f"NUDGE VETOED: {decision.reason}",
+                    command="(blocked by Hazard Veto Agent)",
+                    chunk_result="zero physics executed",
+                )
+                return {
+                    "ok": True,
+                    **self._snapshot(),
+                    "source": "orchestrator_nudge",
+                    "action": "stop",
+                    "vetoed": True,
+                    "veto_mode": "terminal",
+                    "veto_reason": decision.reason,
+                    "note": f"Hazard Veto Agent vetoed the nudge: {decision.reason}",
+                }
+
+        # -- cleared: execute the motion chunk (same loop as navigate_step) ---
+        control_dt = float(self.backend.control_dt)
+        ticks = deps["duration_to_ticks"](duration_s, control_dt)
+        self.backend.set_velocity_command(cmd)
+        start_pose = _pose(self._state)
+        executed = 0
+        chunk_term = None
+        for _ in range(ticks):
+            if (
+                self.max_control_steps is not None
+                and self.control_steps >= self.max_control_steps
+            ):
+                chunk_term = "max_control_steps"
+                break
+            if getattr(self.backend, "interrupted", False):
+                chunk_term = "emergency_stop"
+                break
+            if self.watchdog is not None:
+                self.watchdog.tick()
+                self._watchdog_ticks += 1
+                if getattr(self.backend, "interrupted", False):
+                    chunk_term = "emergency_stop"
+                    break
+            raw_step = self.backend.step()
+            ps = (
+                raw_step
+                if isinstance(raw_step, deps["PhysicsStep"])
+                else deps["PhysicsStep"](raw_step)
+            )
+            self._state = ps.state
+            self.control_steps += 1
+            executed += 1
+            if ps.terminated or ps.truncated:
+                chunk_term = "terminated" if ps.terminated else "truncated"
+                break
+        self._frames.append(self._capture_frame(deps))
+        self.last_action = action_text
+
+        end_pose = _pose(self._state)
+        moved_m = math.hypot(
+            end_pose["x"] - start_pose["x"], end_pose["y"] - start_pose["y"]
+        )
+        yaw_delta_deg = _wrap_deg(end_pose["yaw_deg"] - start_pose["yaw_deg"])
+
+        done = False
+        dist = self._distance_to_goal()
+        if chunk_term in ("terminated", "truncated"):
+            done, self.phase, self.termination_reason = True, "done", chunk_term
+        elif chunk_term == "emergency_stop":
+            done, self.phase, self.termination_reason = True, "stopped", "emergency_stop"
+            self.stop_override_suppressed = True
+        elif chunk_term == "max_control_steps":
+            done, self.phase, self.termination_reason = True, "done", "max_control_steps"
+        elif dist is not None and dist <= self.goal_radius:
+            done, self.phase, self.termination_reason = True, "done", "goal_reached"
+        elif (
+            self.max_decisions is not None
+            and self.decision_index >= self.max_decisions
+        ):
+            done, self.phase, self.termination_reason = True, "done", "max_decisions"
+
+        if (
+            self.veto_mode == "advisory"
+            and self.advisory_veto_count
+            and executed > 0
+            and not done
+        ):
+            self._live_status.clear_alert()
+
+        self._live_status.note_step_result(
+            decision_index=self.decision_index,
+            moved_m=moved_m,
+            yaw_delta_deg=yaw_delta_deg,
+            executed_ticks=executed,
+            done=done,
+            termination_reason=self.termination_reason,
+        )
+        self._monitor_update(
+            status=(
+                "nudge completed"
+                if not done
+                else f"episode done: {self.termination_reason}"
+            ),
+            command=_cmd_text(cmd),
+            chunk_result=(
+                f"moved {moved_m:.2f} m, yaw {yaw_delta_deg:+.1f} deg "
+                f"over {executed}/{ticks} ticks"
+            ),
+        )
+        return {
+            "ok": True,
+            **self._snapshot(),
+            "source": "orchestrator_nudge",
+            "action": action_text,
+            "command": {
+                "vx": cmd.vx,
+                "vy": cmd.vy,
+                "wz": cmd.wz,
+                "duration_s": cmd.duration_s,
+            },
+            "requested_ticks": ticks,
+            "executed_ticks": executed,
+            "moved_m": moved_m,
+            "yaw_delta_deg": yaw_delta_deg,
+            "nudge_count": self.nudge_count,
+            "note": (
+                "Orchestrator nudge executed through the veto+watchdog gate. Hand "
+                "back to navila_navigate_step now that the ego view has changed."
+            ),
         }
 
     def emergency_stop(self) -> dict:
@@ -1955,6 +2477,7 @@ def navila_start_episode(
     force_high: float | None = None,
     veto: bool | None = None,
     veto_client_kind: str | None = None,
+    veto_mode: str | None = None,
     live_monitor: bool | None = None,
     camera: bool | None = None,
     camera_name: str | None = None,
@@ -1978,6 +2501,12 @@ def navila_start_episode(
         ANTHROPIC_API_KEY + the 'veto' extra); a bad client degrades to veto
         disabled (see veto_enabled/veto_client_error). Inject with
         navila_inject_hazard.
+    veto_mode 'terminal'|'advisory' (default terminal, or NAVILA_BRIDGE_VETO_MODE):
+        terminal ends the episode on the first VETO. advisory blocks only that one
+        move (zero physics; response has vetoed=true, done stays false) and keeps
+        the episode running so you can navila_navigate_step again -- use advisory
+        for a full crossing test. An advisory-veto storm still ends via
+        max_decisions.
     live_monitor: OpenCV dog's-eye window (ego RGB + instruction/NaVILA/command
         panel), on its own thread so it stays responsive between tool calls.
         DEFAULT best-effort -- opens automatically when cv2 + a DISPLAY are
@@ -2011,6 +2540,7 @@ def navila_start_episode(
             force_high=force_high,
             veto=veto,
             veto_client_kind=veto_client_kind,
+            veto_mode=veto_mode,
             live_monitor=live_monitor,
             camera=camera,
             camera_name=camera_name,
@@ -2029,9 +2559,57 @@ def navila_navigate_step(goal: str = "") -> dict:
     'goal_reached', 'max_decisions', 'max_control_steps', 'terminated',
     'truncated', 'emergency_stop', 'parse_error', 'veto') and stop calling this.
 
+    A Hazard Veto Agent block sets vetoed=true + veto_reason. In terminal
+    veto_mode that also ends the episode (done=true, termination_reason 'veto');
+    in advisory veto_mode done stays false -- zero physics ran this decision,
+    call navila_navigate_step again (optionally after navila_continue_episode
+    with a corrective instruction). advisory_veto_count tracks how many.
+
     goal: optional per-step instruction override (otherwise the episode's).
     """
     return _jsonable(_SESSION.navigate_step(goal))
+
+
+@mcp.tool()
+def navila_nudge(
+    wz: float = 0.5,
+    duration_s: float = 1.0,
+    vx: float = 0.0,
+    vy: float = 0.0,
+    reason: str = "",
+) -> dict:
+    """Orchestrator-issued raw motion command, run through the SAME Hazard Veto +
+    Safety Watchdog gate as navila_navigate_step. The escape hatch for the
+    frozen-frame livelock: when the veto correctly blocks NaVILA every decision,
+    the dog never moves, the ego frame never changes, and NaVILA re-emits the
+    identical blocked action forever -- it ignores corrective instructions that
+    conflict with the frozen visual. Turn the dog a little HERE so the next
+    navila_navigate_step gives NaVILA a genuinely new frame.
+
+    Workflow: on repeated identical VETOs -> navila_get_ego_frame -> see which way
+    is open -> navila_nudge(wz=+0.5 to turn left / -0.5 to turn right, ~1s) ->
+    back to navila_navigate_step.
+
+    This is NOT a NaVILA decision and NOT a control channel -- it ticks the
+    decision budget (a nudge storm still ends via max_decisions), it is fully
+    subordinate to the veto/watchdog (an unsafe nudge is blocked exactly like an
+    unsafe NaVILA move -> response has vetoed=true, and in terminal veto_mode it
+    ends the episode), and it is bounds-limited: |vx|,|vy| <= 1.0 m/s, |wz| <= 1.5
+    rad/s, 0 < duration_s <= 3.0 s.
+
+    Dead-end guard: 3 nudges IN A ROW without an autonomous navila_navigate_step
+    that executed real physics in between ends the episode immediately
+    (done=true, termination_reason "nudge_deadlock", this 3rd nudge executes no
+    motion). A navila_navigate_step that moves the robot resets the streak;
+    consecutive_nudges in the response tracks it.
+
+    wz: yaw rate rad/s (+left / -right). duration_s: chunk length. vx/vy: body-frame
+    linear velocity (default 0 -- a pure turn). reason: free text for the logbook /
+    live feed. Response `source` is "orchestrator_nudge"; see also nudge_count.
+    """
+    return _jsonable(
+        _SESSION.nudge(vx=vx, vy=vy, wz=wz, duration_s=duration_s, reason=reason)
+    )
 
 
 @mcp.tool()
@@ -2039,6 +2617,37 @@ def navila_get_status() -> dict:
     """Report the current episode phase, robot pose, step counters, last action,
     and distance_to_goal WITHOUT advancing physics."""
     return _jsonable(_SESSION.status())
+
+
+@mcp.tool()
+def navila_get_ego_frame(max_edge_px: int = 1024, fresh: bool = False) -> list:
+    """The dog's-eye camera frame RIGHT NOW, as an image, so the Orchestrator can
+    LOOK at it and reroute NaVILA with a targeted navila_continue_episode instead
+    of guessing a turn direction from the veto's one-line reason.
+
+    NaVILA follows the instruction and gets no feedback that a move was vetoed, so
+    when the Hazard Veto Agent holds the line it just re-emits the same blocked
+    command on the same frozen frame -- a livelock. Breaking it needs a NEW
+    instruction aimed at the actual open space. Call this after a VETO, look at
+    where the clear path is, then navila_continue_episode("... turn <that way> ...").
+    After an advisory VETO the dog has not moved, so this is exactly the frame the
+    veto blocked.
+
+    Returns a JSON metadata block (ok, real_capture, frame_desc, decision_index,
+    advisory_veto_count, last_veto_reason, pose, source_size/encoded_size) followed
+    by the JPEG image. If real_capture is false you are looking at the 8x8
+    placeholder -- there is nothing to route off; fix the camera first.
+
+    max_edge_px: longest edge of the returned JPEG (default 1024; downscaled to
+        fit). fresh: re-capture from OrcaLab now instead of reusing the last
+        decision's frame (~1s edit-service RPC; default false -- the stored frame
+        is already current while a veto has the dog held in place).
+    """
+    meta, jpeg = _SESSION.current_ego_frame(max_edge_px=max_edge_px, fresh=fresh)
+    blocks: list = [TextContent(type="text", text=_dumps(_jsonable(meta)))]
+    if jpeg is not None:
+        blocks.append(Image(data=jpeg, format="jpeg"))
+    return blocks
 
 
 @mcp.tool()
