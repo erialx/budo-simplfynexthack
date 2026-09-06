@@ -450,6 +450,139 @@ def test_reset_scene_layout_raises_when_edit_service_unreachable():
     _with_patched_edit_runtime(service, _check)
 
 
+# ---------------------------------------------------------------------------
+# spawn_camera_actor (add the persistent mujococamera1080 ego camera)
+# ---------------------------------------------------------------------------
+
+class _FakeAssetActor:
+    def __init__(self, name, asset_path):
+        self.name = name
+        self.asset_path = asset_path
+        self.transform = None
+
+
+class _FakeAddActorRequest:
+    def __init__(self, actor, parent):
+        self.actor = actor
+        self.parent = parent
+
+
+class _FakePathWithRoot(_FakePath):
+    @classmethod
+    def root_path(cls):
+        return cls("/")
+
+
+class _FakeSpawnService(_FakeEditService):
+    def __init__(self, *, aloha_ok=True, exists=False, add_ok=True):
+        super().__init__(aloha_ok=aloha_ok)
+        self.exists = exists
+        self.add_ok = add_ok
+        self.add_calls = []
+        self.delete_calls = []
+
+    async def get_actor_property_groups_batch(self, paths):
+        if not self.exists:
+            raise RuntimeError("actor not found")
+        return [{}]
+
+    async def delete_actor_batch(self, paths):
+        self.delete_calls.append(paths)
+        self.exists = False
+
+    async def add_actor_batch(self, requests, *args):
+        self.add_calls.append((requests, args))
+        if not self.add_ok:
+            if args:  # (requests, True) two-arg form -> (added, errors)
+                return False, ["simulated add failure"]
+            raise RuntimeError("simulated add failure")
+        return (True, []) if args else None
+
+
+def _with_patched_spawn_runtime(service, fn):
+    orig = bb._load_orca_spawn_runtime
+    bb._load_orca_spawn_runtime = lambda: (
+        lambda: service,
+        _FakeTransform,
+        _FakePathWithRoot,
+        _FakeAssetActor,
+        _FakeAddActorRequest,
+    )
+    try:
+        fn()
+    finally:
+        bb._load_orca_spawn_runtime = orig
+
+
+def test_spawn_camera_actor_adds_when_absent_and_disconnects():
+    service = _FakeSpawnService(exists=False)
+
+    def _check():
+        info = bb.spawn_camera_actor()
+        assert info["created"] is True
+        assert info["actor_name"] == "mujococamera1080"
+        assert len(service.add_calls) == 1
+        assert service.destroyed is True
+        actor = service.add_calls[0][0][0].actor
+        assert actor.asset_path == "prefabs/mujococamera1080"
+        assert actor.transform is not None
+
+    _with_patched_spawn_runtime(service, _check)
+
+
+def test_spawn_camera_actor_is_noop_when_already_present():
+    service = _FakeSpawnService(exists=True)
+
+    def _check():
+        info = bb.spawn_camera_actor()
+        assert info["created"] is False
+        assert not service.add_calls
+        assert not service.delete_calls
+
+    _with_patched_spawn_runtime(service, _check)
+
+
+def test_spawn_camera_actor_replace_deletes_then_adds():
+    service = _FakeSpawnService(exists=True)
+
+    def _check():
+        info = bb.spawn_camera_actor(replace=True)
+        assert info["created"] is True
+        assert len(service.delete_calls) == 1
+        assert len(service.add_calls) == 1
+
+    _with_patched_spawn_runtime(service, _check)
+
+
+def test_spawn_camera_actor_raises_when_edit_service_unreachable():
+    service = _FakeSpawnService(aloha_ok=False)
+
+    def _check():
+        try:
+            bb.spawn_camera_actor()
+        except RuntimeError as exc:
+            assert "not reachable" in str(exc)
+        else:
+            raise AssertionError("expected RuntimeError")
+
+    _with_patched_spawn_runtime(service, _check)
+
+
+def test_spawn_camera_actor_raises_on_add_failure_and_still_disconnects():
+    service = _FakeSpawnService(exists=False, add_ok=False)
+
+    def _check():
+        try:
+            bb.spawn_camera_actor()
+        except RuntimeError as exc:
+            assert "add" in str(exc).lower()
+        else:
+            raise AssertionError("expected RuntimeError")
+        assert service.destroyed is True
+
+    _with_patched_spawn_runtime(service, _check)
+
+
 if __name__ == "__main__":
     import sys
     import traceback

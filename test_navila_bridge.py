@@ -733,6 +733,274 @@ def test_reset_scene_layout_impl_result_survives_json_dumps():
     _with_patched_reset(lambda actor_names=None: ["a1"], _check)
 
 
+def test_spawn_camera_impl_rejects_blank_actor_name():
+    r = bridge._spawn_camera_impl(actor_name="   ")
+    assert r["ok"] is False
+    bridge._dumps(r)
+
+
+def test_spawn_camera_impl_forwards_args_and_wraps_result():
+    calls = {}
+
+    def _fake(actor_name, asset_path, position, *, replace):
+        calls["args"] = (actor_name, asset_path, position, replace)
+        return {"actor_name": actor_name, "asset_path": asset_path, "created": True}
+
+    deps = bridge._load_perstep()
+    orig = deps.get("spawn_camera_actor")
+    deps["spawn_camera_actor"] = _fake
+    try:
+        r = bridge._spawn_camera_impl(x=0.2, y=0.0, z=0.4, replace=True)
+    finally:
+        if orig is not None:
+            deps["spawn_camera_actor"] = orig
+        else:
+            deps.pop("spawn_camera_actor", None)
+    assert r["ok"] is True and r["created"] is True
+    assert calls["args"] == ("mujococamera1080", "prefabs/mujococamera1080", (0.2, 0.0, 0.4), True)
+    bridge._dumps(r)
+
+
+def test_spawn_camera_impl_reports_backend_failure_without_raising():
+    def _boom(*a, **k):
+        raise RuntimeError("OrcaLab edit service not reachable at 127.0.0.1:50151")
+
+    deps = bridge._load_perstep()
+    orig = deps.get("spawn_camera_actor")
+    deps["spawn_camera_actor"] = _boom
+    try:
+        r = bridge._spawn_camera_impl()
+    finally:
+        if orig is not None:
+            deps["spawn_camera_actor"] = orig
+        else:
+            deps.pop("spawn_camera_actor", None)
+    assert r["ok"] is False
+    assert "not reachable" in r["error"]
+    bridge._dumps(r)
+
+
+# ---------------------------------------------------------------------------
+# 11. Live judge-facing status feed (navila_get_live_status)
+# ---------------------------------------------------------------------------
+
+def _all_text(status: dict) -> str:
+    return "\n".join(status["new_lines"])
+
+
+def test_live_status_traces_orchestrator_and_driver_each_decision():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode(
+        "walk forward down the street",
+        vlm_script="move forward by 75 cm; stop",
+        max_decisions=5,
+    )
+    s.navigate_step()
+    status = bridge.navila_get_live_status()
+    text = _all_text(status)
+    assert status["ok"] is True
+    assert "EPISODE START" in text
+    assert "Orchestrator -> NaVILA: 'walk forward down the street'" in text
+    assert "NaVILA decided: 'move forward by 75 cm'" in text
+    assert "robot command: vx=" in text
+    assert "perception:" in text  # frame described (placeholder here)
+    assert status["status_line"] == "Status: CLEAR - Navigating"
+    assert status["active_alert"] is None
+
+
+def test_live_status_since_seq_returns_only_new_lines():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; move forward by 75 cm; stop")
+    s.navigate_step()
+    first = bridge.navila_get_live_status()
+    s.navigate_step()
+    second = bridge.navila_get_live_status(since_seq=first["next_seq"])
+    assert second["next_seq"] >= first["next_seq"]
+    assert "decision 2" in _all_text(second)
+    assert "decision 1" not in _all_text(second)
+
+
+def test_live_status_emits_clear_heartbeat_between_steps():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; move forward by 75 cm; stop")
+    s.navigate_step()
+    assert "Status: CLEAR - Navigating" in _all_text(bridge.navila_get_live_status())
+
+
+def test_live_status_veto_raises_visible_banner_with_reason():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("cross", vlm_script="move forward by 75 cm; stop", max_decisions=5)
+    s.inject_hazard(at_step=1)
+    s.navigate_step()
+    status = bridge.navila_get_live_status()
+    text = _all_text(status)
+    assert "[VETO:" in text
+    assert "!!! " in text  # the loud banner rule
+    assert status["active_alert"] is not None and status["active_alert"].startswith("[VETO:")
+    assert status["status_line"].startswith("Status: HALTED")
+    # still hooked into A's DecisionLogbook
+    assert any(e["kind"] == "VETO" for e in status["logbook_tail"])
+
+
+def test_live_status_watchdog_trip_raises_emergency_banner():
+    s = _fresh()
+    s.clear_hazards()
+    s.clear_force_drops()  # _force_events persists across _fresh() by design
+    try:
+        s.start_episode(
+            "walk",
+            vlm_script="move forward by 75 cm; move forward by 75 cm; stop",
+            max_decisions=5,
+            watchdog_debounce_ticks=3,
+        )
+        s.inject_force_drop(at_step=5, duration_steps=20)
+        s.navigate_step()
+        status = bridge.navila_get_live_status()
+        text = _all_text(status)
+        assert "[EMERGENCY STOP:" in text
+        assert status["active_alert"].startswith("[EMERGENCY STOP:")
+        assert status["status_line"].startswith("Status: HALTED")
+    finally:
+        s.clear_force_drops()  # don't leak the schedule into the next test
+
+
+def test_live_status_clear_stop_lifts_the_alert():
+    s = _fresh()
+    s.clear_hazards()
+    s.clear_force_drops()
+    try:
+        s.start_episode(
+            "walk",
+            vlm_script=(
+                "move forward by 75 cm; move forward by 75 cm; "
+                "move forward by 75 cm; stop"
+            ),
+            max_decisions=8,
+            watchdog_debounce_ticks=3,
+        )
+        s.inject_force_drop(at_step=5, duration_steps=8)
+        s.navigate_step()  # trips
+        assert bridge.navila_get_live_status()["active_alert"] is not None
+        s.clear_force_drops()
+        s.clear_stop()
+        status = bridge.navila_get_live_status()
+        assert status["active_alert"] is None
+        assert status["status_line"] == "Status: CLEAR - Navigating"
+    finally:
+        s.clear_force_drops()
+
+
+def test_live_status_driver_parse_failure_is_a_visible_fault():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("x", vlm_script="go somewhere vaguely")
+    s.navigate_step()
+    text = _all_text(bridge.navila_get_live_status())
+    assert "DRIVER FAULT" in text
+
+
+def test_live_status_idle_before_any_episode():
+    _fresh()
+    status = bridge.navila_get_live_status()
+    assert status["ok"] is True
+    assert status["status_line"].startswith("Status: IDLE")
+
+
+def test_live_monitor_default_is_best_effort_and_never_breaks_start():
+    s = _fresh()
+    s.clear_hazards()
+    # Default (arg + env both unset): best-effort attempt. In the test env cv2
+    # isn't the GUI build, so it degrades -- but the episode MUST still start and
+    # the field MUST report a state, not crash.
+    r = s.start_episode("go", vlm_script="stop")
+    assert r["ok"] is True
+    assert isinstance(r["live_monitor"], str) and r["live_monitor"]
+
+
+def test_live_monitor_explicitly_off_reports_off():
+    s = _fresh()
+    s.clear_hazards()
+    r = s.start_episode("go", vlm_script="stop", live_monitor=False)
+    assert r["ok"] is True
+    assert r["live_monitor"] == "off"
+
+
+def test_live_monitor_requested_but_unavailable_degrades_cleanly():
+    s = _fresh()
+    s.clear_hazards()
+    # cv2 isn't the GUI build in the test env -> construction fails; explicit
+    # request -> a warn line, but the episode must still start.
+    r = s.start_episode("go", vlm_script="stop", live_monitor=True)
+    assert r["ok"] is True
+    assert r["live_monitor"] == "on" or "unavailable" in r["live_monitor"]
+
+
+def test_live_monitor_selftest_impl_reports_structured_diagnosis():
+    out = bridge._live_monitor_selftest_impl(keep_open=False)
+    bridge._dumps(out)  # must not raise
+    assert set(out) >= {"ok", "opened", "display", "server_python"}
+    # cv2 in the test env is either absent or headless -> not a clean open, but
+    # the report must be well-formed either way.
+    assert out["ok"] in (True, False)
+    if not out["ok"]:
+        assert "error" in out
+
+
+class _FakeMonitorThread:
+    """Stand-in for _MonitorThread so the session-scoped lifecycle can be tested
+    without a real cv2 GUI window."""
+
+    def __init__(self) -> None:
+        self.error = None
+        self.stopped = False
+        self.frames = []
+
+    def ok(self):
+        return not self.stopped
+
+    def submit(self, frame, **kwargs):
+        self.frames.append(kwargs.get("status"))
+
+    def stop(self):
+        self.stopped = True
+
+
+def test_live_monitor_thread_is_session_scoped_and_survives_episode_close():
+    s = _fresh()
+    s.clear_hazards()
+    fake = _FakeMonitorThread()
+    s._monitor_thread = fake
+    s.start_episode("go", vlm_script="stop")  # default -> reuse existing thread
+    assert s._monitor_thread is fake and not fake.stopped
+    s.navigate_step()
+    s.close()  # episode close must NOT tear the window down
+    assert s._monitor_thread is fake and not fake.stopped
+    s._monitor_thread = None  # don't leak the fake into later tests
+
+
+def test_live_monitor_explicit_false_tears_the_thread_down():
+    s = _fresh()
+    s.clear_hazards()
+    fake = _FakeMonitorThread()
+    s._monitor_thread = fake
+    s.start_episode("go", vlm_script="stop", live_monitor=False)
+    assert fake.stopped is True
+    assert s._monitor_thread is None
+    assert s.status()["live_monitor"] == "off"
+
+
+def test_navila_get_live_status_return_survives_json_dumps():
+    s = _fresh()
+    s.clear_hazards()
+    s.start_episode("go", vlm_script="move forward by 75 cm; stop")
+    s.navigate_step()
+    bridge._dumps(bridge.navila_get_live_status())  # must not raise
+
+
 if __name__ == "__main__":
     # Zero-dependency runner: pytest isn't installed in either conda env here.
     import sys

@@ -27,7 +27,9 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
+from collections import deque
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -47,6 +49,13 @@ MEASUREMENTS_PATH = ORCA_VLN_ROOT / "NaVILA-Orca" / "outputs" / "scene_locomotio
 # the 'orcalab' env with the CPU physics stack added (mjlab 1.2.0, mujoco-warp
 # 3.5.0, rsl-rl-lib 5.0.1, torch 2.11.0+cpu, warp-lang PINNED to 1.12.0 -- 1.17.0
 # breaks mujoco_warp sensor codegen -- and opencv-python-headless 5.0.0.93).
+# NOTE: ORCALAB_PYTHON here is ONLY for navila_run_instruction's shell-out to
+# run_orcalab_scene_locomotion.sh. The per-step tools + the live_monitor's cv2
+# import run under whatever interpreter launched THIS MCP server -- per its
+# `claude mcp` registration that's the 'orcalab' env, where GUI opencv-python
+# 5.0.0.93 was installed 2026-09-05 (prebuilt manylinux wheel, links the runtime
+# GTK/Qt already on the box) so navila_start_episode(live_monitor=true) can open
+# the OpenCV ego window.
 ORCALAB_PYTHON = "/home/guest/miniconda3/envs/orcalab-phys/bin/python"
 # navila_orca.cli defaults --device to "cuda:0"; this box has no GPU. The physics
 # backend still needs mjlab/mujoco-warp/rsl-rl installed in ORCALAB_PYTHON's env
@@ -319,6 +328,7 @@ def _load_perstep() -> dict:
         placeholder_frame=bb.placeholder_frame,
         trigger_scene_hazard=bb.trigger_scene_hazard,
         reset_scene_layout=bb.reset_scene_layout,
+        spawn_camera_actor=bb.spawn_camera_actor,
         parse_velocity_command=parse_velocity_command,
         ActionParseError=ActionParseError,
         duration_to_ticks=duration_to_ticks,
@@ -363,6 +373,21 @@ def _load_perstep() -> dict:
         )
     except Exception as exc:  # noqa: BLE001 -- veto optional, surface the reason
         _PERSTEP["veto_error"] = f"veto stack unavailable: {exc!r}"
+    # The OpenCV ego "live monitor" (dog's-eye RGB + instruction/VLM panel) is
+    # a Loop B / CLI feature (navila-orca run --live-monitor). Wiring it into
+    # this per-step loop too is opt-in (NAVILA_BRIDGE_LIVE_MONITOR / the
+    # live_monitor arg on navila_start_episode) and must never break an episode:
+    # cv2 may be absent and there may be no DISPLAY. Import failure is recorded,
+    # not raised.
+    try:
+        from navila_orca.live_monitor import LiveMonitorError, LiveNavigationMonitor
+
+        _PERSTEP.update(
+            LiveNavigationMonitor=LiveNavigationMonitor,
+            LiveMonitorError=LiveMonitorError,
+        )
+    except Exception as exc:  # noqa: BLE001 -- monitor optional, surface the reason
+        _PERSTEP["live_monitor_error"] = f"live monitor unavailable: {exc!r}"
     return _PERSTEP
 
 
@@ -441,6 +466,339 @@ def _make_veto_vision_client(kind: "str | None"):
     raise ValueError(f"unknown veto_client_kind {kind!r} (expected 'stub' or 'anthropic')")
 
 
+def _cmd_text(cmd) -> str:
+    """Body-frame velocity summary of a VelocityCommand, for the live feed."""
+    if getattr(cmd, "stop", False):
+        return "stop"
+    return (
+        f"vx={cmd.vx:.2f} m/s  vy={cmd.vy:.2f} m/s  "
+        f"wz={cmd.wz:+.3f} rad/s  dur={cmd.duration_s:.2f} s"
+    )
+
+
+def _describe_frame(frame) -> str:
+    """One-line description of the ego frame the driver/veto just reasoned over.
+
+    Distinguishes a real OrcaLab camera capture from the mock's 8x8 black
+    placeholder so the judges' feed shows whether the dog is actually 'seeing'
+    the scene this step. No numpy import -- ndarray exposes .shape directly.
+    """
+    shape = getattr(frame, "shape", None)
+    if shape is not None and len(shape) == 3:
+        h, w = int(shape[0]), int(shape[1])
+        if (h, w) == (8, 8):
+            return "8x8 placeholder (no live OrcaLab camera this step)"
+        return f"{w}x{h} RGB ego frame from the OrcaLab camera"
+    size = getattr(frame, "size", None)  # PIL.Image -> (w, h)
+    if size and len(size) == 2:
+        return f"{int(size[0])}x{int(size[1])} RGB ego frame"
+    return "ego frame"
+
+
+class _MonitorFrame:
+    """Minimal stand-in for contracts.RenderFrame -- the three attributes
+    LiveNavigationMonitor.update() actually reads. Avoids importing the frozen
+    dataclass (and its per-frame validating copy) just to show a preview."""
+
+    __slots__ = ("rgb", "step_id", "sim_time_s")
+
+    def __init__(self, rgb, step_id: int, sim_time_s: float) -> None:
+        self.rgb = rgb
+        self.step_id = int(step_id)
+        self.sim_time_s = float(sim_time_s)
+
+
+class _MonitorThread:
+    """Runs a LiveNavigationMonitor on its OWN thread and pumps its window
+    continuously.
+
+    In Loop A there is no tight render loop -- control sits in the MCP stdio
+    read between tool calls, so a window only touched during navigate_step()
+    freezes and the desktop shows a "not responding / Force Quit or Wait"
+    dialog. This thread fixes that: it owns the monitor, calls waitKey() every
+    ~40ms so the window stays alive, and applies the latest frame handed to it
+    via submit(). EVERY cv2 highgui call (namedWindow / imshow / waitKey /
+    destroyWindow) happens on this one thread -- highgui is not cross-thread
+    safe, so the tool handlers never touch cv2 directly.
+    """
+
+    def __init__(self, make_monitor) -> None:
+        self._make_monitor = make_monitor
+        self._lock = threading.Lock()
+        self._pending = None  # (frame, kwargs) latest-wins
+        self._stop = threading.Event()
+        self._ready = threading.Event()
+        self.error: "str | None" = None
+        self._thread = threading.Thread(
+            target=self._run, name="navila-live-monitor", daemon=True
+        )
+        self._thread.start()
+        self._ready.wait(timeout=8.0)
+
+    def _run(self) -> None:
+        try:
+            mon = self._make_monitor()
+        except Exception as exc:  # noqa: BLE001 -- cv2 missing / no DISPLAY / GUI build
+            self.error = f"{type(exc).__name__}: {exc}"
+            self._ready.set()
+            return
+        self._ready.set()
+        try:
+            while not self._stop.is_set():
+                with self._lock:
+                    item, self._pending = self._pending, None
+                if item is not None:
+                    frame, kwargs = item
+                    try:
+                        mon.update(frame, **kwargs)
+                    except Exception as exc:  # noqa: BLE001
+                        self.error = f"update failed: {type(exc).__name__}: {exc}"
+                        break
+                else:
+                    try:
+                        mon.pump()
+                    except Exception:  # noqa: BLE001 -- keep pumping regardless
+                        pass
+                self._stop.wait(0.04)
+        finally:
+            try:
+                mon.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def ok(self) -> bool:
+        return self._thread.is_alive() and self.error is None
+
+    def submit(self, frame, **kwargs) -> None:
+        with self._lock:
+            self._pending = (frame, kwargs)
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=3.0)
+
+
+class _LiveStatusFeed:
+    """Judge-facing running commentary of the per-step loop.
+
+    Purely a formatter over data that already flows through navigate_step() and
+    A's DecisionLogbook -- it makes ZERO model calls and never touches physics.
+    It exists because Loop A's stdout is the MCP stdio transport, so the loop
+    can't just print(): instead every line is buffered here (and mirrored to
+    stderr / the MCP server log) and pulled by the navila_get_live_status tool,
+    which the Orchestrator polls between steps and echoes to the audience.
+
+    What it surfaces:
+      * a per-decision trace -- what the Orchestrator asked for, what the ego
+        frame was, what NaVILA decided, what the robot was commanded, how far it
+        moved;
+      * a HIGHLY VISIBLE banner the instant the SafetyWatchdog trips or the
+        HazardVetoAgent issues a VETO, carrying that exact reason
+        (``[VETO: red signal detected]``);
+      * a one-line ``Status: CLEAR - Navigating`` heartbeat every ~3s while an
+        episode is running and nothing is wrong, so the loop is visibly alive
+        even during a slow NaVILA inference (a daemon thread covers the gaps
+        between navigate_step calls).
+    """
+
+    _HEARTBEAT_INTERVAL_S = 3.0
+    _MAX_LINES = 400
+
+    def __init__(self, *, clock=time.time, mirror=True) -> None:
+        self._clock = clock
+        self._mirror = mirror
+        self._lock = threading.RLock()
+        self._lines: "deque[dict]" = deque(maxlen=self._MAX_LINES)
+        self._seq = 0
+        self._last_line_s = 0.0
+        self._running = False
+        self._active_alert: "str | None" = None
+        self._thread: "threading.Thread | None" = None
+
+    # -- line buffer --------------------------------------------------------
+    def _emit(self, text: str, *, kind: str = "info") -> None:
+        clock = time.strftime("%H:%M:%S", time.localtime(self._clock()))
+        with self._lock:
+            self._seq += 1
+            seq = self._seq
+            for chunk in str(text).splitlines() or [""]:
+                self._lines.append(
+                    {"seq": seq, "t": clock, "kind": kind, "text": chunk}
+                )
+            self._last_line_s = self._clock()
+        if self._mirror:
+            for chunk in str(text).splitlines() or [""]:
+                print(f"[{clock}] {chunk}", file=sys.stderr, flush=True)
+
+    def _banner(self, core: str, *, kind: str) -> None:
+        rule = "!!! " + "=" * 60
+        self._emit(f"{rule}\n!!! {core}\n{rule}", kind=kind)
+
+    # -- lifecycle signals from the session -------------------------------
+    def set_running(self, running: bool) -> None:
+        with self._lock:
+            self._running = bool(running)
+        if running and self._thread is None:
+            self._start_thread()
+
+    def clear_alert(self) -> None:
+        with self._lock:
+            self._active_alert = None
+
+    def note_episode_start(
+        self, instruction: str, *, backend_kind, watchdog_on, veto_on, monitor
+    ) -> None:
+        self.clear_alert()
+        self._emit("", kind="info")
+        self._emit(
+            f"=== EPISODE START === instruction: {instruction!r}", kind="episode"
+        )
+        self._emit(
+            "    backend=%s  watchdog=%s  hazard-veto=%s  live-monitor=%s"
+            % (
+                backend_kind or "mock",
+                "on" if watchdog_on else "off",
+                "on" if veto_on else "off",
+                monitor,
+            ),
+            kind="episode",
+        )
+        self.set_running(True)
+
+    def note_episode_end(self, reason: "str | None") -> None:
+        self.set_running(False)
+        self._emit(f"=== EPISODE END === termination_reason: {reason}", kind="episode")
+        self.clear_alert()
+
+    def note_instruction_change(self, instruction: str) -> None:
+        self.clear_alert()
+        self._emit(
+            f"--- NEW INSTRUCTION (pose kept) --- {instruction!r}", kind="episode"
+        )
+        self.set_running(True)
+
+    # -- per-decision trace ---------------------------------------------
+    def note_orchestrator_step(
+        self, *, decision_index: int, instruction: str, frame_desc: str
+    ) -> None:
+        self._emit(
+            f"-- decision {decision_index} " + "-" * 40, kind="decision"
+        )
+        self._emit(
+            f"   Orchestrator -> NaVILA: {instruction!r}", kind="decision"
+        )
+        self._emit(f"   perception: {frame_desc}", kind="decision")
+
+    def note_driver_decision(
+        self, *, decision_index: int, raw_vlm_text: str, command_text: str
+    ) -> None:
+        self._emit(
+            f"   NaVILA decided: {raw_vlm_text!r}", kind="decision"
+        )
+        self._emit(f"   robot command: {command_text}", kind="decision")
+
+    def note_driver_fault(self, what: str, detail: str) -> None:
+        self._banner(f"[DRIVER FAULT: {what} -> safe STOP] {detail}", kind="alert")
+        self.set_running(False)
+
+    def note_step_result(
+        self,
+        *,
+        decision_index: int,
+        moved_m: float,
+        yaw_delta_deg: float,
+        executed_ticks: int,
+        done: bool,
+        termination_reason: "str | None",
+    ) -> None:
+        self._emit(
+            f"   result: moved {moved_m:.2f} m, yaw {yaw_delta_deg:+.1f} deg "
+            f"over {executed_ticks} ticks",
+            kind="decision",
+        )
+        if done:
+            self.set_running(False)
+            self._emit(
+                f"   decision {decision_index} ended the episode "
+                f"({termination_reason})",
+                kind="decision",
+            )
+        else:
+            self.maybe_heartbeat(running=True, force=True)
+
+    # -- safety / veto callbacks (fired alongside the DecisionLogbook) ---
+    def on_watchdog_trip(self, event) -> None:
+        reason = event if isinstance(event, str) else getattr(event, "reason", str(event))
+        with self._lock:
+            self._active_alert = f"[EMERGENCY STOP: {reason}]"
+        self._banner(f"[EMERGENCY STOP: {reason}]", kind="alert")
+        self.set_running(False)
+
+    def on_veto_decision(self, decision) -> None:
+        if getattr(decision, "is_clear", True):
+            return
+        reason = getattr(decision, "reason", "") or "no reason given"
+        with self._lock:
+            self._active_alert = f"[VETO: {reason}]"
+        self._banner(f"[VETO: {reason}]", kind="alert")
+        self.set_running(False)
+
+    # -- heartbeat -----------------------------------------------------
+    def maybe_heartbeat(self, *, running: bool, force: bool = False) -> None:
+        if not running:
+            return
+        now = self._clock()
+        with self._lock:
+            if self._active_alert is not None:
+                return
+            if not force and now - self._last_line_s < self._HEARTBEAT_INTERVAL_S:
+                return
+        self._emit("Status: CLEAR - Navigating", kind="heartbeat")
+
+    def _start_thread(self) -> None:
+        with self._lock:
+            if self._thread is not None:
+                return
+            self._thread = threading.Thread(
+                target=self._heartbeat_loop,
+                name="navila-live-status",
+                daemon=True,
+            )
+        self._thread.start()
+
+    def _heartbeat_loop(self) -> None:
+        while True:  # daemon -- dies with the interpreter
+            time.sleep(1.0)
+            try:
+                self.maybe_heartbeat(running=self._running)
+            except Exception:  # noqa: BLE001 -- a formatter must never crash the server
+                pass
+
+    # -- read side (navila_get_live_status) ---------------------------
+    def status_line(self) -> str:
+        with self._lock:
+            if self._active_alert is not None:
+                return f"Status: HALTED - {self._active_alert}"
+            if self._running:
+                return "Status: CLEAR - Navigating"
+            return "Status: IDLE - no active episode"
+
+    def snapshot(self, *, since_seq: int = 0, max_lines: int = 40) -> dict:
+        with self._lock:
+            rows = [r for r in self._lines if r["seq"] > since_seq]
+            if max_lines and len(rows) > max_lines:
+                rows = rows[-max_lines:]
+            new_lines = [f"[{r['t']}] {r['text']}" for r in rows]
+            next_seq = self._seq
+            alert = self._active_alert
+        return {
+            "status_line": self.status_line(),
+            "active_alert": alert,
+            "new_lines": new_lines,
+            "next_seq": next_seq,
+        }
+
+
 class _PerStepSession:
     """One navigation episode, advanced one decision per navila_navigate_step."""
 
@@ -487,6 +845,18 @@ class _PerStepSession:
         # WAYPOINT_STOP_OVERRIDE precedence (docs/PLAN.md, "C" item 2): see the
         # comment on stop_override_suppressed inside navigate_step.
         self.stop_override_suppressed = False
+        # Judge-facing live commentary. One feed for the whole session lifetime
+        # (scrollback survives reset), preserved across _reset_fields the same
+        # way _force_events / _hazard_events are.
+        self._live_status = getattr(self, "_live_status", None) or _LiveStatusFeed()
+        # OpenCV ego "live monitor". The _MonitorThread (window + its own pump
+        # loop) is SESSION-scoped, preserved across _reset_fields and reused
+        # between episodes -- creating/destroying the cv2+Qt window per episode
+        # triggers "Timers cannot be stopped from another thread" spam and a
+        # visible flash. Per-episode state (error / disabled) still resets.
+        self._monitor_thread = getattr(self, "_monitor_thread", None)
+        self._live_monitor_error = None
+        self._live_monitor_disabled = False
 
     # -- helpers --------------------------------------------------------------
     def _distance_to_goal(self):
@@ -514,6 +884,7 @@ class _PerStepSession:
             "veto_enabled": self.veto_agent is not None,
             "veto_client_error": self._veto_client_error,
             "stop_override_suppressed": self.stop_override_suppressed,
+            "live_monitor": self._monitor_state_str(),
         }
         if self.watchdog is not None:
             snap["watchdog_tripped"] = bool(self.watchdog.tripped)
@@ -528,6 +899,15 @@ class _PerStepSession:
 
     # -- lifecycle ---------------------------------------------------------
     def close(self) -> None:
+        if self.phase != "idle":
+            self._live_status.note_episode_end(self.termination_reason)
+        else:
+            self._live_status.set_running(False)
+        # NOTE: the monitor thread is session-scoped -- deliberately NOT stopped
+        # here. It keeps pumping (showing the last frame) between episodes so the
+        # window neither freezes nor flashes. It's a daemon thread; it dies with
+        # the process. An explicit live_monitor=false on the next start_episode
+        # is what tears it down.
         if self.backend is not None:
             try:
                 self.backend.close()
@@ -558,7 +938,35 @@ class _PerStepSession:
         vlm_kind = kw.get("vlm_kind")
         vlm_script = kw.get("vlm_script")
         try:
-            self.backend = deps["make_backend"](backend_kind)
+            # Real ego-camera capture (C2's fallback): only the OrcaLab mirror
+            # backends take a `camera` kwarg. Passing it to mock/mjlab would be a
+            # TypeError, and orcalab-render streams its own ego camera already,
+            # so gate on the two kinds that actually accept it.
+            backend_kwargs: dict = {}
+            _kind = (backend_kind or os.environ.get("NAVILA_BRIDGE_BACKEND", "mock")).lower()
+            if _kind in ("orcalab", "orcalab-mock"):
+                _cam = kw.get("camera")
+                _cam_env = os.environ.get("NAVILA_BRIDGE_ORCA_CAMERA")
+                _, _mon_on = self._live_monitor_request(kw)
+                if _cam is not None:
+                    backend_kwargs["camera"] = bool(_cam)
+                elif _cam_env is None and _mon_on:
+                    # The live monitor is on and this backend CAN capture -> give
+                    # it a real dog's-eye frame instead of the 8x8 placeholder.
+                    # Best-effort, same contract as capture itself: a missing
+                    # camera actor / unreachable edit service just falls back to
+                    # the placeholder with one stderr line, never an error.
+                    backend_kwargs["camera"] = True
+                    self._live_status._emit(
+                        "live monitor on + orcalab backend -> enabling real "
+                        "ego-camera capture (camera=true). Needs a "
+                        "'mujococamera1080' actor in the loaded scene; falls "
+                        "back to the 8x8 placeholder if it's missing.",
+                        kind="info",
+                    )
+                if kw.get("camera_name"):
+                    backend_kwargs["camera_name"] = str(kw["camera_name"])
+            self.backend = deps["make_backend"](backend_kind, **backend_kwargs)
             vlm_kwargs = {}
             effective_vlm = (vlm_kind or os.environ.get("NAVILA_BRIDGE_VLM", "mock"))
             if vlm_script and effective_vlm == "mock":
@@ -583,9 +991,18 @@ class _PerStepSession:
 
         self._build_safety_stack(deps, kw)
         self._build_veto_stack(deps, kw)
+        self._build_live_monitor(deps, kw)
 
         self._frames = [self._capture_frame(deps)]
         self.phase = "running"
+        self._live_status.note_episode_start(
+            self.instruction,
+            backend_kind=backend_kind,
+            watchdog_on=self.watchdog is not None,
+            veto_on=self.veto_agent is not None,
+            monitor=self._monitor_state_str(),
+        )
+        self._monitor_update(status="ready")
         return {
             "ok": True,
             **self._snapshot(),
@@ -623,8 +1040,24 @@ class _PerStepSession:
             band=band,
             debounce_ticks=int(kw.get("watchdog_debounce_ticks", 3)),
             force_reader=self._force_sensor.read,
-            on_trip=self.logbook.record_watchdog_trip,
+            on_trip=self._on_watchdog_trip,
         )
+
+    def _on_watchdog_trip(self, event) -> None:
+        """SafetyWatchdog on_trip: record in A's DecisionLogbook AND raise the
+        highly-visible banner on the judge feed, in that order."""
+        if self.logbook is not None:
+            self.logbook.record_watchdog_trip(event)
+        self._live_status.on_watchdog_trip(event)
+
+    def _on_veto_decision(self, decision):
+        """HazardVetoAgent on_decision: record in A's DecisionLogbook (VETO
+        always, CLEAR only if log_clear) AND, on a VETO, raise the banner."""
+        entry = None
+        if self.logbook is not None:
+            entry = self.logbook.record_veto_decision(decision)
+        self._live_status.on_veto_decision(decision)
+        return entry
 
     def _build_veto_stack(self, deps: dict, kw: dict) -> None:
         """Wire the Hazard Veto Agent + ScenarioInjector onto this episode.
@@ -669,8 +1102,160 @@ class _PerStepSession:
             self._veto_client_error = f"{type(exc).__name__}: {exc}"
             return
         self.veto_agent = deps["HazardVetoAgent"](
-            client, on_decision=self.logbook.record_veto_decision
+            client, on_decision=self._on_veto_decision
         )
+
+    @staticmethod
+    def _live_monitor_request(kw: dict) -> "tuple[bool, bool]":
+        """(explicit, enabled) tri-state for the live monitor:
+          * arg + env both unset      -> (False, True)  best-effort default
+          * NAVILA_BRIDGE_LIVE_MONITOR -> (True, <flag>) explicit via env
+          * live_monitor= arg          -> (True, bool(arg)) explicit via arg
+        A failure is only announced loudly when explicit is True."""
+        want = kw.get("live_monitor")
+        env_raw = os.environ.get("NAVILA_BRIDGE_LIVE_MONITOR")
+        if want is None and env_raw is None:
+            return False, True
+        if want is None:
+            return True, _env_flag("NAVILA_BRIDGE_LIVE_MONITOR", False)
+        return True, bool(want)
+
+    def _build_live_monitor(self, deps: dict, kw: dict) -> None:
+        """Ensure the session's OpenCV ego "live monitor" thread is running for
+        this episode (see _MonitorThread -- window + its own pump loop, so it
+        stays responsive between MCP tool calls). The thread is reused across
+        episodes; only an explicit live_monitor=false tears it down. Best-effort
+        by default (see _live_monitor_request). Never breaks the episode.
+        """
+        self._live_monitor_error = None
+        self._live_monitor_disabled = False
+
+        explicit, enabled = self._live_monitor_request(kw)
+        if not enabled:
+            if self._monitor_thread is not None:
+                try:
+                    self._monitor_thread.stop()
+                finally:
+                    self._monitor_thread = None
+            return
+
+        if self._monitor_thread is not None and self._monitor_thread.ok():
+            return  # reuse the window from a previous episode
+
+        def _degrade(reason: str) -> None:
+            self._live_monitor_error = reason
+            self._monitor_thread = None
+            if explicit:
+                self._live_status._emit(
+                    f"live monitor requested but could not open ({reason}); "
+                    "the episode still runs -- run navila_live_monitor_selftest "
+                    "to debug",
+                    kind="warn",
+                )
+
+        if "LiveNavigationMonitor" not in deps:
+            _degrade(deps.get("live_monitor_error", "live monitor module unavailable"))
+            return
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            _degrade("no DISPLAY / WAYLAND_DISPLAY in the MCP server's environment")
+            return
+        try:
+            mt = _MonitorThread(
+                lambda: deps["LiveNavigationMonitor"](
+                    window_name="guide dog -- live monitor"
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            _degrade(f"{type(exc).__name__}: {exc}")
+            return
+        if not mt.ok():
+            _degrade(mt.error or "monitor thread failed to start")
+            mt.stop()
+            return
+        self._monitor_thread = mt
+
+    def _monitor_state_str(self) -> str:
+        mt = self._monitor_thread
+        if mt is not None and mt.ok() and not self._live_monitor_disabled:
+            return "on"
+        if self._live_monitor_disabled:
+            return f"disabled mid-episode: {self._live_monitor_error}"
+        if self._live_monitor_error is not None:
+            return f"unavailable: {self._live_monitor_error}"
+        return "off"
+
+    def _monitor_update(
+        self,
+        *,
+        status: str,
+        vlm_output: "str | None" = None,
+        command: "str | None" = None,
+        chunk_result: "str | None" = None,
+    ) -> None:
+        """Hand the latest frame to the live monitor thread. No-op unless the
+        monitor is running; if its thread has died, disable it for the rest of
+        the episode rather than propagating into navila_navigate_step."""
+        mt = self._monitor_thread
+        if (
+            mt is None
+            or self._live_monitor_disabled
+            or self._state is None
+            or not self._frames
+        ):
+            return
+        if not mt.ok():
+            self._live_monitor_disabled = True
+            self._live_monitor_error = mt.error or "monitor thread stopped"
+            self._live_status._emit(
+                f"live monitor stopped ({self._live_monitor_error}); "
+                "continuing without it",
+                kind="warn",
+            )
+            return
+        mt.submit(
+            _MonitorFrame(
+                self._frames[-1], self._state.step_id, self._state.sim_time_s
+            ),
+            instruction=self.instruction,
+            vlm_output=vlm_output
+            or (self.last_vlm_text or "Waiting for first VLM decision..."),
+            command=command or (self.last_action or "none"),
+            status=status,
+            decision=self.decision_index,
+            chunk_result=chunk_result or "none completed yet",
+        )
+
+    def get_live_status(self, *, since_seq: int = 0, max_lines: int = 40) -> dict:
+        """Judge-facing feed for navila_get_live_status -- see that tool's
+        docstring. Merges the running commentary with a tail of A's
+        DecisionLogbook."""
+        snap = self._live_status.snapshot(since_seq=since_seq, max_lines=max_lines)
+        logbook_tail = []
+        if self.logbook is not None:
+            for e in self.logbook.entries()[-8:]:
+                logbook_tail.append(
+                    {
+                        "timestamp_s": e.timestamp_s,
+                        "source": e.source,
+                        "kind": e.kind,
+                        "reason": e.reason,
+                    }
+                )
+        return {
+            "ok": True,
+            "phase": self.phase,
+            "termination_reason": self.termination_reason,
+            "status_line": snap["status_line"],
+            "active_alert": snap["active_alert"],
+            "new_lines": snap["new_lines"],
+            "next_seq": snap["next_seq"],
+            "live_monitor": self._monitor_state_str(),
+            "logbook_tail": logbook_tail,
+            "note": (
+                "poll again with since_seq=next_seq for only new lines; show "
+                "new_lines (and active_alert, loudly) to the audience"
+            ),
+        }
 
     def _capture_frame(self, deps: dict):
         """One frame for the driver VLM + veto gate: a real OrcaLab camera
@@ -743,6 +1328,8 @@ class _PerStepSession:
             self.phase = "stopped"
             self.termination_reason = "emergency_stop"
             self.stop_override_suppressed = True
+            self._live_status.set_running(False)
+            self._monitor_update(status="halted: backend interrupted before this step")
             return {
                 "ok": True,
                 **self._snapshot(),
@@ -751,6 +1338,12 @@ class _PerStepSession:
             }
 
         self._frames.append(self._capture_frame(deps))
+        self._live_status.note_orchestrator_step(
+            decision_index=self.decision_index + 1,
+            instruction=instruction,
+            frame_desc=_describe_frame(self._frames[-1]),
+        )
+        self._monitor_update(status="waiting for VLM response")
         try:
             raw = self.vlm.next_action(
                 instruction=instruction,
@@ -765,6 +1358,8 @@ class _PerStepSession:
             self.phase = "done"
             self.termination_reason = "vlm_error"
             self.last_action = "stop"
+            self._live_status.note_driver_fault("VLM call failed", repr(exc))
+            self._monitor_update(status="VLM call failed -> safe stop", command="stop")
             return {
                 "ok": True,
                 **self._snapshot(),
@@ -780,6 +1375,14 @@ class _PerStepSession:
             self.phase = "done"
             self.termination_reason = "parse_error"
             self.last_action = "stop"
+            self._live_status.note_driver_fault(
+                "unparseable VLM output", f"{raw!r}: {exc}"
+            )
+            self._monitor_update(
+                status="unparseable VLM output -> safe stop",
+                vlm_output=raw,
+                command="stop",
+            )
             return {
                 "ok": True,
                 **self._snapshot(),
@@ -793,9 +1396,30 @@ class _PerStepSession:
             self.phase = "done"
             self.termination_reason = "stop"
             self.last_action = "stop"
+            self._live_status.note_driver_decision(
+                decision_index=self.decision_index,
+                raw_vlm_text=raw,
+                command_text="stop",
+            )
+            self._live_status.note_step_result(
+                decision_index=self.decision_index,
+                moved_m=0.0,
+                yaw_delta_deg=0.0,
+                executed_ticks=0,
+                done=True,
+                termination_reason="stop",
+            )
+            self._monitor_update(
+                status="NaVILA requested stop", vlm_output=raw, command="stop"
+            )
             return {"ok": True, **self._snapshot(), "action": "stop", "raw_vlm_text": raw}
 
         action_text = _action_text(cmd)
+        self._live_status.note_driver_decision(
+            decision_index=self.decision_index,
+            raw_vlm_text=raw,
+            command_text=_cmd_text(cmd),
+        )
 
         # Hazard Veto Agent (Stage 3 differentiator): one tactical vision check
         # per decision, gating this proposed motion before any physics runs.
@@ -808,6 +1432,12 @@ class _PerStepSession:
                 self.termination_reason = "veto"
                 self.last_action = "stop"
                 self.stop_override_suppressed = True
+                self._monitor_update(
+                    status=f"VETOED: {decision.reason}",
+                    vlm_output=raw,
+                    command="(blocked by Hazard Veto Agent)",
+                    chunk_result="zero physics executed",
+                )
                 return {
                     "ok": True,
                     **self._snapshot(),
@@ -880,6 +1510,28 @@ class _PerStepSession:
         ):
             done, self.phase, self.termination_reason = True, "done", "max_decisions"
 
+        self._live_status.note_step_result(
+            decision_index=self.decision_index,
+            moved_m=moved_m,
+            yaw_delta_deg=yaw_delta_deg,
+            executed_ticks=executed,
+            done=done,
+            termination_reason=self.termination_reason,
+        )
+        self._monitor_update(
+            status=(
+                "motion chunk completed"
+                if not done
+                else f"episode done: {self.termination_reason}"
+            ),
+            vlm_output=raw,
+            command=_cmd_text(cmd),
+            chunk_result=(
+                f"moved {moved_m:.2f} m, yaw {yaw_delta_deg:+.1f} deg "
+                f"over {executed}/{ticks} ticks"
+            ),
+        )
+
         return {
             "ok": True,
             **self._snapshot(),
@@ -916,14 +1568,16 @@ class _PerStepSession:
         # Record orchestrator-initiated stops in the same log as watchdog trips,
         # so navila_get_logbook is a complete account of every stop.
         deps = _load_perstep()
+        reason = "orchestrator-initiated emergency stop (navila_emergency_stop)"
         if self.logbook is not None and "WatchdogEvent" in deps:
             self.logbook.record_watchdog_trip(
                 deps["WatchdogEvent"](
                     step=self._watchdog_ticks,
                     force=-1.0,
-                    reason="orchestrator-initiated emergency stop (navila_emergency_stop)",
+                    reason=reason,
                 )
             )
+        self._live_status.on_watchdog_trip(reason)
         return {"ok": True, **self._snapshot(), "stop_path": stop_path}
 
     def reset_episode(self) -> dict:
@@ -990,6 +1644,8 @@ class _PerStepSession:
         self.last_vlm_text = None
         self.termination_reason = None
         self.phase = "running"
+        self._live_status.note_instruction_change(self.instruction)
+        self._monitor_update(status="new instruction; pose kept")
         return {
             "ok": True,
             **self._snapshot(),
@@ -1038,6 +1694,11 @@ class _PerStepSession:
         live = self._force_sensor is not None
         if live:
             self._force_sensor._events.clear()
+        self._live_status.clear_alert()
+        self._live_status._emit(
+            f"--- harness force back to nominal ({n} scheduled drop(s) cleared) ---",
+            kind="episode",
+        )
         return {
             "ok": True,
             "cleared": n,
@@ -1090,6 +1751,11 @@ class _PerStepSession:
         live = self._hazard_injector is not None
         if live:
             self._hazard_injector._events.clear()
+        self._live_status.clear_alert()
+        self._live_status._emit(
+            f"--- hazard cleared ({n} scheduled injection(s) cleared) ---",
+            kind="episode",
+        )
         return {
             "ok": True,
             "cleared": n,
@@ -1117,6 +1783,14 @@ class _PerStepSession:
             self.phase = "running"
             self.termination_reason = None
             cleared.append("phase -> running")
+        if cleared:
+            self._live_status.clear_alert()
+            self._live_status._emit(
+                "--- stop cleared; dog proceeds --- " + ", ".join(cleared),
+                kind="episode",
+            )
+            if self.phase == "running":
+                self._live_status.set_running(True)
         return {"ok": True, "cleared": cleared, **self._snapshot()}
 
     def get_logbook(self) -> dict:
@@ -1141,6 +1815,125 @@ class _PerStepSession:
         return {"ok": True, "entries": entries, "text": self.logbook.dump()}
 
 
+_SELFTEST_MONITOR = None  # keep a ref so the diagnostic window isn't GC-orphaned
+
+
+def _live_monitor_selftest_impl(keep_open: bool = True) -> dict:
+    """Open the OpenCV window right now with a synthetic frame and report exactly
+    what happened -- the one call to run when 'the live monitor didn't appear'."""
+    global _SELFTEST_MONITOR
+    import importlib
+
+    out: dict = {
+        "ok": False,
+        "opened": False,
+        "display": os.environ.get("DISPLAY"),
+        "wayland_display": os.environ.get("WAYLAND_DISPLAY"),
+        "server_python": sys.executable,
+        "env_NAVILA_BRIDGE_LIVE_MONITOR": os.environ.get("NAVILA_BRIDGE_LIVE_MONITOR"),
+    }
+
+    try:
+        cv2 = importlib.import_module("cv2")
+        out["cv2_version"] = getattr(cv2, "__version__", "?")
+        out["cv2_file"] = getattr(cv2, "__file__", "?")
+        out["cv2_build"] = (
+            "headless (no GUI functions)"
+            if "headless" in (out["cv2_file"] or "")
+            or not hasattr(cv2, "namedWindow")
+            else "gui"
+        )
+    except Exception as exc:  # noqa: BLE001
+        out["error"] = f"cannot import cv2: {type(exc).__name__}: {exc}"
+        out["hint"] = (
+            "pip install --only-binary=:all: opencv-python==5.0.0.93 into the env "
+            f"that runs THIS server ({sys.executable})"
+        )
+        return out
+
+    if not (out["display"] or out["wayland_display"]):
+        out["error"] = "no DISPLAY / WAYLAND_DISPLAY in the MCP server's environment"
+        out["hint"] = (
+            "the MCP server was spawned without an X/Wayland display in its env; "
+            "add DISPLAY (and XAUTHORITY) to the server's `env` in its `claude mcp` "
+            "registration, or relaunch the Claude session from a graphical terminal"
+        )
+        return out
+
+    deps = _load_perstep()
+    if "LiveNavigationMonitor" not in deps:
+        out["error"] = deps.get("live_monitor_error", "LiveNavigationMonitor import failed")
+        return out
+
+    try:
+        import numpy as _np
+
+        # Same dedicated-thread wrapper an episode uses, so the kept-open window
+        # keeps pumping and the WM never shows a "not responding" dialog.
+        if _SELFTEST_MONITOR is not None:
+            try:
+                _SELFTEST_MONITOR.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            _SELFTEST_MONITOR = None
+        mt = _MonitorThread(
+            lambda: deps["LiveNavigationMonitor"](
+                window_name="guide dog -- live monitor (self-test)"
+            )
+        )
+        if not mt.ok():
+            raise RuntimeError(mt.error or "monitor thread failed to start")
+        rng = _np.random.default_rng(0)
+        for i in range(6):
+            frame = type(
+                "_F",
+                (),
+                {
+                    "rgb": rng.integers(0, 255, (360, 480, 3), dtype=_np.uint8),
+                    "step_id": i,
+                    "sim_time_s": float(i) * 0.1,
+                },
+            )()
+            mt.submit(
+                frame,
+                instruction="live monitor self-test",
+                vlm_output="(synthetic frame -- no episode running)",
+                command="none",
+                status="SELF-TEST OK -- this window is what an episode will use",
+                decision=i,
+                chunk_result="n/a",
+            )
+            time.sleep(0.15)
+        if not mt.ok():
+            raise RuntimeError(mt.error or "monitor thread died during update")
+        out["ok"] = True
+        out["opened"] = True
+        if keep_open:
+            _SELFTEST_MONITOR = mt  # leave the (pumped) window up
+            out["note"] = (
+                "a window titled 'guide dog -- live monitor' should be visible now "
+                "and stay responsive. If you see it, the pipeline works -- start an "
+                "episode (live_monitor defaults on) and it refreshes with the dog's "
+                "view. For a REAL ego frame (not the 8x8 placeholder) use "
+                "backend_kind=orcalab-mock + camera=true with the OrcaLab GUI up "
+                "and a 'mujococamera1080' actor in the scene."
+            )
+        else:
+            mt.stop()
+            out["note"] = "opened and closed cleanly"
+    except Exception as exc:  # noqa: BLE001
+        import traceback
+
+        out["error"] = f"{type(exc).__name__}: {exc}"
+        out["traceback"] = traceback.format_exc()[-1500:]
+        out["hint"] = (
+            "cv2 imported but the window call failed -- usually a headless cv2 "
+            "build ('The function is not implemented. Rebuild ... with GTK+'), or "
+            "a Qt/xcb plugin problem. Check cv2_build above."
+        )
+    return out
+
+
 _SESSION = _PerStepSession()
 
 
@@ -1162,52 +1955,43 @@ def navila_start_episode(
     force_high: float | None = None,
     veto: bool | None = None,
     veto_client_kind: str | None = None,
+    live_monitor: bool | None = None,
+    camera: bool | None = None,
+    camera_name: str | None = None,
 ) -> dict:
-    """Arm a per-step navigation episode. After this, call navila_navigate_step
-    repeatedly until it returns done=true.
+    """Arm a per-step navigation episode, then call navila_navigate_step until
+    done=true. Poll navila_get_live_status between steps for the judge feed.
 
-    instruction: natural-language navigation goal for NaVILA.
-    goal_x / goal_y: optional world-frame target; when set, the episode ends with
-        termination_reason 'goal_reached' once the robot is within goal_radius (m).
-    max_decisions / max_control_steps: safety caps (0 = unlimited).
-    backend_kind: 'mock' (default), 'mjlab', 'orcalab' (mjlab root pose mirrored
-        into the OrcaLab GUI), 'orcalab-mock' (planar root pose mirrored into the
-        GUI, no GPU), or 'orcalab-render' (real MJWarp gait with full articulated
-        qpos pushed through OrcaLabRenderBridge). The root-only mirror kinds fall
-        back to headless if the edit service on :50151 isn't reachable; the
-        articulated renderer fails closed if OrcaLab is unavailable.
-        vlm_kind: 'mock' (default) or 'tcp'.
-    vlm_script: ';'-separated action phrases for the mock VLM, e.g.
-        "move forward by 75 cm; turn left by 30 degrees; stop".
-    vlm_timeout_s: per-decision socket timeout for vlm_kind='tcp' (default: the
-        tested 120s whole-episode client default -- shorten this once real
-        per-decision GPU latency is measured for a tighter live-loop budget).
-        Ignored for vlm_kind='mock'. Any timeout/connection failure here
-        degrades to a safe STOP (termination_reason='vlm_error'), never a hang
-        or a crashed tool call.
-    watchdog: attach A's SafetyWatchdog (harness-force reactive e-stop). Polls a
-        MockForceSensor once per physics step; an out-of-band reading for
-        watchdog_debounce_ticks consecutive ticks trips backend.emergency_stop()
-        and ends the step with termination_reason 'emergency_stop'. Schedule the
-        fault with navila_inject_force_drop; read the outcome with navila_get_logbook.
-    force_low / force_high: safe harness-force band in newtons (default 20-80,
-        nominal mock reading is 45). Pass both to override.
-    veto: attach the Hazard Veto Agent (tactical, ~1Hz vision gate) via a
-        VetoVisionClient (default: a self-contained stub that VETOes when
-        ScenarioInjector's red hazard marker is present in the current frame --
-        no API key needed). Omit to defer to NAVILA_BRIDGE_VETO (default on).
-        A VETO ends the step with termination_reason='veto' and skips the
-        motion chunk entirely; schedule the test hazard with
-        navila_inject_hazard, read the outcome with navila_get_logbook.
-    veto_client_kind: which VetoVisionClient backs the gate -- 'stub' (default,
-        free, no API key, pixel-color detection) or 'anthropic' (one real
-        Claude vision call per decision, model claude-haiku-4-5, needs
-        ANTHROPIC_API_KEY and `pip install -e "NaVILA-Orca[veto]"` -- costs
-        money and adds latency, so it is opt-in, never the default). Also
-        settable via NAVILA_BRIDGE_VETO_CLIENT. A construction failure (e.g.
-        the anthropic package missing) degrades the episode to veto_agent
-        disabled rather than failing this call -- check the response's
-        veto_enabled / veto_client_error fields.
+    instruction: natural-language goal for NaVILA.
+    goal_x/goal_y (+goal_radius m): optional world target -> ends 'goal_reached'.
+    max_decisions/max_control_steps: caps (0 = unlimited).
+    backend_kind: 'mock' (default, planar, headless), 'mjlab' (real physics,
+        headless), 'orcalab'/'orcalab-mock' (root pose mirrored into the OrcaLab
+        GUI; -mock = no GPU), 'orcalab-render' (real articulated gait in OrcaLab).
+    vlm_kind: 'mock' (default) or 'tcp'. vlm_script: ';'-separated phrases for the
+        mock VLM, e.g. "move forward by 75 cm; turn left by 30 degrees; stop".
+    vlm_timeout_s: per-decision tcp socket timeout (default 120s; failure -> STOP).
+    watchdog (+watchdog_debounce_ticks, force_low/force_high N): A's harness-force
+        reactive e-stop. Fault-inject with navila_inject_force_drop.
+    veto (+veto_client_kind 'stub'|'anthropic'): Hazard Veto Agent vision gate,
+        default on. 'anthropic' = one real Claude vision call/decision (needs
+        ANTHROPIC_API_KEY + the 'veto' extra); a bad client degrades to veto
+        disabled (see veto_enabled/veto_client_error). Inject with
+        navila_inject_hazard.
+    live_monitor: OpenCV dog's-eye window (ego RGB + instruction/NaVILA/command
+        panel), on its own thread so it stays responsive between tool calls.
+        DEFAULT best-effort -- opens automatically when cv2 + a DISPLAY are
+        present, skips quietly otherwise. true forces it (failure warns loudly;
+        debug with navila_live_monitor_selftest); false suppresses/closes it.
+        Also NAVILA_BRIDGE_LIVE_MONITOR. Response `live_monitor` = 'on'/'off'/why.
+    camera (+camera_name, default 'mujococamera1080'): show a REAL ego frame
+        instead of the 8x8 placeholder. AUTO-ENABLED when live_monitor is on and
+        backend_kind is 'orcalab'/'orcalab-mock'; pass camera=false to opt out.
+        Needs the OrcaLab GUI + edit service (:50151) up AND that camera actor
+        already in the loaded scene -- it is NOT in street.json, add the
+        prefabs/mujococamera1080 prefab once per scene load or capture falls back
+        to the placeholder. = NAVILA_BRIDGE_ORCA_CAMERA=1; also feeds the veto
+        agent a real frame.
     """
     return _jsonable(
         _SESSION.start_episode(
@@ -1227,6 +2011,9 @@ def navila_start_episode(
             force_high=force_high,
             veto=veto,
             veto_client_kind=veto_client_kind,
+            live_monitor=live_monitor,
+            camera=camera,
+            camera_name=camera_name,
         )
     )
 
@@ -1464,6 +2251,71 @@ def navila_reset_scene_layout(actor_names: str | None = None) -> dict:
     return _jsonable(_reset_scene_layout_impl(actor_names))
 
 
+def _spawn_camera_impl(
+    actor_name: str = "mujococamera1080",
+    asset_path: str = "prefabs/mujococamera1080",
+    x: float = 0.1,
+    y: float = 0.0,
+    z: float = 0.5,
+    replace: bool = False,
+) -> dict:
+    deps = _load_perstep()
+    if "error" in deps:
+        return {"ok": False, "error": deps["error"]}
+    if "spawn_camera_actor" not in deps:
+        return {"ok": False, "error": "spawn helper unavailable in this build"}
+    if not actor_name or not actor_name.strip():
+        return {"ok": False, "error": "actor_name must be a non-empty string"}
+    try:
+        info = deps["spawn_camera_actor"](
+            actor_name.strip(),
+            (asset_path or "prefabs/mujococamera1080").strip(),
+            (float(x), float(y), float(z)),
+            replace=bool(replace),
+        )
+    except Exception as exc:  # noqa: BLE001 -- surface connection / prefab / RPC failure
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "note": (
+                "is the OrcaLab GUI + edit service (port 50151) up? "
+                "'prefabs/mujococamera1080' is a built-in OrcaLab prefab -- if the "
+                "add is refused, the OrcaLab build may not ship it under that path; "
+                "try adding the camera prefab from the OrcaLab GUI instead."
+            ),
+        }
+    return {"ok": True, **info}
+
+
+@mcp.tool()
+def navila_spawn_camera(
+    actor_name: str = "mujococamera1080",
+    asset_path: str = "prefabs/mujococamera1080",
+    x: float = 0.1,
+    y: float = 0.0,
+    z: float = 0.5,
+    replace: bool = False,
+) -> dict:
+    """Add the persistent MuJoCo ego-camera actor to the loaded OrcaLab scene so
+    `camera` capture / the live monitor have something real to show.
+
+    'prefabs/mujococamera1080' is a BUILT-IN OrcaLab prefab -- there is nothing
+    to download or obtain; this instantiates it as a root actor named
+    `actor_name` at mount offset (x, y, z) via the edit service (:50151), the
+    same connection the pose mirror uses. Idempotent: a no-op if the actor is
+    already there (pass replace=true to delete + re-add). The add is LIVE ONLY
+    and is not written to the scene file -- rerun this after every fresh scene
+    load, or bake the actor into the scene.
+
+    Independent of any episode/backend. Requires the OrcaLab GUI + edit service
+    up; returns ok=False with the error (never raises) otherwise. Once the actor
+    exists, an episode with backend_kind 'orcalab'/'orcalab-mock' + camera on
+    moves it onto the dog before each capture (camera-follow), so the ego view
+    tracks the robot.
+    """
+    return _jsonable(_spawn_camera_impl(actor_name, asset_path, x, y, z, replace))
+
+
 @mcp.tool()
 def navila_clear_stop() -> dict:
     """Un-latch an emergency stop (watchdog trip or navila_emergency_stop) so the
@@ -1473,11 +2325,60 @@ def navila_clear_stop() -> dict:
 
 
 @mcp.tool()
+def navila_live_monitor_selftest(keep_open: bool = True) -> dict:
+    """Diagnose the OpenCV dog's-eye "live monitor" window in one call -- run this
+    when a live_monitor=true episode showed no window.
+
+    Opens the window immediately with a synthetic frame (no episode needed) and
+    returns a report: cv2 version + whether it's the GUI or -headless build,
+    DISPLAY / WAYLAND_DISPLAY seen by the server, which Python runs the server,
+    and on failure the exact exception + a hint (headless cv2, missing DISPLAY,
+    Qt plugin, ...). keep_open=true (default) leaves the window up so you can
+    confirm it visually; false opens and closes it.
+    """
+    return _jsonable(_live_monitor_selftest_impl(keep_open=keep_open))
+
+
+@mcp.tool()
 def navila_get_logbook() -> dict:
     """Return the merged Safety Watchdog + Hazard Veto decision log for the current
     episode: a timestamped list of every emergency stop and every veto.
     This is the 'how do you know it's making good decisions' answer for Q&A."""
     return _jsonable(_SESSION.get_logbook())
+
+
+@mcp.tool()
+def navila_get_live_status(since_seq: int = 0, max_lines: int = 40) -> dict:
+    """Judge-facing LIVE commentary of the per-step loop -- poll this between
+    navila_navigate_step calls and read `new_lines` out to the audience.
+
+    It is a pure formatter over data that already flows through
+    navila_navigate_step and A's DecisionLogbook -- it makes NO extra model
+    calls. What it carries:
+
+      * a per-decision trace: what the Orchestrator asked NaVILA for, whether
+        the ego frame was a real OrcaLab capture or the 8x8 placeholder, what
+        NaVILA decided, the exact velocity command sent to the robot, and how
+        far the dog actually moved;
+      * the instant the Safety Watchdog trips or the Hazard Veto Agent issues a
+        VETO, a loud banner carrying that exact reason, e.g.
+        `[VETO: red pedestrian signal detected]` -- also surfaced on its own as
+        `active_alert`;
+      * a `Status: CLEAR - Navigating` heartbeat roughly every 3s while an
+        episode is running and nothing is wrong, so the loop is visibly alive
+        even during a slow NaVILA inference.
+
+    since_seq: pass the `next_seq` from your previous call to get only what's
+        new since then (0 = from the start of the buffer).
+    max_lines: cap on how many lines to return (newest kept).
+
+    Returns: status_line, active_alert, new_lines (list of formatted strings),
+    next_seq, live_monitor (state of the optional OpenCV window), and
+    logbook_tail (the last few DecisionLogbook entries, structured).
+    """
+    return _jsonable(
+        _SESSION.get_live_status(since_seq=int(since_seq), max_lines=int(max_lines))
+    )
 
 
 if __name__ == "__main__":

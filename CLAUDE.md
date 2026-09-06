@@ -233,6 +233,44 @@ Don't build a `RobotBackend`↔`StepBackend` bridge unless the real hardware pat
 **C's queue (items 1-6, docs/PLAN.md) is now fully done and live-verified.** Only item 4 (C2
 seam check) remains, blocked on D's real-gait half landing.
 
+- **Live judge-facing observability for Loop A — done, live-verified 2026-09-06.**
+  Four new MCP tools + auto behaviour on the per-step bridge; **zero new LLM calls** (pure
+  formatting of data already in `navigate_step` + A's `DecisionLogbook`):
+  - **`navila_get_live_status(since_seq=, max_lines=)`** — the running text feed the
+    Orchestrator polls between steps and reads to the audience: a per-decision trace
+    (instruction → ego-frame description → NaVILA action → velocity command → distance
+    moved), a loud `[VETO: <reason>]` / `[EMERGENCY STOP: <reason>]` banner the instant the
+    veto agent / watchdog trips (also `active_alert`), a `Status: CLEAR - Navigating`
+    heartbeat ~every 3s (daemon thread in `_LiveStatusFeed` covers gaps between calls), and
+    `logbook_tail`. The watchdog `on_trip` / veto `on_decision` callbacks fan out to both
+    the logbook and the feed (`_on_watchdog_trip` / `_on_veto_decision`). Also mirrored to
+    the MCP server's stderr (stdout is the MCP transport).
+  - **OpenCV ego window** (`LiveNavigationMonitor`) — now opens **automatically on every
+    `navila_start_episode`** (best-effort: `live_monitor` defaults on, skips quietly if
+    cv2/DISPLAY absent; `true` forces + warns, `false` closes). Runs on its **own thread**
+    with a continuous pump loop (an un-pumped window → desktop "not responding / Force Quit"
+    dialog) and is **session-scoped** (reused across episodes, not recreated). Needed GUI
+    `opencv-python` in the **`orcalab`** env (the one the `claude mcp` registration runs,
+    *not* `orcalab-phys`) — installed 2026-09-06.
+  - **`navila_live_monitor_selftest(keep_open=)`** — one-call diagnosis when no window
+    appears: cv2 version + gui/headless build, `DISPLAY`/`WAYLAND_DISPLAY`, server python,
+    exception + hint.
+  - **`navila_spawn_camera(actor_name=, asset_path=, x/y/z=, replace=)`** +
+    `bridge_backends.spawn_camera_actor()` — adds the built-in `prefabs/mujococamera1080`
+    prefab to the loaded scene via `add_actor_batch` on `:50151` (mirrors
+    `orca_camera.OrcaMujocoCameraFollower._start_async`). Idempotent; live-only (re-run per
+    scene load). `camera` auto-enables when `live_monitor` is on + `backend_kind` is
+    `orcalab`/`orcalab-mock`.
+  - **Camera-follow** — `OrcaLabMirrorBackend` pushes the camera actor to `robot pose ⊕
+    mount offset` (`orca_camera.compose_camera_pose`, yaw-stabilised) lazily inside
+    `capture_frame()` (not per physics tick — each edit RPC is ~0.9s here). Env:
+    `NAVILA_BRIDGE_ORCA_CAMERA_FOLLOW` / `..._STABILIZE` (both default on).
+  - **Live-verified**: `spawn_camera_actor()` added the actor to a running OrcaLab,
+    `capture_frame()` returned a real 1080×1080 render, and the ego frame changed as the
+    dog drove forward. `test_navila_bridge.py` 49→67 + `test_bridge_backends.py` 23→28, all
+    green under pytest + the zero-dep runners. See `docs/CONFIRMED_FLOW.md`'s "Watching
+    Loop A live" + the callout at the top of its Manual test cases.
+
 ## D's components / handover
 
 D's actual working NaVILA-Orca fork (branch `daphne-demo-ready`) is **now merged into `main`**

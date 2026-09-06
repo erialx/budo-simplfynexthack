@@ -83,11 +83,63 @@ watchdog + veto both on):
 - **`orcalab-render` (real gait in Loop A) is merged but not live-verified.** Unit-tested
   against a fake inner backend (`test_bridge_backends_orcalab_render.py`, 4/4 pass) but
   never run against the actual OrcaLab GUI. Test Case 5 below closes this out.
-- **Real camera capture needs manual setup per scene load.** `mujococamera1080` isn't
-  baked into `street.json` — it must be spawned once via `add_actor_batch` after every
-  fresh scene load, or `capture_frame()` silently falls back to placeholder frames.
+- **Real camera capture needs one setup step per scene load.** `mujococamera1080` isn't
+  baked into `street.json`. Spawn it once after each fresh scene load — `navila_spawn_camera()`
+  (2026-09-06, live-verified) is the one-call way; else `capture_frame()` silently falls
+  back to the 8×8 placeholder. `prefabs/mujococamera1080` itself is a built-in OrcaLab
+  prefab (nothing to obtain).
 - **Real NaVILA VLM untested this session** — the AWS tunnel to the inference endpoint
   was down. All flow confirmation above used the deterministic mock VLM.
+
+## Watching Loop A live (judge-facing)
+
+Loop A's stdout **is** the MCP stdio transport, so the bridge can't just `print()` a
+running status. Two observability seams exist instead:
+
+- **`navila_get_live_status(since_seq=, max_lines=)`** — a text feed the Orchestrator
+  polls between `navila_navigate_step` calls and reads out to the audience. It carries a
+  per-decision trace (instruction in → ego frame described → NaVILA's action → the exact
+  velocity command → distance moved), a loud `[VETO: <reason>]` / `[EMERGENCY STOP:
+  <reason>]` banner the instant the veto agent or watchdog fires (also surfaced as
+  `active_alert`), a `Status: CLEAR - Navigating` heartbeat ~every 3s while nothing is
+  wrong, and `logbook_tail` (the last few `DecisionLogbook` entries). **No extra model
+  calls** — it only formats data already flowing through the loop. Every line is also
+  mirrored to the MCP server's stderr. Pass the previous response's `next_seq` back as
+  `since_seq` for just what's new.
+- **The OpenCV ego-view window** (`LiveNavigationMonitor`, same view as
+  `navila-orca run --live-monitor`). Opens **automatically** on `navila_start_episode`
+  when GUI `opencv-python` (not `-headless`) and a `DISPLAY` are present in the MCP
+  server's interpreter — the server runs under the **`orcalab`** conda env (its
+  `claude mcp` registration, *not* the `orcalab-phys` one used only for
+  `navila_run_instruction`'s shell-out). It runs on **its own thread** with a continuous
+  pump loop, so it stays responsive between MCP tool calls (an un-pumped window makes the
+  desktop show a "not responding / Force Quit or Wait" dialog) and is **session-scoped** —
+  reused across episodes, not recreated. `live_monitor=false` closes it;
+  `live_monitor=true` forces it (a failure then warns loudly). If a dependency is missing
+  the episode still runs and the response's `live_monitor` field says why.
+  - **`navila_live_monitor_selftest()`** — run this if no window appears. Opens the
+    window immediately with a synthetic frame and returns a full diagnosis (cv2 version
+    and whether it's the GUI or headless build, `DISPLAY`/`WAYLAND_DISPLAY`, which Python
+    runs the server, and on failure the exception + a hint).
+  - **Real dog's-eye frame** instead of the 8×8 black placeholder: `camera` is
+    **auto-enabled** when `live_monitor` is on and `backend_kind` is
+    `orcalab-mock`/`orcalab` (pass `camera=false` to opt out). It additionally needs the
+    OrcaLab GUI + edit service (:50151) up **and a `mujococamera1080` actor in the loaded
+    scene**. That actor is **not** in `street.json` and there is nothing to download —
+    `prefabs/mujococamera1080` is a built-in OrcaLab prefab. Get it into the scene one of
+    three ways: call **`navila_spawn_camera()`** (adds it via the edit service; live-only,
+    rerun per scene load), add the `prefabs/mujococamera1080` prefab in the OrcaLab GUI,
+    or run `NaVILA-Orca/scripts/run_orcalab_camera_smoke.sh` once (it creates the actor,
+    `--no-publish`, then exits). Without the actor, capture fails silently and the panel
+    shows the placeholder — that black square is the symptom of "no camera actor," not a
+    bug. The camera **follows the dog**: `capture_frame()` pushes the camera actor to
+    `robot pose ⊕ mount offset` (`compose_camera_pose`, yaw-stabilised) just before each
+    capture, so the ego view tracks the robot as it moves (`NAVILA_BRIDGE_ORCA_CAMERA_
+    FOLLOW=0` / `..._STABILIZE=0` to tune). **Live-verified 2026-09-06**: `spawn_camera_
+    actor()` added the actor to a running OrcaLab, `capture_frame()` returned a real
+    1080×1080 render, and the frame changed as the dog drove forward.
+  - This window is **not** part of the OrcaLab GUI. **Restart the MCP server** after any
+    `navila_bridge.py` change so it reloads.
 
 ## Manual test cases
 
@@ -100,6 +152,32 @@ own for any case marked "GUI check required."
 Prerequisite for every case below: the OrcaLab GUI is open with a scene loaded, and its
 edit service is reachable (`netstat -ano | findstr 50151` / `ss -tln | grep 50151`
 should show something listening).
+
+### Before you run ANY test case: live monitor + status feed
+
+These apply to every TC below — set them up once, then watch them on every run.
+
+1. **Restart the `navila-orcalab` MCP server** if `navila_bridge.py` changed since it
+   started (it loads the file once). The server runs under the **`orcalab`** conda env.
+2. **One-time per scene load — add the ego camera:** call **`navila_spawn_camera()`**
+   (or run `bridge_backends.spawn_camera_actor()`, or drop the `prefabs/mujococamera1080`
+   prefab in the OrcaLab GUI). `prefabs/mujococamera1080` is a built-in OrcaLab prefab —
+   nothing to download; the add is live-only, so redo it after every fresh scene load.
+   Skip this and the ego panel just shows an 8×8 black placeholder.
+3. **The OpenCV "guide dog — live monitor" window MUST appear on every
+   `navila_start_episode`** and update as the dog moves. It opens automatically
+   (`live_monitor` defaults on, own thread so it never freezes, session-scoped so it
+   persists across episodes). With `backend_kind` `orcalab-mock`/`orcalab`, `camera`
+   auto-enables and the ego view **follows the dog**. **If the window does not appear,
+   treat that as a failure**: run **`navila_live_monitor_selftest()`** (returns cv2
+   build, `DISPLAY`, server python, and the exact reason) before continuing. `camera=false`
+   / `live_monitor=false` opt out.
+4. **Narrate with the status feed:** poll **`navila_get_live_status(since_seq=)`** between
+   `navila_navigate_step` calls and read `new_lines` to the audience — per-decision trace,
+   loud `[VETO: …]` / `[EMERGENCY STOP: …]` banners the instant they fire, a
+   `Status: CLEAR - Navigating` heartbeat, and `logbook_tail`. Pass the previous response's
+   `next_seq` back as `since_seq` for just what's new. No extra model calls. Full detail:
+   "Watching Loop A live" above.
 
 ---
 
@@ -115,6 +193,12 @@ by 75 cm; stop', then take one navigation step."
 - [ ] The tool response is a JSON object with `action`, `pose`, `done` — no image data,
   no base64 blob, nothing resembling pixel content.
 - [ ] **GUI check:** the dog actor visibly moved forward between before/after.
+- [ ] The "guide dog — live monitor" window opened on `navila_start_episode` and its
+  panels (ego frame, instruction, NaVILA output, command) updated on the step. If the
+  `mujococamera1080` actor was spawned, the ego frame is a real render that tracks the
+  dog, not the 8×8 placeholder. (Absent window → `navila_live_monitor_selftest()`.)
+- [ ] `navila_get_live_status()` returns the decision trace + a `Status: CLEAR -
+  Navigating` line for this run.
 
 **Pass:** both boxes checked.
 

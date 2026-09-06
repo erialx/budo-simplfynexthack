@@ -297,6 +297,23 @@ class OrcaLabMirrorBackend:
         self._camera_output_dir: str | None = None
         self._camera_request_index = 0
         self._camera_failures = 0
+        # Camera-follow: when the ego camera is enabled, also push its world
+        # transform to (robot pose (+) mount offset) every step so capture_frame
+        # returns an actual head-mounted view, not a static shot from wherever
+        # the actor was spawned. Best-effort and pushed in its OWN edit-service
+        # call (not batched with the robot) so a missing camera actor can never
+        # stall the body mirror. Default on whenever the camera is on; disable
+        # with NAVILA_BRIDGE_ORCA_CAMERA_FOLLOW=0.
+        self._camera_follow = self._camera_enabled and _env_flag(
+            "NAVILA_BRIDGE_ORCA_CAMERA_FOLLOW", True
+        )
+        self._camera_stabilize = _env_flag(
+            "NAVILA_BRIDGE_ORCA_CAMERA_STABILIZE", True
+        )
+        self._camera_path = None
+        self._compose_camera_pose = None
+        self._camera_follow_failures = 0
+        self._last_state = None
 
     # -- StepBackend surface (delegate to inner) -------------------------------
     @property
@@ -406,6 +423,20 @@ class OrcaLabMirrorBackend:
             self._service = self._call(_setup())
             self._runtime_transform = transform_type
             self._robot_path = path_type(f"/{actor_name}")
+            if self._camera_follow:
+                try:
+                    from navila_orca.render.orca_camera import compose_camera_pose
+
+                    self._compose_camera_pose = compose_camera_pose
+                    self._camera_path = path_type(f"/{self._camera_name}")
+                except Exception as exc:  # noqa: BLE001 -- follow is optional
+                    self._camera_follow = False
+                    print(
+                        f"[orcalab-mirror] camera-follow disabled ({exc!r}); "
+                        "capture will use the camera's spawned pose.",
+                        file=sys.stderr,
+                        flush=True,
+                    )
         except Exception as exc:  # noqa: BLE001 -- mirror is best-effort
             self._mirror_disabled = True
             self._mirror_error = f"{type(exc).__name__}: {exc}"
@@ -421,6 +452,11 @@ class OrcaLabMirrorBackend:
     def _mirror(self, state: Any) -> None:
         if self._mirror_disabled or self._service is None or state is None:
             return
+        # Stash for camera-follow, which is applied lazily in capture_frame()
+        # rather than here -- the camera only has to be in position when a frame
+        # is actually pulled (~2x per navigate_step), not on every physics tick
+        # (50-150x), and each edit-service RPC costs real latency.
+        self._last_state = state
         try:
             pos = np.asarray(state.root_pos_world, dtype=np.float64).reshape(3)
             quat = np.asarray(state.root_quat_wxyz, dtype=np.float64).reshape(4)
@@ -446,6 +482,51 @@ class OrcaLabMirrorBackend:
                     flush=True,
                 )
 
+    def _follow_camera_to_robot(self) -> None:
+        """Push the ego camera actor to (robot pose (+) mount offset) so the next
+        capture is a head-mounted view. Best-effort, its own edit-service call --
+        a missing/renamed camera actor must never stall the loop. Called from
+        capture_frame(), not _mirror()."""
+        state = self._last_state
+        if not (
+            self._camera_follow
+            and self._camera_path is not None
+            and self._service is not None
+            and state is not None
+        ):
+            return
+        try:
+            pos = np.asarray(state.root_pos_world, dtype=np.float64).reshape(3)
+            quat = np.asarray(state.root_quat_wxyz, dtype=np.float64).reshape(4)
+            cam_pos, cam_quat = self._compose_camera_pose(
+                pos, quat, stabilize_horizon=self._camera_stabilize
+            )
+            cam_transform = self._runtime_transform(
+                position=np.asarray(cam_pos, dtype=np.float64).copy(),
+                rotation=np.asarray(cam_quat, dtype=np.float64).copy(),
+                scale=1.0,
+            )
+            service = self._service
+            cam_path = self._camera_path
+
+            async def _push_cam() -> None:
+                await self._maybe_await(
+                    service.set_actor_transform_batch([cam_path], [cam_transform])
+                )
+
+            self._call(_push_cam())
+        except Exception as exc:  # noqa: BLE001 -- follow is best-effort
+            self._camera_follow_failures += 1
+            if self._camera_follow_failures == 1:
+                print(
+                    f"[orcalab-mirror] camera-follow push failed "
+                    f"({type(exc).__name__}: {exc}); the ego view will not track "
+                    f"the dog. Is the {self._camera_name!r} actor in the scene "
+                    "(navila_spawn_camera)?",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
     def capture_frame(self) -> "np.ndarray | None":
         """Pull one real RGB frame from OrcaLab's persistent MuJoCo camera actor
         (C2's GPU-free camera fallback, docs/PLAN.md). Reuses the same
@@ -460,6 +541,7 @@ class OrcaLabMirrorBackend:
         """
         if not self._camera_enabled or self._mirror_disabled or self._service is None:
             return None
+        self._follow_camera_to_robot()  # move the ego camera onto the dog first
         try:
             from PIL import Image
 
@@ -634,6 +716,169 @@ def trigger_scene_hazard(
 
     try:
         asyncio.run_coroutine_threadsafe(_run(), loop).result(timeout=15.0)
+    finally:
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+            thread.join(timeout=2.0)
+            loop.close()
+        except Exception:  # noqa: BLE001 -- loop teardown is best-effort
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Spawn the persistent MuJoCo ego-camera actor -- so camera=true / the live
+# monitor have something to capture from. 'prefabs/mujococamera1080' is a
+# built-in OrcaLab prefab (nothing to download); this instantiates it as a
+# root actor via the SAME edit-service the pose mirror uses. Mirrors the
+# add_actor_batch call verified in navila_orca.render.orca_camera's
+# OrcaMujocoCameraFollower._start_async.
+# ---------------------------------------------------------------------------
+
+def _load_orca_spawn_runtime():
+    """Import the OrcaLab symbols needed to add a prefab actor. Separate from
+    _load_orca_edit_runtime (which only needs Transform/Path) so a missing
+    orcalab.actor / orcalab.scene_edit_types surfaces its own clear error."""
+    import importlib
+
+    try:
+        transform_mod = importlib.import_module("orcalab.transform")
+    except ModuleNotFoundError:
+        transform_mod = importlib.import_module("orcalab.math")
+    path_mod = importlib.import_module("orcalab.path")
+    actor_mod = importlib.import_module("orcalab.actor")
+    edit_types_mod = importlib.import_module("orcalab.scene_edit_types")
+    wrapper_mod = importlib.import_module("orcalab.protos.edit_service_wrapper")
+    return (
+        wrapper_mod.EditServiceWrapper,
+        transform_mod.Transform,
+        path_mod.Path,
+        actor_mod.AssetActor,
+        edit_types_mod.AddActorRequest,
+    )
+
+
+def spawn_camera_actor(
+    actor_name: str = "mujococamera1080",
+    asset_path: str = "prefabs/mujococamera1080",
+    position: Sequence[float] = (0.1, 0.0, 0.5),
+    rotation_wxyz: Sequence[float] = (1.0, 0.0, 0.0, 0.0),
+    *,
+    replace: bool = False,
+    edit_address: str | None = None,
+) -> dict:
+    """Add the persistent MuJoCo ego camera to the loaded OrcaLab scene.
+
+    'prefabs/mujococamera1080' ships with OrcaLab -- there is nothing to
+    download; this instantiates that prefab as a root actor named
+    ``actor_name``. Idempotent: if the actor already exists it is left alone
+    (``replace=True`` deletes and re-adds it). The add is live-only and does
+    NOT persist to the scene file -- redo it after each fresh scene load, or
+    bake the actor into the scene.
+
+    Same one-shot connect/call/disconnect + own-event-loop-thread pattern as
+    trigger_scene_hazard, and like it, failures are RAISED (OrcaLab not
+    running, prefab path wrong, ...), not swallowed. Returns a small dict:
+    {actor_name, asset_path, created: bool, note}.
+    """
+    import asyncio
+    import threading
+
+    address = edit_address or os.environ.get(
+        "NAVILA_BRIDGE_ORCA_EDIT_ADDRESS", "127.0.0.1:50151"
+    )
+    (
+        service_factory,
+        transform_type,
+        path_type,
+        asset_actor_type,
+        add_actor_request_type,
+    ) = _load_orca_spawn_runtime()
+
+    loop = asyncio.new_event_loop()
+    ready = threading.Event()
+
+    def _run_loop() -> None:
+        asyncio.set_event_loop(loop)
+        ready.set()
+        loop.run_forever()
+
+    thread = threading.Thread(
+        target=_run_loop, name="orcalab-camera-spawn", daemon=True
+    )
+    thread.start()
+    ready.wait(timeout=5.0)
+
+    async def _maybe_await(value: Any) -> Any:
+        if asyncio.iscoroutine(value):
+            return await value
+        return value
+
+    def _root_path():
+        rp = getattr(path_type, "root_path", None)
+        return rp() if callable(rp) else path_type("/")
+
+    async def _run() -> dict:
+        service = service_factory()
+        try:
+            await _maybe_await(service.init_grpc(address))
+            if not await _maybe_await(service.aloha()):
+                raise RuntimeError(f"OrcaLab edit service not reachable at {address}")
+            actor_path = path_type(f"/{actor_name}")
+
+            exists = False
+            try:
+                await _maybe_await(
+                    service.get_actor_property_groups_batch([actor_path])
+                )
+                exists = True
+            except Exception:  # noqa: BLE001 -- absent actor -> the add below
+                exists = False
+
+            if exists and not replace:
+                return {
+                    "actor_name": actor_name,
+                    "asset_path": asset_path,
+                    "created": False,
+                    "note": "actor already present; pass replace=true to recreate it",
+                }
+            if exists and replace:
+                try:
+                    await _maybe_await(service.delete_actor_batch([actor_path]))
+                except Exception as exc:  # noqa: BLE001
+                    raise RuntimeError(f"could not delete existing {actor_name!r}: {exc}")
+
+            pos = np.asarray(position, dtype=np.float64).reshape(3)
+            rot = np.asarray(rotation_wxyz, dtype=np.float64).reshape(4)
+            actor = asset_actor_type(actor_name, asset_path)
+            actor.transform = transform_type(
+                position=pos.copy(), rotation=rot.copy(), scale=1.0
+            )
+            request = add_actor_request_type(actor, _root_path())
+            try:
+                await _maybe_await(service.add_actor_batch([request]))
+            except TypeError:
+                added, errors = await _maybe_await(
+                    service.add_actor_batch([request], True)
+                )
+                if not added:
+                    raise RuntimeError(
+                        "OrcaLab refused add_actor_batch: " + "; ".join(errors or [])
+                    )
+            return {
+                "actor_name": actor_name,
+                "asset_path": asset_path,
+                "created": True,
+                "note": "added to the live scene (not saved to the scene file)",
+            }
+        finally:
+            if hasattr(service, "destroy_grpc"):
+                try:
+                    await _maybe_await(service.destroy_grpc())
+                except Exception:  # noqa: BLE001 -- best-effort cleanup
+                    pass
+
+    try:
+        return asyncio.run_coroutine_threadsafe(_run(), loop).result(timeout=20.0)
     finally:
         try:
             loop.call_soon_threadsafe(loop.stop)
